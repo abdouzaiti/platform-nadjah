@@ -1,0 +1,9 @@
+{
+  "name": "Ecole Nadjah Live",
+  "description": "A professional live streaming platform for Ecole Nadjah with dedicated dashboards for teachers to stream and students to watch.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ],
+  "majorCapabilities": []
+}
