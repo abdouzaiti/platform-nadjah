@@ -30,6 +30,7 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
   const [localTracks, setLocalTracks] = useState<{ audioTrack: IMicrophoneAudioTrack; videoTrack: ICameraVideoTrack } | null>(null);
   const [remoteStudents, setRemoteStudents] = useState<IRemoteVideoTrack | null>(null);
   const [teacherVideo, setTeacherVideo] = useState<IRemoteVideoTrack | null>(null);
+  const [agoraError, setAgoraError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchMessages = async () => {
@@ -83,6 +84,7 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
 
     const setupStream = async () => {
       try {
+        setAgoraError(null);
         await joinChannel(client, stream.id, profile.uid, isTeacherView ? "host" : "audience");
         
         if (isTeacherView) {
@@ -97,8 +99,9 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
             }
           });
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error("Agora Setup Error:", err);
+        setAgoraError(err.message || "Failed to establish live connection");
       }
     };
 
@@ -170,9 +173,29 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
                    localTracks ? (
                      <AgoraPlayer videoTrack={localTracks.videoTrack} />
                    ) : (
-                     <div className="flex flex-col items-center justify-center h-full space-y-4">
-                        <div className="w-16 h-16 rounded-full border-4 border-brand-blue border-t-transparent animate-spin"></div>
-                        <p className="text-brand-blue font-black uppercase tracking-widest text-xs">Initializing Camera...</p>
+                     <div className="flex flex-col items-center justify-center h-full space-y-4 px-6 text-center">
+                        {agoraError ? (
+                          <>
+                            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-500/10 border border-red-500/20">
+                              <X className="h-8 w-8 text-red-500" />
+                            </div>
+                            <div className="space-y-2">
+                              <p className="text-red-500 font-black uppercase tracking-widest text-[10px]">Connection Failure</p>
+                              <p className="text-slate-400 text-xs font-medium max-w-xs">{agoraError}</p>
+                              <button 
+                                onClick={() => window.location.reload()}
+                                className="mt-4 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-[10px] font-black uppercase tracking-widest border border-white/5 transition-all text-white"
+                              >
+                                Retry Connection
+                              </button>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="w-16 h-16 rounded-full border-4 border-brand-blue border-t-transparent animate-spin"></div>
+                            <p className="text-brand-blue font-black uppercase tracking-widest text-xs">Initializing Camera...</p>
+                          </>
+                        )}
                      </div>
                    )
                  ) : (

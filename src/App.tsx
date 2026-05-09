@@ -239,10 +239,11 @@ VALUES ('${user?.id}', '${user?.email}', '${user?.email?.split('@')[0]}', 'teach
                 <div className="bg-amber-500/10 p-4 rounded-xl border border-amber-500/20 space-y-3">
                   <p className="text-[10px] text-amber-500 font-black uppercase tracking-widest">Fix Missing Columns</p>
                   <p className="text-[9px] text-slate-400 font-medium leading-relaxed">
-                    If you see errors about <code className="text-white">updatedAt</code>, run this to update your table:
+                    If you see errors about <code className="text-white">updatedAt</code> or <code className="text-white">viewersCount</code>, run this in the SQL Editor:
                   </p>
                   <pre className="text-[9px] text-amber-400 font-mono bg-black/40 p-2 rounded border border-white/5">
 {`ALTER TABLE public.streams 
+ADD COLUMN IF NOT EXISTS "viewersCount" integer DEFAULT 0,
 ADD COLUMN IF NOT EXISTS "updatedAt" timestamp with time zone DEFAULT now();`}
                   </pre>
                 </div>
