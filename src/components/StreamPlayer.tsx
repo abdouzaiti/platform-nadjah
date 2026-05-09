@@ -301,7 +301,7 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
            <div className="flex items-start justify-between">
               <div className="flex space-x-6">
                  <div className="relative">
-                    <img src={profile.photoURL} alt="" className="h-16 w-16 rounded-full border-2 border-brand-blue shadow-2xl shadow-blue-500/20" />
+                    <img src={profile.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.displayName)}&background=0D8ABC&color=fff`} alt="" className="h-16 w-16 rounded-full border-2 border-brand-blue shadow-2xl shadow-blue-500/20" />
                     {isLive && (
                       <div className="absolute -bottom-1 -right-1 h-5 w-5 bg-brand-blue rounded-full border-2 border-slate-950 flex items-center justify-center">
                           <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></div>
@@ -356,7 +356,7 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
                 key={msg.id} 
                 className="flex items-start space-x-3 group"
             >
-               <img src={msg.userPhoto} alt="" className="h-8 w-8 shrink-0 rounded border border-white/10" />
+               <img src={msg.userPhoto || `https://ui-avatars.com/api/?name=${encodeURIComponent(msg.userName)}&background=0D8ABC&color=fff`} alt="" className="h-8 w-8 shrink-0 rounded border border-white/10" />
                <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                      <span className={cn(

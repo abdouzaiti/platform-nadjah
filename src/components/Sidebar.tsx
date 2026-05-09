@@ -100,7 +100,7 @@ export default function Sidebar({ profile, activeTab, setActiveTab }: SidebarPro
 
       <div className="border-t border-white/5 p-4 space-y-4">
         <div className="flex items-center space-x-3 px-2 py-2">
-            <img src={profile.photoURL} alt="" className="h-10 w-10 rounded-full border border-brand-blue shadow-lg shadow-blue-500/20" />
+            <img src={profile.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.displayName)}&background=0D8ABC&color=fff`} alt="" className="h-10 w-10 rounded-full border border-brand-blue shadow-lg shadow-blue-500/20" />
             <div className="flex-1 overflow-hidden">
                 <p className="truncate text-xs font-black text-white uppercase tracking-tight">{profile.displayName}</p>
                 <div className="flex items-center gap-1.5">

@@ -254,7 +254,7 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                             >
                                 <div className="flex items-center space-x-6">
                                     <div className="relative h-16 w-28 overflow-hidden rounded-lg border border-white/5">
-                                        <img src={stream.thumbnail} alt="" className="h-full w-full object-cover transition-transform group-hover:scale-110" />
+                                        <img src={stream.thumbnail || "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80"} alt="" className="h-full w-full object-cover transition-transform group-hover:scale-110" />
                                         {stream.status === 'live' && (
                                             <div className="absolute inset-0 bg-red-600/20 flex items-center justify-center">
                                                 <div className="h-1.5 w-1.5 rounded-full bg-red-500 animate-ping"></div>

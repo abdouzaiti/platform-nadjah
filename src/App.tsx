@@ -13,7 +13,6 @@ export default function App() {
   const [profileLoading, setProfileLoading] = React.useState(false);
   const [fetchError, setFetchError] = React.useState<string | null>(null);
   const [authError, setAuthError] = React.useState<string | null>(null);
-  const [showRoleSelect, setShowRoleSelect] = React.useState(false);
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [authLoading, setAuthLoading] = React.useState(false);
@@ -26,20 +25,23 @@ export default function App() {
         .from("users")
         .select("*")
         .eq("uid", userId)
-        .single();
+        .maybeSingle();
 
-      if (error) {
-        if (error.code === "PGRST116") { // Not found
-          setShowRoleSelect(true);
-        } else {
-          throw error;
-        }
-      } else {
+      if (error) throw error;
+
+      if (data) {
         setProfile(data as UserProfile);
+      } else {
+        setFetchError("NOT_REGISTERED");
       }
+      
     } catch (err: any) {
       console.error("Profile fetch error:", err);
-      setFetchError(err.message || "Failed to load user profile");
+      if (err.code === "42P01") {
+        setFetchError("TABLES_MISSING");
+      } else {
+        setFetchError(`${err.message || "Failed to load user profile"} (Code: ${err.code || 'unknown'})`);
+      }
     } finally {
       setProfileLoading(false);
     }
@@ -63,12 +65,9 @@ export default function App() {
       
       if (currentUser) {
         fetchProfile(currentUser.id);
-        // Clear errors when we have a valid user
         setFetchError(null);
       } else {
         setProfile(null);
-        setShowRoleSelect(false);
-        // Don't clear errors automatically here, as it might clear the link error
       }
     });
 
@@ -115,9 +114,9 @@ export default function App() {
       console.error("Auth error details:", err);
       const msg = err.message || "";
       if (msg.includes('Invalid login credentials')) {
-        setAuthError("PENDING_OR_INVALID: Identity not verified. If you've submitted your request, it is likely awaiting manual approval by the School Manager.");
+        setAuthError("PENDING_OR_INVALID: Access Denied. Your account might be pending manual activation by the manager, or the credentials entered are incorrect.");
       } else if (msg.includes('Email not confirmed')) {
-        setAuthError("CONFIRM_REQUIRED: Your account is created but email confirmation is required. Please check your inbox or contact the administrator.");
+        setAuthError("CONFIRM_REQUIRED: Validation Required. Please click the link in your email or ask the manager to check 'Auto-confirm user' in Supabase.");
       } else {
         setAuthError(err.message);
       }
@@ -126,34 +125,7 @@ export default function App() {
     }
   };
 
-  const handleRoleSelect = async (role: UserRole) => {
-    if (!user) return;
-    setProfileLoading(true);
-    setFetchError(null);
-    try {
-      const newProfile = {
-        uid: user.id,
-        displayName: user.user_metadata?.full_name || user.email?.split('@')[0] || "User",
-        email: user.email || "",
-        photoURL: user.user_metadata?.avatar_url || "",
-        role,
-        createdAt: new Date().toISOString(),
-      };
-      
-      const { error } = await supabase.from("users").upsert(newProfile);
-      if (error) throw error;
-      
-      setProfile(newProfile as any);
-      setShowRoleSelect(false);
-    } catch (err: any) {
-      console.error("Role assignment error:", err);
-      setFetchError(err.message || "Failed to set user role");
-    } finally {
-      setProfileLoading(false);
-    }
-  };
-
-  const isStuck = user && !profile && !showRoleSelect && !profileLoading && !fetchError;
+  const isStuck = user && !profile && !profileLoading && !fetchError;
 
   if (!supabaseConfigured) {
     return (
@@ -226,38 +198,112 @@ export default function App() {
 
   if (fetchError) {
     return (
-      <div className="flex h-screen w-full flex-col items-center justify-center bg-brand-darkest p-6 text-center">
-        <div className="w-16 h-16 bg-red-500/10 rounded-2xl flex items-center justify-center mb-6 border border-red-500/20">
-          <School className="h-8 w-8 text-red-500" />
+      <div className="flex h-screen w-full flex-col items-center justify-center bg-brand-darkest p-6 text-center overflow-y-auto">
+        <div className="w-16 h-16 bg-brand-blue/10 rounded-2xl flex items-center justify-center mb-6 border border-brand-blue/20">
+          <Database className="h-8 w-8 text-brand-blue" />
         </div>
-        <h2 className="text-2xl font-black text-white uppercase italic tracking-tight mb-2">Access Interrupted</h2>
-        <div className={`max-w-md text-sm mb-8 font-medium ${fetchError?.includes('GOOGLE_NOT_ENABLED') || fetchError?.includes('link is invalid') || fetchError?.includes('RATE_LIMIT') || fetchError?.includes('invalid_client') ? 'text-brand-blue bg-brand-blue/10 p-4 rounded-xl border border-brand-blue/20' : 'text-slate-500'}`}>
-          {fetchError?.includes('GOOGLE_NOT_ENABLED') 
-            ? "Google Login is not enabled in your Supabase project. Go to Authentication > Providers in Supabase and enable 'Google'."
-            : fetchError?.includes('invalid_client')
-            ? "Erreur 401: invalid_client. This means the Client ID or Secret in your Supabase Google Provider settings is wrong. Double-check your Google Cloud Console credentials."
-            : fetchError?.includes('link is invalid')
-            ? "The sign-in code is invalid or has expired. Ensure you are using the most recent code sent to your email."
-            : fetchError?.includes('RATE_LIMIT')
-            ? (
-              <div className="space-y-4">
-                <p>Supabase limits emails to one per minute by default to prevent spam.</p>
-                <div className="bg-slate-900/50 p-4 rounded-xl text-left border border-white/5 space-y-2">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-brand-blue">To make it unlimited:</p>
-                  <ol className="text-[10px] text-slate-400 list-decimal pl-4 space-y-1 font-medium">
-                    <li>Go to your <strong>Supabase Dashboard</strong></li>
-                    <li>Navigate to <strong>Authentication → Settings</strong></li>
-                    <li>Find <strong>Rate Limits</strong> at the bottom</li>
-                    <li>Increase <strong>Email Rate Limit</strong> and <strong>Max Emails per Hour</strong></li>
-                  </ol>
+        <h2 className="text-2xl font-black text-white uppercase italic tracking-tight mb-2">Access Denied</h2>
+        
+        <div className="max-w-2xl w-full text-sm mb-8 font-medium text-brand-blue bg-brand-blue/10 p-6 rounded-2xl border border-brand-blue/20">
+          {fetchError === 'NOT_REGISTERED' ? (
+            <div className="space-y-6 text-left">
+              <div className="space-y-2">
+                <p className="text-slate-300 leading-relaxed text-sm">
+                  Your account is active, but you are not yet authorized in the <strong className="text-white">Nadjah Users</strong> list.
+                </p>
+                <div className="flex flex-col gap-2 bg-black/30 p-4 rounded-xl border border-white/5">
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-[10px] text-brand-blue uppercase font-black tracking-widest">Email:</span>
+                    <span className="text-[10px] text-slate-400 font-medium truncate">{user?.email}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-[10px] text-brand-blue uppercase font-black tracking-widest">User UID:</span>
+                    <span className="text-[10px] text-white font-mono truncate select-all">{user?.id}</span>
+                  </div>
                 </div>
               </div>
-            )
-            : (fetchError || "Verify your connection or authorized domains.")}
+
+              <div className="space-y-4">
+                <div className="bg-slate-950 p-4 rounded-xl border border-white/5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] text-brand-blue font-black uppercase tracking-widest bg-brand-blue/10 px-2 py-0.5 rounded">Quick Fix SQL</p>
+                    <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                  </div>
+                  <p className="text-[9px] text-slate-400">To allow yourself as a <span className="text-white font-bold">Teacher</span>, run this in Supabase SQL Editor:</p>
+                  <pre className="text-[9px] text-emerald-400 font-mono overflow-x-auto whitespace-pre p-2 bg-black/40 rounded-lg border border-white/5">
+{`INSERT INTO public.users (uid, email, "displayName", role)
+VALUES ('${user?.id}', '${user?.email}', '${user?.email?.split('@')[0]}', 'teacher');`}
+                  </pre>
+                </div>
+              </div>
+
+              <p className="text-[10px] text-slate-500 italic text-center pt-2">
+                After running the SQL, click "Retry Access" below.
+              </p>
+            </div>
+          ) : fetchError === 'TABLES_MISSING' ? (
+            <div className="space-y-6 text-left">
+              <p className="text-slate-300 leading-relaxed">
+                The database tables are missing. Please run the standard setup SQL:
+              </p>
+              <div className="bg-slate-950 p-4 rounded-xl border border-white/10 font-mono text-[9px] text-emerald-400 overflow-x-auto whitespace-pre max-h-[300px]">
+{`CREATE TABLE public.users (
+  uid uuid REFERENCES auth.users NOT NULL PRIMARY KEY,
+  email text,
+  role text CHECK (role IN ('student', 'teacher')),
+  "displayName" text,
+  "photoURL" text,
+  "createdAt" timestamp with time zone DEFAULT now()
+);
+
+CREATE TABLE public.streams (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  title text NOT NULL,
+  description text,
+  "teacherId" uuid REFERENCES public.users(uid),
+  "teacherName" text,
+  status text DEFAULT 'offline',
+  thumbnail text,
+  "viewersCount" integer DEFAULT 0,
+  "recordingUrl" text,
+  "createdAt" timestamp with time zone DEFAULT now()
+);
+
+CREATE TABLE public.chat_messages (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  "streamId" uuid REFERENCES public.streams(id) ON DELETE CASCADE,
+  text text NOT NULL,
+  "userId" uuid REFERENCES public.users(uid),
+  "userName" text,
+  "userPhoto" text,
+  timestamp timestamp with time zone DEFAULT now()
+);
+
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.streams ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.chat_messages ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow Public Read" ON public.users FOR SELECT USING (true);
+CREATE POLICY "Allow Public Read Streams" ON public.streams FOR SELECT USING (true);
+CREATE POLICY "Allow Public Read Chat" ON public.chat_messages FOR SELECT USING (true);
+
+CREATE POLICY "Teachers Manage Streams" ON public.streams FOR ALL USING (
+  EXISTS (SELECT 1 FROM public.users WHERE uid = auth.uid() AND role = 'teacher')
+);
+
+CREATE POLICY "Auth Users Insert Chat" ON public.chat_messages FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);`}
+              </div>
+            </div>
+          ) : (
+            <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400">
+              {fetchError}
+            </div>
+          )}
         </div>
+        
         <div className="flex flex-col gap-3 w-full max-w-xs">
           <button 
-            onClick={() => user ? fetchProfile(user.id) : window.location.reload()}
+            onClick={() => user && fetchProfile(user.id)}
             className="w-full bg-brand-blue py-4 rounded-xl text-xs font-black uppercase tracking-widest text-white hover:bg-blue-500 transition-all shadow-xl shadow-blue-500/20"
           >
             Retry Access
@@ -266,7 +312,7 @@ export default function App() {
             onClick={() => supabase.auth.signOut()}
             className="w-full bg-white/5 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-white transition-all border border-white/5"
           >
-            Switch Account
+            Switch Account / Logout
           </button>
         </div>
       </div>
@@ -315,11 +361,13 @@ export default function App() {
                       </p>
                       <div className="bg-brand-blue/10 p-4 rounded-xl border border-brand-blue/20 space-y-3">
                         <div className="flex items-center gap-2">
-                          <CheckCircle2 className="h-3 w-3 text-brand-blue" />
-                          <p className="text-[9px] text-brand-blue font-black uppercase tracking-widest">Admin Instructions</p>
+                          <Database className="h-3 w-3 text-brand-blue" />
+                          <p className="text-[9px] text-brand-blue font-black uppercase tracking-widest">Manager Workspace</p>
                         </div>
-                        <p className="text-[9px] text-slate-400 leading-relaxed">
-                          To fix this: Go to <strong>Supabase → Auth → Add User</strong>. Enter email/password and ensure <strong>Auto-confirm user</strong> is checked.
+                        <p className="text-[9px] text-slate-400 leading-relaxed font-medium">
+                          The manager must add your email to the database manually.<br/><br/>
+                          <span className="text-white">Admin Check:</span> Supabase &rarr; Auth &rarr; Users &rarr; Add User.<br/>
+                          Verify that <span className="text-white">"Auto-confirm user"</span> is enabled.
                         </p>
                       </div>
                       <p className="text-[10px] text-slate-500 font-bold italic">
@@ -397,52 +445,6 @@ export default function App() {
           
           <div className="text-center text-[10px] font-black uppercase tracking-[0.2em] text-slate-600">
             Professional Streaming Engine
-          </div>
-        </motion.div>
-      </div>
-    );
-  }
-
-  if (showRoleSelect) {
-    return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-brand-darkest p-4">
-        <div className="absolute inset-0 bg-gradient-to-b from-brand-blue/10 to-transparent pointer-events-none" />
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="w-full max-w-3xl space-y-12 text-center relative z-10"
-        >
-          <div className="space-y-4">
-            <h2 className="font-display text-5xl font-black tracking-tight text-white uppercase italic">Identify Yourself</h2>
-            <p className="text-lg text-slate-400 font-medium">Select your role to access the Nadjah dashboard</p>
-          </div>
-
-          <div className="grid gap-8 md:grid-cols-2">
-            <button
-              onClick={() => handleRoleSelect("teacher")}
-              className="group flex h-80 flex-col items-center justify-center space-y-6 rounded-[40px] bg-slate-900/40 p-8 border border-white/5 backdrop-blur-xl transition-all hover:border-brand-blue/50 hover:bg-slate-900/60"
-            >
-              <div className="rounded-[28px] bg-slate-800 p-6 transition-all group-hover:bg-brand-blue group-hover:shadow-2xl group-hover:shadow-blue-500/40">
-                <GraduationCap className="h-14 w-14 text-brand-blue group-hover:text-white" />
-              </div>
-              <div className="space-y-2">
-                <span className="block text-2xl font-black text-white uppercase tracking-tight">Teacher</span>
-                <span className="text-sm font-medium text-slate-500 group-hover:text-slate-300">Host, Stream & Manage Classes</span>
-              </div>
-            </button>
-
-            <button
-              onClick={() => handleRoleSelect("student")}
-              className="group flex h-80 flex-col items-center justify-center space-y-6 rounded-[40px] bg-slate-900/40 p-8 border border-white/5 backdrop-blur-xl transition-all hover:border-brand-blue/50 hover:bg-slate-900/60"
-            >
-              <div className="rounded-[28px] bg-slate-800 p-6 transition-all group-hover:bg-brand-blue group-hover:shadow-2xl group-hover:shadow-blue-500/40">
-                <School className="h-14 w-14 text-brand-blue group-hover:text-white" />
-              </div>
-              <div className="space-y-2">
-                <span className="block text-2xl font-black text-white uppercase tracking-tight">Student</span>
-                <span className="text-sm font-medium text-slate-500 group-hover:text-slate-300">Watch, Learn & Engage</span>
-              </div>
-            </button>
           </div>
         </motion.div>
       </div>
