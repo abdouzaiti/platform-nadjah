@@ -1,12 +1,25 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL;
+const rawUrl = (import.meta as any).env.VITE_SUPABASE_URL;
 const supabaseAnonKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY;
 
-export const supabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
+// Normalize URL (strip trailing slashes or /rest/v1/ suffix if pasted by mistake)
+const supabaseUrl = rawUrl?.replace(/\/rest\/v1\/?$/, '').replace(/\/$/, '');
+
+const isValidUrl = (url: any): boolean => {
+  if (!url || typeof url !== 'string') return false;
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+};
+
+export const supabaseConfigured = isValidUrl(supabaseUrl) && Boolean(supabaseAnonKey);
 
 // Use a placeholder if not configured to prevent immediate crash during import
 export const supabase = createClient(
-  supabaseUrl || 'https://placeholder.supabase.co', 
+  isValidUrl(supabaseUrl) ? supabaseUrl : 'https://placeholder.supabase.co', 
   supabaseAnonKey || 'placeholder'
 );
