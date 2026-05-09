@@ -3,7 +3,7 @@ import { supabase, supabaseConfigured, isProperAnonKey } from "./lib/supabase";
 import { UserProfile, UserRole } from "./types";
 import TeacherDashboard from "./pages/TeacherDashboard";
 import StudentDashboard from "./pages/StudentDashboard";
-import { LogIn, GraduationCap, School, Loader2, Database, Key, CheckCircle2 } from "lucide-react";
+import { LogIn, GraduationCap, School, Loader2, Database, Key, CheckCircle2, Mail, ArrowRight } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 export default function App() {
@@ -13,6 +13,9 @@ export default function App() {
   const [profileLoading, setProfileLoading] = React.useState(false);
   const [fetchError, setFetchError] = React.useState<string | null>(null);
   const [showRoleSelect, setShowRoleSelect] = React.useState(false);
+  const [email, setEmail] = React.useState("");
+  const [authLoading, setAuthLoading] = React.useState(false);
+  const [magicLinkSent, setMagicLinkSent] = React.useState(false);
 
   const fetchProfile = React.useCallback(async (userId: string) => {
     setProfileLoading(true);
@@ -77,7 +80,34 @@ export default function App() {
       });
       if (error) throw error;
     } catch (err: any) {
+      if (err.message?.includes('provider is not enabled')) {
+        setFetchError("GOOGLE_NOT_ENABLED: Please enable Google Login in Supabase or use the Email option below.");
+      } else {
+        setFetchError(err.message);
+      }
+    }
+  };
+
+  const signInWithEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) return;
+    
+    setAuthLoading(true);
+    setFetchError(null);
+    
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: window.location.origin,
+        },
+      });
+      if (error) throw error;
+      setMagicLinkSent(true);
+    } catch (err: any) {
       setFetchError(err.message);
+    } finally {
+      setAuthLoading(false);
     }
   };
 
@@ -110,19 +140,17 @@ export default function App() {
 
   const isStuck = user && !profile && !showRoleSelect && !profileLoading && !fetchError;
 
-  if (!supabaseConfigured || !isProperAnonKey) {
+  if (!supabaseConfigured) {
     return (
       <div className="flex h-screen w-full flex-col items-center justify-center bg-brand-darkest p-8 text-center overflow-y-auto">
         <div className="w-20 h-20 bg-brand-blue/10 rounded-3xl flex items-center justify-center mb-8 border border-brand-blue/20">
           <Database className="h-10 w-10 text-brand-blue" />
         </div>
         <h2 className="text-3xl font-black text-white uppercase italic tracking-tighter mb-4">
-          {supabaseConfigured && !isProperAnonKey ? "Invalid Key Format" : "Database Configuration Required"}
+          Database Configuration Required
         </h2>
         <p className="max-w-md text-slate-400 mb-8 text-sm leading-relaxed">
-          {supabaseConfigured && !isProperAnonKey 
-            ? "The Supabase key you provided doesn't look like a standard 'anon' key. Standard keys are JWTs and usually begin with 'ey'." 
-            : "Nadjah Live has migrated to Supabase for better performance. Please configure your project credentials to continue."}
+          Nadjah Live has migrated to Supabase for better performance. Please configure your project credentials in the Secrets panel to continue.
         </p>
 
         <div className="grid gap-4 w-full max-w-sm text-left">
@@ -188,8 +216,10 @@ export default function App() {
           <School className="h-8 w-8 text-red-500" />
         </div>
         <h2 className="text-2xl font-black text-white uppercase italic tracking-tight mb-2">Access Interrupted</h2>
-        <p className="max-w-xs text-sm text-slate-500 mb-8 font-medium">
-          {fetchError || "Verify your connection or authorized domains."}
+        <p className={`max-w-md text-sm mb-8 font-medium ${fetchError?.includes('GOOGLE_NOT_ENABLED') ? 'text-brand-blue bg-brand-blue/10 p-4 rounded-xl border border-brand-blue/20' : 'text-slate-500'}`}>
+          {fetchError?.includes('GOOGLE_NOT_ENABLED') 
+            ? "Google Login is not enabled in your Supabase project. Go to Authentication > Providers in Supabase and enable 'Google'. You will also need to provide a Google Client ID from Google Cloud Console."
+            : (fetchError || "Verify your connection or authorized domains.")}
         </p>
         <div className="flex flex-col gap-3 w-full max-w-xs">
           <button 
@@ -232,13 +262,69 @@ export default function App() {
             </div>
           </div>
 
-          <button
-            onClick={signInWithGoogle}
-            className="group relative flex w-full items-center justify-center space-x-3 rounded-2xl bg-brand-blue py-4 text-white font-bold transition-all hover:bg-blue-500 hover:shadow-lg hover:shadow-blue-500/20 active:scale-[0.98]"
-          >
-            <LogIn className="h-5 w-5" />
-            <span>Sign in with Google</span>
-          </button>
+          <div className="w-full space-y-6">
+            {magicLinkSent ? (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="bg-emerald-500/10 border border-emerald-500/20 p-6 rounded-3xl text-center"
+              >
+                <div className="h-12 w-12 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle2 className="h-6 w-6 text-emerald-500" />
+                </div>
+                <h3 className="text-white font-bold mb-2 uppercase tracking-tight italic">Check your inbox</h3>
+                <p className="text-xs text-slate-400 mb-6 font-medium leading-relaxed">
+                  We've sent a magic link to <span className="text-brand-blue font-bold">{email}</span>. Click it to log in.
+                </p>
+                <button 
+                  onClick={() => setMagicLinkSent(false)}
+                  className="text-[10px] text-slate-500 font-black uppercase tracking-[0.2em] hover:text-white transition-colors"
+                >
+                  Try another email
+                </button>
+              </motion.div>
+            ) : (
+              <>
+                <form onSubmit={signInWithEmail} className="space-y-3">
+                  <div className="relative group">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-brand-blue transition-colors" />
+                    <input 
+                      type="email"
+                      placeholder="Enter your email address"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-white text-sm focus:outline-none focus:border-brand-blue/50 transition-all font-medium"
+                    />
+                  </div>
+                  <button 
+                    type="submit"
+                    disabled={authLoading}
+                    className="w-full bg-brand-blue hover:bg-blue-500 disabled:opacity-50 text-white font-black py-4 rounded-2xl text-xs uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3 shadow-xl shadow-blue-500/20"
+                  >
+                    {authLoading ? "Sending magic link..." : "Sign in with Email"}
+                    {!authLoading && <ArrowRight className="h-4 w-4" />}
+                  </button>
+                </form>
+
+                <div className="relative flex items-center py-2">
+                  <div className="flex-grow border-t border-white/5"></div>
+                  <span className="flex-shrink mx-4 text-[10px] font-black text-slate-600 uppercase tracking-widest">or use</span>
+                  <div className="flex-grow border-t border-white/5"></div>
+                </div>
+
+                <button
+                  onClick={signInWithGoogle}
+                  className="group relative flex w-full items-center justify-center space-x-3 rounded-2xl bg-white/5 py-4 text-white font-bold transition-all hover:bg-white/10 hover:border-white/20 border border-white/10 active:scale-[0.98]"
+                >
+                  <div className="h-5 w-5 bg-white rounded-full p-1 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <img src="https://www.gstatic.com/images/branding/googleg/1x/googleg_standard_color_128dp.png" alt="Google" className="h-full w-full" />
+                  </div>
+                  <span className="text-sm font-black uppercase tracking-widest">Google Account</span>
+                </button>
+              </>
+            )}
+          </div>
           
           <div className="text-center text-[10px] font-black uppercase tracking-[0.2em] text-slate-600">
             Professional Streaming Engine
