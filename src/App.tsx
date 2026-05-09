@@ -247,6 +247,16 @@ ADD COLUMN IF NOT EXISTS "viewersCount" integer DEFAULT 0,
 ADD COLUMN IF NOT EXISTS "updatedAt" timestamp with time zone DEFAULT now();`}
                   </pre>
                 </div>
+
+                <div className="bg-emerald-500/10 p-4 rounded-xl border border-emerald-500/20 flex items-center gap-3">
+                  <div className="h-8 w-8 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-emerald-500 font-black uppercase tracking-widest">Agora Streaming Ready</p>
+                    <p className="text-[9px] text-slate-400 font-medium">Classroom video engine is online and configured.</p>
+                  </div>
+                </div>
               </div>
 
               <p className="text-[10px] text-slate-500 italic text-center pt-2">

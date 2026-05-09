@@ -1,6 +1,7 @@
 import AgoraRTC, { IAgoraRTCClient, ICameraVideoTrack, IMicrophoneAudioTrack } from "agora-rtc-sdk-ng";
 
-const APP_ID = import.meta.env.VITE_AGORA_APP_ID || "";
+const APP_ID = import.meta.env.VITE_AGORA_APP_ID || "565b28c24bb04c59bd6ee0d0ce3198bd";
+const TOKEN = import.meta.env.VITE_AGORA_TOKEN || null;
 
 export const createAgoraClient = () => {
   return AgoraRTC.createClient({ mode: "live", codec: "vp8" });
@@ -22,12 +23,14 @@ export const joinChannel = async (
     await client.setClientRole("audience");
   }
 
-  // Tokens are optional for development if not enabled in Agora console
-  // In production, you must use a token server
   try {
-    await client.join(APP_ID, channelName, null, uid);
-  } catch (err) {
+    // Attempt to join with token if provided, otherwise null
+    await client.join(APP_ID, channelName, TOKEN, uid);
+  } catch (err: any) {
     console.error("Agora Join Error:", err);
+    if (err.message?.includes("dynamic use static key")) {
+      throw new Error("Security Mismatch: Your Agora project requires a Token. Either provide VITE_AGORA_TOKEN or disable 'App Certificate' in Agora Console for testing.");
+    }
     throw err;
   }
   
