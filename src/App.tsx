@@ -237,14 +237,25 @@ VALUES ('${user?.id}', '${user?.email}', '${user?.email?.split('@')[0]}', 'teach
                 </div>
 
                 <div className="bg-amber-500/10 p-4 rounded-xl border border-amber-500/20 space-y-3">
-                  <p className="text-[10px] text-amber-500 font-black uppercase tracking-widest">Fix Missing Columns</p>
+                  <p className="text-[10px] text-amber-500 font-black uppercase tracking-widest">Database Maintenance</p>
                   <p className="text-[9px] text-slate-400 font-medium leading-relaxed">
-                    If you see errors about <code className="text-white">updatedAt</code> or <code className="text-white">viewersCount</code>, run this in the SQL Editor:
+                    If you see errors about <code className="text-white">updatedAt</code>, <code className="text-white">viewersCount</code>, or <code className="text-white">foreign key</code>, run this in the SQL Editor:
                   </p>
-                  <pre className="text-[9px] text-amber-400 font-mono bg-black/40 p-2 rounded border border-white/5">
-{`ALTER TABLE public.streams 
+                  <pre className="text-[9px] text-amber-400 font-mono bg-black/40 p-2 rounded border border-white/5 space-y-1">
+{`-- 1. Add missing columns
+ALTER TABLE public.streams 
 ADD COLUMN IF NOT EXISTS "viewersCount" integer DEFAULT 0,
-ADD COLUMN IF NOT EXISTS "updatedAt" timestamp with time zone DEFAULT now();`}
+ADD COLUMN IF NOT EXISTS "updatedAt" timestamp with time zone DEFAULT now();
+
+-- 2. Fix deletion constraints
+ALTER TABLE public.chat_messages 
+DROP CONSTRAINT IF EXISTS chat_messages_streamId_fkey;
+
+ALTER TABLE public.chat_messages 
+ADD CONSTRAINT chat_messages_streamId_fkey 
+FOREIGN KEY ("streamId") 
+REFERENCES public.streams(id) 
+ON DELETE CASCADE;`}
                   </pre>
                 </div>
 

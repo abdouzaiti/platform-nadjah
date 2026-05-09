@@ -119,7 +119,12 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
   };
 
   const deleteStream = async (streamId: string) => {
-    if (!confirm("Are you sure you want to delete this stream record?")) return;
+    if (!confirm("Are you sure you want to permanently delete this session? This will also remove all chat records.")) return;
+    
+    // Optimistic update
+    const previousStreams = [...myStreams];
+    setMyStreams(myStreams.filter(s => s.id !== streamId));
+    
     try {
       const { error } = await supabase
         .from("streams")
@@ -129,7 +134,18 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
       if (error) throw error;
     } catch (err: any) {
       console.error("Delete stream error:", err);
-      alert(err.message || "Failed to delete stream");
+      // Revert optimistic update
+      setMyStreams(previousStreams);
+      
+      let message = "Failed to delete stream.";
+      if (err.message?.includes("foreign key")) {
+        message = "Deletion failed: There are students or records attached to this stream. Please run the 'Database Maintenance' SQL fix on the login screen.";
+      } else if (err.code === "42501") {
+        message = "Permission Denied: You do not have authority to delete this record.";
+      } else {
+        message = err.message || message;
+      }
+      alert(message);
     }
   };
 
