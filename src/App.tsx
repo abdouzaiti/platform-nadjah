@@ -1,5 +1,5 @@
 import React from "react";
-import { supabase, supabaseConfigured } from "./lib/supabase";
+import { supabase, supabaseConfigured, isProperAnonKey } from "./lib/supabase";
 import { UserProfile, UserRole } from "./types";
 import TeacherDashboard from "./pages/TeacherDashboard";
 import StudentDashboard from "./pages/StudentDashboard";
@@ -110,29 +110,42 @@ export default function App() {
 
   const isStuck = user && !profile && !showRoleSelect && !profileLoading && !fetchError;
 
-  if (!supabaseConfigured) {
+  if (!supabaseConfigured || !isProperAnonKey) {
     return (
-      <div className="flex h-screen w-full flex-col items-center justify-center bg-brand-darkest p-8 text-center">
+      <div className="flex h-screen w-full flex-col items-center justify-center bg-brand-darkest p-8 text-center overflow-y-auto">
         <div className="w-20 h-20 bg-brand-blue/10 rounded-3xl flex items-center justify-center mb-8 border border-brand-blue/20">
           <Database className="h-10 w-10 text-brand-blue" />
         </div>
-        <h2 className="text-3xl font-black text-white uppercase italic tracking-tighter mb-4">Database Configuration Required</h2>
+        <h2 className="text-3xl font-black text-white uppercase italic tracking-tighter mb-4">
+          {supabaseConfigured && !isProperAnonKey ? "Invalid Key Format" : "Database Configuration Required"}
+        </h2>
         <p className="max-w-md text-slate-400 mb-8 text-sm leading-relaxed">
-          Nadjah Live has migrated to <span className="text-white font-bold">Supabase</span> for better performance. 
-          Please configure your project credentials to continue.
+          {supabaseConfigured && !isProperAnonKey 
+            ? "The Supabase key you provided doesn't look like a standard 'anon' key. Standard keys are JWTs and usually begin with 'ey'." 
+            : "Nadjah Live has migrated to Supabase for better performance. Please configure your project credentials to continue."}
         </p>
 
         <div className="grid gap-4 w-full max-w-sm text-left">
           {[
-            { icon: Key, label: "VITE_SUPABASE_URL", desc: "Found in Project Settings > API" },
-            { icon: Key, label: "VITE_SUPABASE_ANON_KEY", desc: "Found in Project Settings > API" }
+            { 
+              icon: Key, 
+              label: "VITE_SUPABASE_URL", 
+              desc: "Project URL (e.g., https://xyz.supabase.co)",
+              error: !supabaseConfigured && !import.meta.env.VITE_SUPABASE_URL && !import.meta.env.SUPABASE_URL 
+            },
+            { 
+              icon: Key, 
+              label: "VITE_SUPABASE_ANON_KEY", 
+              desc: "Anon Public Key (Starts with 'ey...')",
+              error: !isProperAnonKey
+            }
           ].map((item, i) => (
-            <div key={i} className="bg-white/5 border border-white/5 p-4 rounded-2xl flex items-center gap-4">
-              <div className="h-10 w-10 bg-slate-800 rounded-xl flex items-center justify-center">
-                <item.icon className="h-5 w-5 text-slate-400" />
+            <div key={i} className={`bg-white/5 border ${item.error ? 'border-red-500/50 bg-red-500/5' : 'border-white/5'} p-4 rounded-2xl flex items-center gap-4`}>
+              <div className={`h-10 w-10 ${item.error ? 'bg-red-500/20' : 'bg-slate-800'} rounded-xl flex items-center justify-center`}>
+                <item.icon className={`h-5 w-5 ${item.error ? 'text-red-400' : 'text-slate-400'}`} />
               </div>
               <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-brand-blue leading-none mb-1">{item.label}</p>
+                <p className={`text-[10px] font-black uppercase tracking-widest ${item.error ? 'text-red-400' : 'text-brand-blue'} leading-none mb-1`}>{item.label}</p>
                 <p className="text-[10px] text-slate-500 font-medium">{item.desc}</p>
               </div>
             </div>
@@ -142,9 +155,16 @@ export default function App() {
         <div className="mt-10 p-4 bg-brand-blue/10 border border-brand-blue/20 rounded-2xl flex items-start gap-4 max-w-sm text-left">
           <CheckCircle2 className="h-5 w-5 text-brand-blue shrink-0 mt-0.5" />
           <p className="text-[10px] text-brand-blue font-bold uppercase tracking-wider leading-relaxed">
-            Enter these in the <span className="underline">Secrets panel</span> of your AI Studio environment to activate the platform.
+            Enter these in the <span className="underline">Secrets panel</span>. If you just added them, try clicking the "Retry" button below or refreshing the page.
           </p>
         </div>
+
+        <button 
+          onClick={() => window.location.reload()}
+          className="mt-8 px-8 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold uppercase tracking-widest transition-all"
+        >
+          Refresh & Retry
+        </button>
       </div>
     );
   }

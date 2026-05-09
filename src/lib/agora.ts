@@ -1,6 +1,6 @@
 import AgoraRTC, { IAgoraRTCClient, ICameraVideoTrack, IMicrophoneAudioTrack } from "agora-rtc-sdk-ng";
 
-const APP_ID = (import.meta as any).env.VITE_AGORA_APP_ID || "YOUR_APP_ID";
+const APP_ID = import.meta.env.VITE_AGORA_APP_ID || "YOUR_APP_ID";
 
 export const createAgoraClient = () => {
   return AgoraRTC.createClient({ mode: "live", codec: "vp8" });
