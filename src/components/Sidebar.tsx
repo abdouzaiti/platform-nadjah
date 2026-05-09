@@ -1,5 +1,5 @@
 import React from "react";
-import { auth } from "../lib/firebase";
+import { supabase } from "../lib/supabase";
 import { UserProfile } from "../types";
 import { 
   Home, 
@@ -32,6 +32,10 @@ export default function Sidebar({ profile, activeTab, setActiveTab }: SidebarPro
     { id: "messages", icon: MessageSquare, label: "Messages" },
   ];
 
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+  };
+
   return (
     <div className="flex h-screen w-60 flex-col glass-sidebar">
       <div className="flex h-20 items-center px-6 border-b border-white/5">
@@ -39,7 +43,7 @@ export default function Sidebar({ profile, activeTab, setActiveTab }: SidebarPro
           <div className="flex h-10 w-10 items-center justify-center rounded bg-brand-blue shadow-lg shadow-blue-500/20">
             <School className="h-6 w-6 text-white" />
           </div>
-          <span className="text-xl font-black tracking-tighter uppercase text-white">Ecole <span className="text-brand-blue">Nad</span></span>
+          <span className="text-xl font-black tracking-tighter uppercase text-white">Nadjah <span className="text-brand-blue">Live</span></span>
         </div>
       </div>
 
@@ -107,7 +111,7 @@ export default function Sidebar({ profile, activeTab, setActiveTab }: SidebarPro
         </div>
 
         <button
-          onClick={() => auth.signOut()}
+          onClick={handleSignOut}
           className="flex w-full items-center space-x-3 rounded-lg px-3 py-2 text-xs font-bold text-slate-500 transition-all hover:bg-red-500/10 hover:text-red-400"
         >
           <LogOut className="h-4 w-4" />

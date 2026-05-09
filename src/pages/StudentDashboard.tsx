@@ -1,8 +1,7 @@
 import React from "react";
 import { UserProfile, StreamData } from "../types";
 import Sidebar from "../components/Sidebar";
-import { db } from "../lib/firebase";
-import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { supabase } from "../lib/supabase";
 import { Play, Eye, Clock, Search, Bell } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "../lib/utils";
@@ -18,11 +17,39 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
   const [selectedStream, setSelectedStream] = React.useState<StreamData | null>(null);
 
   React.useEffect(() => {
-    const q = query(collection(db, "streams"), where("status", "==", "live"));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setStreams(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StreamData)));
-    });
-    return () => unsubscribe();
+    const fetchStreams = async () => {
+      const { data, error } = await supabase
+        .from("streams")
+        .select("*")
+        .eq("status", "live")
+        .order("createdAt", { ascending: false });
+      
+      if (!error && data) {
+        setStreams(data as StreamData[]);
+      }
+    };
+
+    fetchStreams();
+
+    const channel = supabase
+      .channel('live-streams')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'streams',
+          filter: 'status=eq.live'
+        },
+        () => {
+          fetchStreams();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const heroStream = streams[0];
@@ -118,16 +145,23 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
                         >
                             <div className="relative aspect-video overflow-hidden rounded-2xl border border-white/5 transition-all group-hover:border-brand-blue shadow-lg group-hover:shadow-blue-500/10">
                                 <img src={stream.thumbnail || "https://images.unsplash.com/photo-1427504494785-3a9ca7044f45?auto=format&fit=crop&q=80"} alt="" className="h-full w-full object-cover transition-transform group-hover:scale-110" />
-                                <div className="absolute left-3 top-3 flex items-center space-x-2 rounded bg-red-600 px-2 py-0.5 text-[8px] font-black text-white uppercase tracking-[0.2em]">
-                                    <span className="block h-1.5 w-1.5 rounded-full bg-white animate-pulse"></span>
-                                    <span>Live</span>
-                                </div>
+                                {stream.status === 'live' ? (
+                                    <div className="absolute left-3 top-3 flex items-center space-x-2 rounded bg-red-600 px-2 py-0.5 text-[8px] font-black text-white uppercase tracking-[0.2em]">
+                                        <span className="block h-1.5 w-1.5 rounded-full bg-white animate-pulse"></span>
+                                        <span>Live</span>
+                                    </div>
+                                ) : (
+                                    <div className="absolute left-3 top-3 flex items-center space-x-2 rounded bg-blue-600 px-2 py-0.5 text-[8px] font-black text-white uppercase tracking-[0.2em]">
+                                        <Play className="h-2 w-2 fill-current" />
+                                        <span>Recorded</span>
+                                    </div>
+                                )}
                                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                     <Play className="h-10 w-10 text-white fill-white" />
                                 </div>
                                 <div className="absolute right-3 bottom-3 flex items-center space-x-2 rounded bg-black/50 backdrop-blur-md px-2 py-1 text-[8px] font-bold text-white uppercase">
                                     <Eye className="h-3 w-3 text-blue-400" />
-                                    <span>{stream.viewersCount} Viewers</span>
+                                    <span>{stream.status === 'live' ? `${stream.viewersCount} Viewers` : "Past Session"}</span>
                                 </div>
                             </div>
                             <div>

@@ -1,8 +1,7 @@
 import React from "react";
 import { UserProfile, StreamData } from "../types";
 import Sidebar from "../components/Sidebar";
-import { db, handleFirestoreError, OperationType } from "../lib/firebase";
-import { collection, addDoc, serverTimestamp, query, where, onSnapshot, deleteDoc, doc, updateDoc } from "firebase/firestore";
+import { supabase } from "../lib/supabase";
 import { Plus, Video, Trash2, Edit3, Loader2, Play, Users } from "lucide-react";
 import { motion } from "motion/react";
 import StreamPlayer from "../components/StreamPlayer";
@@ -24,11 +23,41 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
   const [thumb, setThumb] = React.useState("");
 
   React.useEffect(() => {
-    const q = query(collection(db, "streams"), where("teacherId", "==", profile.uid));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setMyStreams(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StreamData)));
-    });
-    return () => unsubscribe();
+    // Initial fetch
+    const fetchMyStreams = async () => {
+      const { data, error } = await supabase
+        .from("streams")
+        .select("*")
+        .eq("teacherId", profile.uid)
+        .order("createdAt", { ascending: false });
+      
+      if (!error && data) {
+        setMyStreams(data as StreamData[]);
+      }
+    };
+
+    fetchMyStreams();
+
+    // Subscribe to changes
+    const channel = supabase
+      .channel('my-streams')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'streams',
+          filter: `teacherId=eq.${profile.uid}`
+        },
+        () => {
+          fetchMyStreams();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [profile.uid]);
 
   const handleStartStream = async (e: React.FormEvent) => {
@@ -43,17 +72,26 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
         status: "live",
         thumbnail: thumb || "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80",
         viewersCount: 0,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       };
-      const docRef = await addDoc(collection(db, "streams"), streamData);
-      setLiveStream({ id: docRef.id, ...streamData } as StreamData);
+      
+      const { data, error } = await supabase
+        .from("streams")
+        .insert(streamData)
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      setLiveStream(data as StreamData);
       setActiveTab("live-console");
       setTitle("");
       setDescription("");
       setThumb("");
-    } catch (err) {
-      handleFirestoreError(err, OperationType.CREATE, "streams");
+    } catch (err: any) {
+      console.error("Stream creation error:", err);
+      alert(err.message || "Failed to start stream");
     } finally {
       setLoading(false);
     }
@@ -61,23 +99,36 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
 
   const stopStream = async (streamId: string) => {
      try {
-        await updateDoc(doc(db, "streams", streamId), {
-           status: "offline",
-           updatedAt: serverTimestamp()
-        });
+        const { error } = await supabase
+          .from("streams")
+          .update({
+            status: "offline",
+            updatedAt: new Date().toISOString()
+          })
+          .eq("id", streamId);
+
+        if (error) throw error;
+        
         setLiveStream(null);
         setActiveTab("browse");
-     } catch (err) {
-        handleFirestoreError(err, OperationType.UPDATE, `streams/${streamId}`);
+     } catch (err: any) {
+        console.error("Stop stream error:", err);
+        alert(err.message || "Failed to stop stream");
      }
   };
 
   const deleteStream = async (streamId: string) => {
     if (!confirm("Are you sure you want to delete this stream record?")) return;
     try {
-      await deleteDoc(doc(db, "streams", streamId));
-    } catch (err) {
-      handleFirestoreError(err, OperationType.DELETE, `streams/${streamId}`);
+      const { error } = await supabase
+        .from("streams")
+        .delete()
+        .eq("id", streamId);
+        
+      if (error) throw error;
+    } catch (err: any) {
+      console.error("Delete stream error:", err);
+      alert(err.message || "Failed to delete stream");
     }
   };
 

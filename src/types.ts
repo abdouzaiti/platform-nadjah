@@ -1,5 +1,3 @@
-import { Timestamp } from "firebase/firestore";
-
 export type UserRole = "teacher" | "student";
 
 export interface UserProfile {
@@ -8,7 +6,7 @@ export interface UserProfile {
   email: string;
   photoURL: string;
   role: UserRole;
-  createdAt: Timestamp;
+  createdAt: string;
 }
 
 export interface StreamData {
@@ -20,8 +18,9 @@ export interface StreamData {
   status: "live" | "offline" | "scheduled";
   thumbnail: string;
   viewersCount: number;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  recordingUrl?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface ChatMessageData {
@@ -30,5 +29,5 @@ export interface ChatMessageData {
   userId: string;
   userName: string;
   userPhoto: string;
-  timestamp: Timestamp;
+  timestamp: string;
 }

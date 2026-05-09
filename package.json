@@ -1,5 +1,5 @@
 {
-  "name": "react-example",
+  "name": "ecole-nadjah-live",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -12,8 +12,10 @@
   },
   "dependencies": {
     "@google/genai": "^1.29.0",
+    "@supabase/supabase-js": "^2.105.4",
     "@tailwindcss/vite": "^4.1.14",
     "@vitejs/plugin-react": "^5.0.4",
+    "agora-rtc-sdk-ng": "^4.24.3",
     "clsx": "^2.1.1",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",

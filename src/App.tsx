@@ -1,70 +1,190 @@
 import React from "react";
-import { auth, db, handleFirestoreError, signInWithGoogle, OperationType } from "./lib/firebase";
-import { useAuthState } from "react-firebase-hooks/auth";
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { supabase, supabaseConfigured } from "./lib/supabase";
 import { UserProfile, UserRole } from "./types";
 import TeacherDashboard from "./pages/TeacherDashboard";
 import StudentDashboard from "./pages/StudentDashboard";
-import { LogIn, GraduationCap, School, Loader2 } from "lucide-react";
+import { LogIn, GraduationCap, School, Loader2, Database, Key, CheckCircle2 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 export default function App() {
-  const [user, loading, error] = useAuthState(auth);
+  const [user, setUser] = React.useState<any>(null);
+  const [loading, setLoading] = React.useState(true);
   const [profile, setProfile] = React.useState<UserProfile | null>(null);
   const [profileLoading, setProfileLoading] = React.useState(false);
+  const [fetchError, setFetchError] = React.useState<string | null>(null);
   const [showRoleSelect, setShowRoleSelect] = React.useState(false);
 
-  React.useEffect(() => {
-    async function fetchProfile() {
-      if (user) {
-        setProfileLoading(true);
-        try {
-          const docRef = doc(db, "users", user.uid);
-          const docSnap = await getDoc(docRef);
-          if (docSnap.exists()) {
-            setProfile(docSnap.data() as UserProfile);
-          } else {
-            setShowRoleSelect(true);
-          }
-        } catch (err) {
-          handleFirestoreError(err, OperationType.GET, `users/${user.uid}`);
-        } finally {
-          setProfileLoading(false);
+  const fetchProfile = React.useCallback(async (userId: string) => {
+    setProfileLoading(true);
+    setFetchError(null);
+    try {
+      const { data, error } = await supabase
+        .from("users")
+        .select("*")
+        .eq("uid", userId)
+        .single();
+
+      if (error) {
+        if (error.code === "PGRST116") { // Not found
+          setShowRoleSelect(true);
+        } else {
+          throw error;
         }
+      } else {
+        setProfile(data as UserProfile);
+      }
+    } catch (err: any) {
+      console.error("Profile fetch error:", err);
+      setFetchError(err.message || "Failed to load user profile");
+    } finally {
+      setProfileLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        fetchProfile(session.user.id);
+      }
+      setLoading(false);
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+      if (currentUser) {
+        fetchProfile(currentUser.id);
       } else {
         setProfile(null);
         setShowRoleSelect(false);
+        setFetchError(null);
       }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [fetchProfile]);
+
+  const signInWithGoogle = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin
+        }
+      });
+      if (error) throw error;
+    } catch (err: any) {
+      setFetchError(err.message);
     }
-    fetchProfile();
-  }, [user]);
+  };
 
   const handleRoleSelect = async (role: UserRole) => {
     if (!user) return;
     setProfileLoading(true);
+    setFetchError(null);
     try {
       const newProfile = {
-        uid: user.uid,
-        displayName: user.displayName || "User",
+        uid: user.id,
+        displayName: user.user_metadata?.full_name || user.email?.split('@')[0] || "User",
         email: user.email || "",
-        photoURL: user.photoURL || "",
+        photoURL: user.user_metadata?.avatar_url || "",
         role,
-        createdAt: serverTimestamp(),
+        createdAt: new Date().toISOString(),
       };
-      await setDoc(doc(db, "users", user.uid), newProfile);
+      
+      const { error } = await supabase.from("users").upsert(newProfile);
+      if (error) throw error;
+      
       setProfile(newProfile as any);
       setShowRoleSelect(false);
-    } catch (err) {
-      handleFirestoreError(err, OperationType.CREATE, `users/${user.uid}`);
+    } catch (err: any) {
+      console.error("Role assignment error:", err);
+      setFetchError(err.message || "Failed to set user role");
     } finally {
       setProfileLoading(false);
     }
   };
 
-  if (loading || profileLoading || (user && !profile && !showRoleSelect)) {
+  const isStuck = user && !profile && !showRoleSelect && !profileLoading && !fetchError;
+
+  if (!supabaseConfigured) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-brand-darkest text-brand-blue">
-        <Loader2 className="h-8 w-8 animate-spin" />
+      <div className="flex h-screen w-full flex-col items-center justify-center bg-brand-darkest p-8 text-center">
+        <div className="w-20 h-20 bg-brand-blue/10 rounded-3xl flex items-center justify-center mb-8 border border-brand-blue/20">
+          <Database className="h-10 w-10 text-brand-blue" />
+        </div>
+        <h2 className="text-3xl font-black text-white uppercase italic tracking-tighter mb-4">Database Configuration Required</h2>
+        <p className="max-w-md text-slate-400 mb-8 text-sm leading-relaxed">
+          Nadjah Live has migrated to <span className="text-white font-bold">Supabase</span> for better performance. 
+          Please configure your project credentials to continue.
+        </p>
+
+        <div className="grid gap-4 w-full max-w-sm text-left">
+          {[
+            { icon: Key, label: "VITE_SUPABASE_URL", desc: "Found in Project Settings > API" },
+            { icon: Key, label: "VITE_SUPABASE_ANON_KEY", desc: "Found in Project Settings > API" }
+          ].map((item, i) => (
+            <div key={i} className="bg-white/5 border border-white/5 p-4 rounded-2xl flex items-center gap-4">
+              <div className="h-10 w-10 bg-slate-800 rounded-xl flex items-center justify-center">
+                <item.icon className="h-5 w-5 text-slate-400" />
+              </div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-brand-blue leading-none mb-1">{item.label}</p>
+                <p className="text-[10px] text-slate-500 font-medium">{item.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-10 p-4 bg-brand-blue/10 border border-brand-blue/20 rounded-2xl flex items-start gap-4 max-w-sm text-left">
+          <CheckCircle2 className="h-5 w-5 text-brand-blue shrink-0 mt-0.5" />
+          <p className="text-[10px] text-brand-blue font-bold uppercase tracking-wider leading-relaxed">
+            Enter these in the <span className="underline">Secrets panel</span> of your AI Studio environment to activate the platform.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading || profileLoading || isStuck) {
+    return (
+      <div className="flex h-screen w-full flex-col items-center justify-center bg-brand-darkest text-brand-blue space-y-6">
+        <Loader2 className="h-10 w-10 animate-spin" />
+        <div className="text-center space-y-2">
+          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Syncing with Nadjah Cloud</p>
+          {isStuck && <p className="text-[8px] text-slate-600 italic">This usually takes a few seconds...</p>}
+        </div>
+      </div>
+    );
+  }
+
+  if (fetchError) {
+    return (
+      <div className="flex h-screen w-full flex-col items-center justify-center bg-brand-darkest p-6 text-center">
+        <div className="w-16 h-16 bg-red-500/10 rounded-2xl flex items-center justify-center mb-6 border border-red-500/20">
+          <School className="h-8 w-8 text-red-500" />
+        </div>
+        <h2 className="text-2xl font-black text-white uppercase italic tracking-tight mb-2">Access Interrupted</h2>
+        <p className="max-w-xs text-sm text-slate-500 mb-8 font-medium">
+          {fetchError || "Verify your connection or authorized domains."}
+        </p>
+        <div className="flex flex-col gap-3 w-full max-w-xs">
+          <button 
+            onClick={() => user ? fetchProfile(user.id) : window.location.reload()}
+            className="w-full bg-brand-blue py-4 rounded-xl text-xs font-black uppercase tracking-widest text-white hover:bg-blue-500 transition-all shadow-xl shadow-blue-500/20"
+          >
+            Retry Access
+          </button>
+          <button 
+            onClick={() => supabase.auth.signOut()}
+            className="w-full bg-white/5 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-white transition-all border border-white/5"
+          >
+            Switch Account
+          </button>
+        </div>
       </div>
     );
   }
