@@ -12,10 +12,11 @@ export default function App() {
   const [profile, setProfile] = React.useState<UserProfile | null>(null);
   const [profileLoading, setProfileLoading] = React.useState(false);
   const [fetchError, setFetchError] = React.useState<string | null>(null);
+  const [authError, setAuthError] = React.useState<string | null>(null);
   const [showRoleSelect, setShowRoleSelect] = React.useState(false);
   const [email, setEmail] = React.useState("");
+  const [password, setPassword] = React.useState("");
   const [authLoading, setAuthLoading] = React.useState(false);
-  const [magicLinkSent, setMagicLinkSent] = React.useState(false);
 
   const fetchProfile = React.useCallback(async (userId: string) => {
     setProfileLoading(true);
@@ -55,15 +56,19 @@ export default function App() {
     });
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log("Auth Event:", event);
       const currentUser = session?.user ?? null;
       setUser(currentUser);
+      
       if (currentUser) {
         fetchProfile(currentUser.id);
+        // Clear errors when we have a valid user
+        setFetchError(null);
       } else {
         setProfile(null);
         setShowRoleSelect(false);
-        setFetchError(null);
+        // Don't clear errors automatically here, as it might clear the link error
       }
     });
 
@@ -71,6 +76,8 @@ export default function App() {
   }, [fetchProfile]);
 
   const signInWithGoogle = async () => {
+    setAuthLoading(true);
+    setAuthError(null);
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -80,32 +87,40 @@ export default function App() {
       });
       if (error) throw error;
     } catch (err: any) {
+      console.error("Auth error details:", err);
       if (err.message?.includes('provider is not enabled')) {
-        setFetchError("GOOGLE_NOT_ENABLED: Please enable Google Login in Supabase or use the Email option below.");
+        setAuthError("GOOGLE_NOT_ENABLED: Please enable Google Login in Supabase or use the Email option below.");
       } else {
-        setFetchError(err.message);
+        setAuthError(err.message);
       }
+    } finally {
+      setAuthLoading(false);
     }
   };
 
   const signInWithEmail = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) return;
+    if (!email || !password) return;
     
     setAuthLoading(true);
-    setFetchError(null);
+    setAuthError(null);
     
     try {
-      const { error } = await supabase.auth.signInWithOtp({
+      const { error } = await supabase.auth.signInWithPassword({
         email,
-        options: {
-          emailRedirectTo: window.location.origin,
-        },
+        password,
       });
       if (error) throw error;
-      setMagicLinkSent(true);
     } catch (err: any) {
-      setFetchError(err.message);
+      console.error("Auth error details:", err);
+      const msg = err.message || "";
+      if (msg.includes('Invalid login credentials')) {
+        setAuthError("PENDING_OR_INVALID: Identity not verified. If you've submitted your request, it is likely awaiting manual approval by the School Manager.");
+      } else if (msg.includes('Email not confirmed')) {
+        setAuthError("CONFIRM_REQUIRED: Your account is created but email confirmation is required. Please check your inbox or contact the administrator.");
+      } else {
+        setAuthError(err.message);
+      }
     } finally {
       setAuthLoading(false);
     }
@@ -216,11 +231,30 @@ export default function App() {
           <School className="h-8 w-8 text-red-500" />
         </div>
         <h2 className="text-2xl font-black text-white uppercase italic tracking-tight mb-2">Access Interrupted</h2>
-        <p className={`max-w-md text-sm mb-8 font-medium ${fetchError?.includes('GOOGLE_NOT_ENABLED') ? 'text-brand-blue bg-brand-blue/10 p-4 rounded-xl border border-brand-blue/20' : 'text-slate-500'}`}>
+        <div className={`max-w-md text-sm mb-8 font-medium ${fetchError?.includes('GOOGLE_NOT_ENABLED') || fetchError?.includes('link is invalid') || fetchError?.includes('RATE_LIMIT') || fetchError?.includes('invalid_client') ? 'text-brand-blue bg-brand-blue/10 p-4 rounded-xl border border-brand-blue/20' : 'text-slate-500'}`}>
           {fetchError?.includes('GOOGLE_NOT_ENABLED') 
-            ? "Google Login is not enabled in your Supabase project. Go to Authentication > Providers in Supabase and enable 'Google'. You will also need to provide a Google Client ID from Google Cloud Console."
+            ? "Google Login is not enabled in your Supabase project. Go to Authentication > Providers in Supabase and enable 'Google'."
+            : fetchError?.includes('invalid_client')
+            ? "Erreur 401: invalid_client. This means the Client ID or Secret in your Supabase Google Provider settings is wrong. Double-check your Google Cloud Console credentials."
+            : fetchError?.includes('link is invalid')
+            ? "The sign-in code is invalid or has expired. Ensure you are using the most recent code sent to your email."
+            : fetchError?.includes('RATE_LIMIT')
+            ? (
+              <div className="space-y-4">
+                <p>Supabase limits emails to one per minute by default to prevent spam.</p>
+                <div className="bg-slate-900/50 p-4 rounded-xl text-left border border-white/5 space-y-2">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-brand-blue">To make it unlimited:</p>
+                  <ol className="text-[10px] text-slate-400 list-decimal pl-4 space-y-1 font-medium">
+                    <li>Go to your <strong>Supabase Dashboard</strong></li>
+                    <li>Navigate to <strong>Authentication → Settings</strong></li>
+                    <li>Find <strong>Rate Limits</strong> at the bottom</li>
+                    <li>Increase <strong>Email Rate Limit</strong> and <strong>Max Emails per Hour</strong></li>
+                  </ol>
+                </div>
+              </div>
+            )
             : (fetchError || "Verify your connection or authorized domains.")}
-        </p>
+        </div>
         <div className="flex flex-col gap-3 w-full max-w-xs">
           <button 
             onClick={() => user ? fetchProfile(user.id) : window.location.reload()}
@@ -263,51 +297,88 @@ export default function App() {
           </div>
 
           <div className="w-full space-y-6">
-            {magicLinkSent ? (
+            {authError && (
               <motion.div 
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="bg-emerald-500/10 border border-emerald-500/20 p-6 rounded-3xl text-center"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                className="bg-brand-blue/10 border border-brand-blue/20 p-4 rounded-xl"
               >
-                <div className="h-12 w-12 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <CheckCircle2 className="h-6 w-6 text-emerald-500" />
+                <div className="text-[10px] text-brand-blue font-bold tracking-wide leading-relaxed">
+                  {authError.includes('PENDING_OR_INVALID') ? (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-3 text-brand-blue mb-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <p className="font-black uppercase tracking-tight italic">Waiting for Manager</p>
+                      </div>
+                      <p className="text-slate-300 leading-relaxed font-medium">
+                        Verification is <span className="text-brand-blue">Manual</span>. The manager must add your email to the system directly.
+                      </p>
+                      <div className="bg-brand-blue/10 p-4 rounded-xl border border-brand-blue/20 space-y-3">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="h-3 w-3 text-brand-blue" />
+                          <p className="text-[9px] text-brand-blue font-black uppercase tracking-widest">Admin Instructions</p>
+                        </div>
+                        <p className="text-[9px] text-slate-400 leading-relaxed">
+                          To fix this: Go to <strong>Supabase → Auth → Add User</strong>. Enter email/password and ensure <strong>Auto-confirm user</strong> is checked.
+                        </p>
+                      </div>
+                      <p className="text-[10px] text-slate-500 font-bold italic">
+                        Approval typically takes less than 24 hours.
+                      </p>
+                    </div>
+                  ) : authError.includes('CONFIRM_REQUIRED') ? (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-3 text-amber-500 mb-2">
+                        <Mail className="h-5 w-5" />
+                        <p className="font-black uppercase tracking-tight italic">Email Confirmation</p>
+                      </div>
+                      <p className="text-slate-300 leading-relaxed font-medium">
+                        Your email needs to be confirmed. Please check your inbox for a confirmation link from Supabase.
+                      </p>
+                    </div>
+                  ) : authError}
                 </div>
-                <h3 className="text-white font-bold mb-2 uppercase tracking-tight italic">Check your inbox</h3>
-                <p className="text-xs text-slate-400 mb-6 font-medium leading-relaxed">
-                  We've sent a magic link to <span className="text-brand-blue font-bold">{email}</span>. Click it to log in.
-                </p>
-                <button 
-                  onClick={() => setMagicLinkSent(false)}
-                  className="text-[10px] text-slate-500 font-black uppercase tracking-[0.2em] hover:text-white transition-colors"
-                >
-                  Try another email
-                </button>
               </motion.div>
-            ) : (
-              <>
-                <form onSubmit={signInWithEmail} className="space-y-3">
-                  <div className="relative group">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-brand-blue transition-colors" />
-                    <input 
-                      type="email"
-                      placeholder="Enter your email address"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-white text-sm focus:outline-none focus:border-brand-blue/50 transition-all font-medium"
-                    />
-                  </div>
-                  <button 
-                    type="submit"
-                    disabled={authLoading}
-                    className="w-full bg-brand-blue hover:bg-blue-500 disabled:opacity-50 text-white font-black py-4 rounded-2xl text-xs uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3 shadow-xl shadow-blue-500/20"
-                  >
-                    {authLoading ? "Sending magic link..." : "Sign in with Email"}
-                    {!authLoading && <ArrowRight className="h-4 w-4" />}
-                  </button>
-                </form>
+            )}
 
-                <div className="relative flex items-center py-2">
+            <form onSubmit={signInWithEmail} className="space-y-3">
+              <div className="relative group">
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-brand-blue transition-colors" />
+                <input 
+                  type="email"
+                  placeholder="Email Address"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-white text-sm focus:outline-none focus:border-brand-blue/50 transition-all font-medium"
+                />
+              </div>
+              <div className="relative group">
+                <Key className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-brand-blue transition-colors" />
+                <input 
+                  type="password"
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-white text-sm focus:outline-none focus:border-brand-blue/50 transition-all font-medium"
+                />
+              </div>
+              <button 
+                type="submit"
+                disabled={authLoading}
+                className="w-full bg-brand-blue hover:bg-blue-500 disabled:opacity-50 text-white font-black py-4 rounded-2xl text-xs uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3 shadow-xl shadow-blue-500/20"
+              >
+                {authLoading ? "Authenticating..." : "Access Dashboard"}
+                {!authLoading && <ArrowRight className="h-4 w-4" />}
+              </button>
+            </form>
+            
+            <p className="text-[10px] text-slate-500 font-medium text-center px-4 leading-relaxed">
+              Don't have an account? Access is granted manually by the <span className="text-slate-400">School Administrator</span> after verification.
+            </p>
+
+            <div className="relative flex items-center py-2">
                   <div className="flex-grow border-t border-white/5"></div>
                   <span className="flex-shrink mx-4 text-[10px] font-black text-slate-600 uppercase tracking-widest">or use</span>
                   <div className="flex-grow border-t border-white/5"></div>
@@ -322,9 +393,7 @@ export default function App() {
                   </div>
                   <span className="text-sm font-black uppercase tracking-widest">Google Account</span>
                 </button>
-              </>
-            )}
-          </div>
+              </div>
           
           <div className="text-center text-[10px] font-black uppercase tracking-[0.2em] text-slate-600">
             Professional Streaming Engine
