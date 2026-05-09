@@ -2,7 +2,7 @@ import React from "react";
 import { UserProfile, StreamData } from "../types";
 import Sidebar from "../components/Sidebar";
 import { supabase } from "../lib/supabase";
-import { Play, Eye, Clock, Search, Bell } from "lucide-react";
+import { Play, Eye, Clock, Search, Bell, Menu } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "../lib/utils";
 import StreamPlayer from "../components/StreamPlayer";
@@ -15,6 +15,7 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
   const [activeTab, setActiveTab] = React.useState("browse");
   const [streams, setStreams] = React.useState<StreamData[]>([]);
   const [selectedStream, setSelectedStream] = React.useState<StreamData | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
 
   React.useEffect(() => {
     const fetchStreams = async () => {
@@ -56,24 +57,41 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
 
   return (
     <div className="flex h-screen overflow-hidden bg-brand-darkest">
-      <Sidebar profile={profile} activeTab={activeTab} setActiveTab={setActiveTab} />
+      <Sidebar 
+        profile={profile} 
+        activeTab={activeTab} 
+        setActiveTab={(tab) => {
+          setActiveTab(tab);
+          setIsSidebarOpen(false);
+        }} 
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+      />
       
-      <main className="flex-1 overflow-y-auto no-scrollbar bg-gradient-to-b from-brand-surface to-brand-darkest">
+      <main className="flex-1 overflow-y-auto no-scrollbar bg-gradient-to-b from-brand-surface to-brand-darkest relative p-4 md:p-0">
         {selectedStream ? (
            <div className="h-full">
               <StreamPlayer stream={selectedStream} profile={profile} onClose={() => setSelectedStream(null)} />
            </div>
         ) : (
-          <div className="p-8 space-y-12">
+          <div className="md:p-8 space-y-12">
             {/* Top Bar */}
-            <header className="flex items-center justify-between pb-6 border-b border-white/5">
-                <div className="relative w-96 group">
-                    <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500 group-focus-within:text-brand-blue" />
-                    <input 
-                        type="text" 
-                        placeholder="Search for lessons, teachers..." 
-                        className="w-full rounded-xl border border-white/5 bg-slate-900/50 py-2.5 pl-11 pr-4 text-sm text-white outline-none focus:ring-1 focus:ring-brand-blue transition-all"
-                    />
+            <header className="flex items-center justify-between gap-4 pb-6 border-b border-white/5">
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={() => setIsSidebarOpen(true)}
+                    className="lg:hidden p-2 bg-brand-blue/10 rounded-xl text-brand-blue border border-brand-blue/20 active:scale-95 transition-all"
+                  >
+                    <Menu className="h-6 w-6" />
+                  </button>
+                  <div className="relative w-40 md:w-96 group">
+                      <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500 group-focus-within:text-brand-blue" />
+                      <input 
+                          type="text" 
+                          placeholder="Search..." 
+                          className="w-full rounded-xl border border-white/5 bg-slate-900/50 py-2 md:py-2.5 pl-11 pr-4 text-sm text-white outline-none focus:ring-1 focus:ring-brand-blue transition-all"
+                      />
+                  </div>
                 </div>
                 <div className="flex items-center space-x-6">
                     <div className="hidden lg:flex items-center gap-2 bg-blue-600/10 px-3 py-1.5 rounded-full border border-blue-500/20">

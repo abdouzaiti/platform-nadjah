@@ -18,9 +18,11 @@ interface SidebarProps {
   profile: UserProfile;
   activeTab: string;
   setActiveTab: (tab: string) => void;
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
-export default function Sidebar({ profile, activeTab, setActiveTab }: SidebarProps) {
+export default function Sidebar({ profile, activeTab, setActiveTab, isOpen = false, onClose }: SidebarProps) {
   const isTeacher = profile.role === "teacher";
 
   const menuItems = [
@@ -37,15 +39,34 @@ export default function Sidebar({ profile, activeTab, setActiveTab }: SidebarPro
   };
 
   return (
-    <div className="flex h-screen w-60 flex-col glass-sidebar">
-      <div className="flex h-20 items-center px-6 border-b border-white/5">
-        <div className="flex items-center space-x-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded bg-brand-blue shadow-lg shadow-blue-500/20">
-            <School className="h-6 w-6 text-white" />
+    <>
+      {/* Mobile Overlay */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
+          onClick={onClose}
+        />
+      )}
+
+      <div className={cn(
+        "fixed inset-y-0 left-0 z-50 flex w-64 flex-col glass-sidebar transition-all duration-300 transform lg:translate-x-0 lg:static lg:inset-auto lg:h-screen lg:w-60",
+        isOpen ? "translate-x-0 shadow-2xl shadow-blue-500/10" : "-translate-x-full"
+      )}>
+        <div className="flex h-20 items-center justify-between px-6 border-b border-white/5">
+          <div className="flex items-center space-x-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded bg-brand-blue shadow-lg shadow-blue-500/20">
+              <School className="h-6 w-6 text-white" />
+            </div>
+            <span className="text-xl font-black tracking-tighter uppercase text-white">Nadjah <span className="text-brand-blue">Live</span></span>
           </div>
-          <span className="text-xl font-black tracking-tighter uppercase text-white">Nadjah <span className="text-brand-blue">Live</span></span>
+          {/* Close button for mobile */}
+          <button 
+            onClick={onClose}
+            className="lg:hidden h-8 w-8 rounded-lg bg-white/5 flex items-center justify-center text-slate-400 active:scale-95"
+          >
+            <PlusCircle className="h-5 w-5 rotate-45" />
+          </button>
         </div>
-      </div>
 
       <div className="flex-1 space-y-8 p-4 overflow-y-auto no-scrollbar">
         <div>
@@ -119,5 +140,6 @@ export default function Sidebar({ profile, activeTab, setActiveTab }: SidebarPro
         </button>
       </div>
     </div>
+    </>
   );
 }

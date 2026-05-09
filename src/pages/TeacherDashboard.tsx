@@ -2,8 +2,8 @@ import React from "react";
 import { UserProfile, StreamData } from "../types";
 import Sidebar from "../components/Sidebar";
 import { supabase } from "../lib/supabase";
-import { Plus, Video, Trash2, Edit3, Loader2, Play, Users } from "lucide-react";
-import { motion } from "motion/react";
+import { Plus, Video, Trash2, Edit3, Loader2, Play, Users, Menu, X } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
 import StreamPlayer from "../components/StreamPlayer";
 import { cn } from "../lib/utils";
 
@@ -16,6 +16,7 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
   const [myStreams, setMyStreams] = React.useState<StreamData[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [liveStream, setLiveStream] = React.useState<StreamData | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
 
   // Form State
   const [title, setTitle] = React.useState("");
@@ -137,10 +138,33 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
   }
 
   return (
-    <div className="flex h-screen bg-brand-darkest">
-      <Sidebar profile={profile} activeTab={activeTab} setActiveTab={setActiveTab} />
+    <div className="flex h-screen bg-brand-darkest overflow-hidden">
+      <Sidebar 
+        profile={profile} 
+        activeTab={activeTab} 
+        setActiveTab={(tab) => {
+          setActiveTab(tab);
+          setIsSidebarOpen(false);
+        }} 
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+      />
       
-      <main className="flex-1 overflow-y-auto p-8 no-scrollbar bg-gradient-to-b from-brand-surface to-brand-darkest">
+      <main className="flex-1 overflow-y-auto p-4 md:p-8 no-scrollbar bg-gradient-to-b from-brand-surface to-brand-darkest relative">
+        {/* Mobile Navbar */}
+        <div className="lg:hidden flex items-center justify-between mb-6 bg-slate-900/50 p-3 rounded-2xl border border-white/5 backdrop-blur-md">
+          <button 
+            onClick={() => setIsSidebarOpen(true)}
+            className="p-2 bg-brand-blue/10 rounded-xl text-brand-blue border border-brand-blue/20 active:scale-95 transition-all"
+          >
+            <Menu className="h-6 w-6" />
+          </button>
+          <div className="flex items-center space-x-2">
+            <div className="h-8 w-8 rounded bg-brand-blue flex items-center justify-center">
+              <Plus className="h-4 w-4 text-white" />
+            </div>
+          </div>
+        </div>
         {activeTab === "start-stream" ? (
           <div className="mx-auto max-w-2xl space-y-8">
              <div className="space-y-4 text-center">
