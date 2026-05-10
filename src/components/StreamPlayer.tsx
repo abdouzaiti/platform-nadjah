@@ -104,8 +104,50 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
         setInitTakingLong(false);
         setIsInitializingTracks(true);
         
+        if (!isTeacherView) {
+          client.on("user-published", async (user, mediaType) => {
+            try {
+              await client.subscribe(user, mediaType);
+              if (mediaType === "video") {
+                setTeacherVideo(user.videoTrack || null);
+              }
+              if (mediaType === "audio") {
+                try {
+                  user.audioTrack?.play();
+                } catch (err: any) {
+                  if (err.name === "NotAllowedError") {
+                    setHasAudioStarted(false);
+                  }
+                }
+              }
+            } catch (err) {
+              console.error("Subscription error:", err);
+            }
+          });
+
+          client.on("user-unpublished", (user, mediaType) => {
+            if (mediaType === "video") {
+              setTeacherVideo(null);
+            }
+          });
+        }
+
         // RTC Join
         await joinChannel(client, stream.id, profile.uid, isTeacherView ? "host" : "audience");
+        
+        // After joining, check if there are already users in the channel (safeguard)
+        if (!isTeacherView) {
+          for (const user of client.remoteUsers) {
+            if (user.hasVideo) {
+              await client.subscribe(user, "video");
+              setTeacherVideo(user.videoTrack || null);
+            }
+            if (user.hasAudio) {
+              await client.subscribe(user, "audio");
+              user.audioTrack?.play();
+            }
+          }
+        }
         
         // RTM Join
         try {
@@ -133,6 +175,7 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
           console.error("RTM Setup Error (Optional):", rtmErr);
         }
 
+
         if (isTeacherView) {
           const timeout = setTimeout(() => setInitTakingLong(true), 8000);
           const tracks = await createTracks();
@@ -150,34 +193,8 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
               setMicVolume(tracks.audioTrack.getVolumeLevel() * 100);
             }
           }, 100);
-          return () => clearInterval(interval);
-        } else {
-          client.on("user-published", async (user, mediaType) => {
-            try {
-              await client.subscribe(user, mediaType);
-              if (mediaType === "video") {
-                setTeacherVideo(user.videoTrack || null);
-              }
-              if (mediaType === "audio") {
-                try {
-                  user.audioTrack?.play();
-                } catch (err: any) {
-                  if (err.name === "NotAllowedError") {
-                    setHasAudioStarted(false);
-                  }
-                }
-              }
-            } catch (err) {
-              console.error("Subscription error:", err);
-            }
-          });
-
-          client.on("user-unpublished", (user, mediaType) => {
-            if (mediaType === "video") {
-              setTeacherVideo(null);
-            }
-          });
         }
+
         setIsInitializingTracks(false);
       } catch (err: any) {
         console.error("Agora Setup Error:", err);
