@@ -188,7 +188,7 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                 <p className="text-slate-400 font-medium tracking-wide">Configure your session parameters for the student collective.</p>
              </div>
 
-             <form onSubmit={handleStartStream} className="space-y-6 rounded-[40px] bg-slate-900/40 p-10 backdrop-blur-2xl border border-white/5 shadow-2xl shadow-blue-500/10">
+             <form onSubmit={handleStartStream} className="space-y-6 rounded-[24px] sm:rounded-[40px] bg-slate-900/40 p-6 sm:p-10 backdrop-blur-2xl border border-white/5 shadow-2xl shadow-blue-500/10">
                 <div className="space-y-4">
                     <label className="block text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2">Lesson Title</label>
                     <input 
@@ -196,8 +196,8 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                         type="text" 
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
-                        placeholder="e.g. Advanced Calculus - Week 4"
-                        className="w-full rounded-2xl border border-white/5 bg-slate-800/50 p-4 font-bold text-white outline-none focus:ring-1 focus:ring-brand-blue"
+                        placeholder="Advanced Calculus"
+                        className="w-full rounded-xl sm:rounded-2xl border border-white/5 bg-slate-800/50 p-4 font-bold text-white outline-none focus:ring-1 focus:ring-brand-blue"
                     />
                 </div>
 
@@ -208,8 +208,8 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                         rows={4}
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
-                        placeholder="What will students learn in this session?"
-                        className="w-full rounded-2xl border border-white/5 bg-slate-800/50 p-4 font-medium text-slate-300 outline-none focus:ring-1 focus:ring-brand-blue"
+                        placeholder="Lesson topics..."
+                        className="w-full rounded-xl sm:rounded-2xl border border-white/5 bg-slate-800/50 p-4 font-medium text-slate-300 outline-none focus:ring-1 focus:ring-brand-blue"
                     />
                 </div>
 
@@ -220,14 +220,14 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                         value={thumb}
                         onChange={(e) => setThumb(e.target.value)}
                         placeholder="https://images.unsplash.com/..."
-                        className="w-full rounded-2xl border border-white/5 bg-slate-800/50 p-4 text-sm text-slate-400 outline-none focus:ring-1 focus:ring-brand-blue"
+                        className="w-full rounded-xl sm:rounded-2xl border border-white/5 bg-slate-800/50 p-4 text-xs text-slate-400 outline-none focus:ring-1 focus:ring-brand-blue"
                     />
                 </div>
 
                 <button 
                     disabled={loading}
                     type="submit"
-                    className="flex w-full items-center justify-center space-x-3 rounded-2xl bg-brand-blue py-5 text-sm font-black uppercase tracking-widest text-white shadow-xl shadow-blue-500/20 transition-all hover:bg-blue-500 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50"
+                    className="flex w-full items-center justify-center space-x-3 rounded-xl sm:rounded-2xl bg-brand-blue py-4 sm:py-5 text-sm font-black uppercase tracking-widest text-white shadow-xl shadow-blue-500/20 transition-all hover:bg-blue-500 disabled:opacity-50"
                 >
                     {loading ? <Loader2 className="h-6 w-6 animate-spin" /> : (
                         <>
@@ -239,16 +239,16 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
              </form>
           </div>
         ) : (
-          <div className="space-y-12">
-            <header className="flex items-center justify-between pb-8 border-b border-white/5">
+          <div className="space-y-8 sm:space-y-12">
+            <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-8 border-b border-white/5">
                 <div className="space-y-1">
-                    <h2 className="font-display text-4xl font-black text-white uppercase italic tracking-tighter">Academic Control</h2>
-                    <p className="text-slate-500 font-bold tracking-widest text-[10px] uppercase">Welcome back, Professor {profile.displayName.split(" ")[0]}</p>
+                    <h2 className="font-display text-2xl sm:text-4xl font-black text-white uppercase italic tracking-tighter">Academic Control</h2>
+                    <p className="text-slate-500 font-bold tracking-widest text-[8px] sm:text-[10px] uppercase">Welcome, Professor {profile.displayName.split(" ")[0]}</p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 sm:gap-3">
                   <button 
                     onClick={() => {
-                      const sql = `-- Run this in Supabase SQL Editor to fix deletion issues:
+                        const sql = `-- Run this in Supabase SQL Editor to fix deletion issues:
 ALTER TABLE public.chat_messages DROP CONSTRAINT IF EXISTS chat_messages_streamId_fkey;
 ALTER TABLE public.chat_messages ADD CONSTRAINT chat_messages_streamId_fkey FOREIGN KEY ("streamId") REFERENCES public.streams(id) ON DELETE CASCADE;
 -- If you have enrollments:
@@ -256,64 +256,55 @@ DO $$ BEGIN IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name 
 ALTER TABLE public.stream_enrollments DROP CONSTRAINT IF EXISTS stream_enrollments_streamId_fkey;
 ALTER TABLE public.stream_enrollments ADD CONSTRAINT stream_enrollments_streamId_fkey FOREIGN KEY ("streamId") REFERENCES public.streams(id) ON DELETE CASCADE;
 END IF; END $$;`;
-                      navigator.clipboard.writeText(sql);
-                      alert("Cascading Fix SQL copied to clipboard! Run it in Supabase SQL Editor.");
+                        navigator.clipboard.writeText(sql);
+                        alert("Cascading Fix SQL copied to clipboard! Run it in Supabase SQL Editor.");
                     }}
-                    className="flex items-center space-x-2 rounded-xl bg-orange-500/10 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-orange-500 border border-orange-500/20 hover:bg-orange-500/20 transition-all"
+                    className="flex-1 sm:flex-none flex items-center justify-center space-x-2 rounded-xl bg-orange-500/10 px-3 sm:px-4 py-3 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-orange-500 border border-orange-500/20"
                   >
                       <Database className="h-3 w-3" />
-                      <span>Repair DB</span>
+                      <span>Repair</span>
                   </button>
                   <button 
                     onClick={() => setActiveTab("start-stream")}
-                    className="flex items-center space-x-2 rounded-xl bg-brand-blue px-6 py-3 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-blue-500/20 transition-all hover:bg-blue-500 hover:scale-105"
+                    className="flex-1 sm:flex-none flex items-center justify-center space-x-2 rounded-xl bg-brand-blue px-4 sm:px-6 py-3 text-[9px] sm:text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-blue-500/20"
                   >
                       <Plus className="h-4 w-4" />
-                      <span>Create Session</span>
+                      <span>Create</span>
                   </button>
                 </div>
             </header>
 
-            <section className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                <div className="rounded-[32px] bg-slate-900/40 p-8 border border-white/5 backdrop-blur-xl">
-                   <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">Total Engagement</p>
-                   <p className="text-5xl font-black font-display text-white italic">1.2k</p>
-                   <div className="mt-4 flex items-center space-x-2 text-blue-400 font-black text-[10px] uppercase tracking-widest">
-                      <span>↑ 12% Growth</span>
-                   </div>
+            <section className="grid gap-4 sm:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                <div className="rounded-[24px] sm:rounded-[32px] bg-slate-900/40 p-6 sm:p-8 border border-white/5 backdrop-blur-xl">
+                   <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">Engagement</p>
+                   <p className="text-4xl sm:text-5xl font-black font-display text-white italic">1.2k</p>
                 </div>
-                <div className="rounded-[32px] bg-slate-900/40 p-8 border border-white/5 backdrop-blur-xl">
-                   <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">Active Sessions</p>
-                   <p className="text-5xl font-black font-display text-brand-blue italic">{myStreams.filter(s => s.status === 'live').length}</p>
-                   <div className="mt-4 flex items-center space-x-2 text-white/40 font-black text-[10px] uppercase tracking-widest">
-                      <span>Standby Ready</span>
-                   </div>
+                <div className="rounded-[24px] sm:rounded-[32px] bg-slate-900/40 p-6 sm:p-8 border border-white/5 backdrop-blur-xl">
+                   <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">Active</p>
+                   <p className="text-4xl sm:text-5xl font-black font-display text-brand-blue italic">{myStreams.filter(s => s.status === 'live').length}</p>
                 </div>
-                <div className="rounded-[32px] bg-gradient-to-br from-brand-blue to-blue-700 p-8 text-white shadow-xl shadow-blue-500/20">
-                   <p className="text-[10px] font-black text-white/50 uppercase tracking-[0.2em] mb-4">Total Broadcasts</p>
-                   <p className="text-5xl font-black font-display italic tracking-tighter">{myStreams.length}</p>
-                   <div className="mt-4 flex items-center space-x-2 text-white/70 font-black text-[10px] uppercase tracking-widest">
-                      <span>Nadjah Academy 2024</span>
-                   </div>
+                <div className="rounded-[24px] sm:rounded-[32px] bg-gradient-to-br from-brand-blue to-blue-700 p-6 sm:p-8 text-white shadow-xl shadow-blue-500/20">
+                   <p className="text-[10px] font-black text-white/50 uppercase tracking-[0.2em] mb-4">Broadcasts</p>
+                   <p className="text-4xl sm:text-5xl font-black font-display italic tracking-tighter">{myStreams.length}</p>
                 </div>
             </section>
 
             <section className="space-y-6">
-                <h3 className="font-display text-xl font-black text-white uppercase italic tracking-tight">Broadcasting Archive</h3>
-                <div className="grid gap-4">
+                <h3 className="font-display text-xl font-black text-white uppercase italic tracking-tight">Archive</h3>
+                <div className="grid gap-3 sm:gap-4">
                     {myStreams.length === 0 ? (
-                        <div className="flex h-40 flex-col items-center justify-center rounded-[32px] border border-white/5 bg-slate-900/20">
-                            <p className="font-black text-slate-600 uppercase tracking-widest text-xs">No records found</p>
+                        <div className="flex h-32 items-center justify-center rounded-2xl border border-white/5 bg-slate-900/20">
+                            <p className="font-black text-slate-600 uppercase tracking-widest text-[10px]">No records</p>
                         </div>
                     ) : (
                         myStreams.map((stream) => (
                             <motion.div 
                                 key={stream.id}
                                 layout
-                                className="flex items-center justify-between rounded-2xl bg-slate-900/40 p-4 border border-white/5 backdrop-blur-sm hover:border-white/10 transition-all group"
+                                className="flex flex-col sm:flex-row sm:items-center justify-between rounded-2xl bg-slate-900/40 p-4 border border-white/5 backdrop-blur-sm gap-4 group"
                             >
-                                <div className="flex items-center space-x-6">
-                                    <div className="relative h-16 w-28 overflow-hidden rounded-lg border border-white/5">
+                                <div className="flex items-center space-x-4 sm:space-x-6">
+                                    <div className="relative h-12 w-20 sm:h-16 sm:w-28 overflow-hidden rounded-lg border border-white/5 shrink-0">
                                         <img src={stream.thumbnail || "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80"} alt="" className="h-full w-full object-cover transition-transform group-hover:scale-110" />
                                         {stream.status === 'live' && (
                                             <div className="absolute inset-0 bg-red-600/20 flex items-center justify-center">
@@ -321,27 +312,24 @@ END IF; END $$;`;
                                             </div>
                                         )}
                                     </div>
-                                    <div>
-                                        <h4 className="text-sm font-black text-white uppercase tracking-tight group-hover:text-brand-blue truncate max-w-[200px]">{stream.title}</h4>
-                                        <div className="flex items-center space-x-4 mt-1">
+                                    <div className="min-w-0">
+                                        <h4 className="text-xs sm:text-sm font-black text-white uppercase tracking-tight group-hover:text-brand-blue truncate">{stream.title}</h4>
+                                        <div className="flex items-center space-x-3 mt-1">
                                             <span className={cn(
-                                                "text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded",
+                                                "text-[7px] sm:text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded",
                                                 stream.status === 'live' ? "bg-red-500/20 text-red-500" : "bg-slate-800 text-slate-500"
                                             )}>
                                                 {stream.status}
                                             </span>
-                                            <div className="flex items-center space-x-1 text-slate-500 text-[10px] font-bold">
-                                                <Users className="h-3 w-3" />
-                                                <span>{stream.viewersCount} Viewers</span>
-                                            </div>
+                                            <span className="text-slate-500 text-[8px] sm:text-[10px] font-bold uppercase">{stream.viewersCount} Viewers</span>
                                         </div>
                                     </div>
                                 </div>
-                                <div className="flex items-center space-x-2">
+                                <div className="flex items-center justify-end space-x-2">
                                     {stream.status === 'live' ? (
                                         <button 
                                             onClick={() => { setLiveStream(stream); setActiveTab("live-console"); }}
-                                            className="flex items-center space-x-2 rounded-lg bg-brand-blue px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:bg-blue-500"
+                                            className="flex items-center space-x-2 rounded-lg bg-brand-blue px-4 py-2 text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-white transition-all hover:bg-blue-500"
                                         >
                                             <Play className="h-3 w-3 fill-current" />
                                             <span>Console</span>

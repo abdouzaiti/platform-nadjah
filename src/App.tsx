@@ -377,18 +377,18 @@ CREATE POLICY "Auth Users Insert Chat" ON public.chat_messages FOR INSERT WITH C
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-md space-y-8 rounded-[32px] bg-slate-900/40 p-10 backdrop-blur-2xl border border-white/10 shadow-2xl shadow-blue-500/10 relative z-10"
+          className="w-full max-w-md space-y-6 sm:space-y-8 rounded-[32px] bg-slate-900/40 p-6 sm:p-10 backdrop-blur-2xl border border-white/10 shadow-2xl shadow-blue-500/10 relative z-10"
         >
-          <div className="flex flex-col items-center space-y-6">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-blue shadow-xl shadow-blue-500/20">
-              <School className="h-8 w-8 text-white" />
+          <div className="flex flex-col items-center space-y-4 sm:space-y-6">
+            <div className="flex h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-2xl bg-brand-blue shadow-xl shadow-blue-500/20">
+              <School className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
             </div>
             <div className="space-y-1">
-              <h1 className="text-center font-display text-4xl font-black tracking-tighter uppercase text-slate-50">
+              <h1 className="text-center font-display text-3xl sm:text-4xl font-black tracking-tighter uppercase text-slate-50">
                 Ecole <span className="text-brand-blue">Nadjah</span>
               </h1>
-              <p className="text-center text-sm font-medium text-slate-400">
-                Premium Virtual Learning Platform
+              <p className="text-center text-[10px] sm:text-sm font-medium text-slate-400 uppercase tracking-widest">
+                Premium Virtual Learning
               </p>
             </div>
           </div>
