@@ -129,14 +129,14 @@ export default function App() {
 
   if (!supabaseConfigured) {
     return (
-      <div className="flex h-screen w-full flex-col items-center justify-center bg-brand-darkest p-8 text-center overflow-y-auto">
-        <div className="w-20 h-20 bg-brand-blue/10 rounded-3xl flex items-center justify-center mb-8 border border-brand-blue/20">
+      <div className="flex h-screen w-full flex-col items-center justify-center bg-slate-50 p-8 text-center overflow-y-auto">
+        <div className="w-20 h-20 bg-brand-blue/10 rounded-3xl flex items-center justify-center mb-8 border border-brand-blue/20 shadow-sm">
           <Database className="h-10 w-10 text-brand-blue" />
         </div>
-        <h2 className="text-3xl font-black text-white uppercase italic tracking-tighter mb-4">
+        <h2 className="text-3xl font-black text-slate-900 uppercase italic tracking-tighter mb-4">
           Database Configuration Required
         </h2>
-        <p className="max-w-md text-slate-400 mb-8 text-sm leading-relaxed">
+        <p className="max-w-md text-slate-500 mb-8 text-sm leading-relaxed">
           Nadjah Live has migrated to Supabase for better performance. Please configure your project credentials in the Secrets panel to continue.
         </p>
 
@@ -155,28 +155,28 @@ export default function App() {
               error: !isProperAnonKey
             }
           ].map((item, i) => (
-            <div key={i} className={`bg-white/5 border ${item.error ? 'border-red-500/50 bg-red-500/5' : 'border-white/5'} p-4 rounded-2xl flex items-center gap-4`}>
-              <div className={`h-10 w-10 ${item.error ? 'bg-red-500/20' : 'bg-slate-800'} rounded-xl flex items-center justify-center`}>
-                <item.icon className={`h-5 w-5 ${item.error ? 'text-red-400' : 'text-slate-400'}`} />
+            <div key={i} className={`bg-white border ${item.error ? 'border-red-500/50 bg-red-50' : 'border-slate-200'} p-4 rounded-2xl flex items-center gap-4 shadow-sm text-slate-900`}>
+              <div className={`h-10 w-10 ${item.error ? 'bg-red-500/10' : 'bg-slate-100'} rounded-xl flex items-center justify-center`}>
+                <item.icon className={`h-5 w-5 ${item.error ? 'text-red-500' : 'text-slate-500'}`} />
               </div>
               <div>
-                <p className={`text-[10px] font-black uppercase tracking-widest ${item.error ? 'text-red-400' : 'text-brand-blue'} leading-none mb-1`}>{item.label}</p>
-                <p className="text-[10px] text-slate-500 font-medium">{item.desc}</p>
+                <p className={`text-[10px] font-black uppercase tracking-widest ${item.error ? 'text-red-500' : 'text-brand-blue'} leading-none mb-1`}>{item.label}</p>
+                <p className="text-[10px] text-slate-400 font-medium">{item.desc}</p>
               </div>
             </div>
           ))}
         </div>
 
-        <div className="mt-10 p-4 bg-brand-blue/10 border border-brand-blue/20 rounded-2xl flex items-start gap-4 max-w-sm text-left">
+        <div className="mt-10 p-4 bg-brand-blue/5 border border-brand-blue/10 rounded-2xl flex items-start gap-4 max-w-sm text-left">
           <CheckCircle2 className="h-5 w-5 text-brand-blue shrink-0 mt-0.5" />
           <p className="text-[10px] text-brand-blue font-bold uppercase tracking-wider leading-relaxed">
-            Enter these in the <span className="underline">Secrets panel</span>. If you just added them, try clicking the "Retry" button below or refreshing the page.
+            Enter these in the <span className="underline font-black">Secrets panel</span>. If you just added them, try clicking the "Retry" button below or refreshing the page.
           </p>
         </div>
 
         <button 
           onClick={() => window.location.reload()}
-          className="mt-8 px-8 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold uppercase tracking-widest transition-all"
+          className="mt-8 px-8 py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-xs font-bold uppercase tracking-widest transition-all"
         >
           Refresh & Retry
         </button>
@@ -186,11 +186,11 @@ export default function App() {
 
   if (loading || profileLoading || isStuck) {
     return (
-      <div className="flex h-screen w-full flex-col items-center justify-center bg-brand-darkest text-brand-blue space-y-6">
+      <div className="flex h-screen w-full flex-col items-center justify-center bg-slate-50 text-brand-blue space-y-6">
         <Loader2 className="h-10 w-10 animate-spin" />
         <div className="text-center space-y-2">
-          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Syncing with Nadjah Cloud</p>
-          {isStuck && <p className="text-[8px] text-slate-600 italic">This usually takes a few seconds...</p>}
+          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Syncing with Nadjah Cloud</p>
+          {isStuck && <p className="text-[8px] text-slate-500 italic">This usually takes a few seconds...</p>}
         </div>
       </div>
     );
@@ -198,75 +198,75 @@ export default function App() {
 
   if (fetchError) {
     return (
-      <div className="flex h-screen w-full flex-col items-center justify-center bg-brand-darkest p-6 text-center overflow-y-auto">
-        <div className="w-16 h-16 bg-brand-blue/10 rounded-2xl flex items-center justify-center mb-6 border border-brand-blue/20">
+      <div className="flex h-screen w-full flex-col items-center justify-center bg-slate-50 p-6 text-center overflow-y-auto">
+        <div className="w-16 h-16 bg-brand-blue/10 rounded-2xl flex items-center justify-center mb-6 border border-brand-blue/20 shadow-sm">
           <Database className="h-8 w-8 text-brand-blue" />
         </div>
-        <h2 className="text-2xl font-black text-white uppercase italic tracking-tight mb-2">Access Denied</h2>
+        <h2 className="text-2xl font-black text-slate-900 uppercase italic tracking-tight mb-2">Access Denied</h2>
         
-        <div className="max-w-2xl w-full text-sm mb-8 font-medium text-brand-blue bg-brand-blue/10 p-6 rounded-2xl border border-brand-blue/20">
+        <div className="max-w-2xl w-full text-sm mb-8 font-medium text-brand-blue bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
           {fetchError === 'NOT_REGISTERED' ? (
             <div className="space-y-6 text-left">
               <div className="space-y-2">
-                <p className="text-slate-300 leading-relaxed text-sm">
-                  Your account is active, but you are not yet authorized in the <strong className="text-white">Nadjah Users</strong> list.
+                <p className="text-slate-600 leading-relaxed text-sm">
+                  Your account is active, but you are not yet authorized in the <strong className="text-slate-900">Nadjah Users</strong> list.
                 </p>
-                <div className="flex flex-col gap-2 bg-black/30 p-4 rounded-xl border border-white/5">
+                <div className="flex flex-col gap-2 bg-slate-50 p-4 rounded-xl border border-slate-200">
                   <div className="flex items-center justify-between gap-4">
                     <span className="text-[10px] text-brand-blue uppercase font-black tracking-widest">Email:</span>
-                    <span className="text-[10px] text-slate-400 font-medium truncate">{user?.email}</span>
+                    <span className="text-[10px] text-slate-500 font-medium truncate">{user?.email}</span>
                   </div>
                   <div className="flex items-center justify-between gap-4">
                     <span className="text-[10px] text-brand-blue uppercase font-black tracking-widest">User UID:</span>
-                    <span className="text-[10px] text-white font-mono truncate select-all">{user?.id}</span>
+                    <span className="text-[10px] text-slate-900 font-mono truncate select-all">{user?.id}</span>
                   </div>
                 </div>
               </div>
 
               <div className="space-y-4">
-                <div className="bg-slate-950 p-4 rounded-xl border border-white/5 space-y-3">
+                <div className="bg-slate-100 p-4 rounded-xl border border-slate-200 space-y-3">
                   <div className="flex items-center justify-between">
                     <p className="text-[10px] text-brand-blue font-black uppercase tracking-widest bg-brand-blue/10 px-2 py-0.5 rounded">Quick Fix SQL</p>
                     <CheckCircle2 className="h-3 w-3 text-emerald-500" />
                   </div>
-                  <p className="text-[9px] text-slate-400">To allow yourself as a <span className="text-white font-bold">Teacher</span>, run this in Supabase SQL Editor:</p>
-                  <pre className="text-[9px] text-emerald-400 font-mono overflow-x-auto whitespace-pre p-2 bg-black/40 rounded-lg border border-white/5">
+                  <p className="text-[9px] text-slate-500">To allow yourself as a <span className="text-slate-900 font-bold">Teacher</span>, run this in Supabase SQL Editor:</p>
+                  <pre className="text-[9px] text-emerald-600 font-mono overflow-x-auto whitespace-pre p-2 bg-white rounded-lg border border-slate-200">
 {`INSERT INTO public.users (uid, email, "displayName", role)
 VALUES ('${user?.id}', '${user?.email}', '${user?.email?.split('@')[0]}', 'teacher');`}
                   </pre>
                 </div>
 
-                <div className="bg-emerald-500/10 p-4 rounded-xl border border-emerald-500/20 flex items-center gap-3">
-                  <div className="h-8 w-8 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                <div className="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100 flex items-center gap-3">
+                  <div className="h-8 w-8 rounded-full bg-emerald-100 flex items-center justify-center">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
                   </div>
                   <div>
-                    <p className="text-[10px] text-emerald-500 font-black uppercase tracking-widest">Agora Streaming Ready</p>
-                    <p className="text-[9px] text-slate-400 font-medium">Classroom video engine is online and configured.</p>
+                    <p className="text-[10px] text-emerald-600 font-black uppercase tracking-widest">Agora Streaming Ready</p>
+                    <p className="text-[9px] text-slate-500 font-medium">Classroom video engine is online and configured.</p>
                   </div>
                 </div>
 
-                <div className="bg-brand-blue/10 p-4 rounded-xl border border-brand-blue/20 flex flex-col gap-2">
+                <div className="bg-brand-blue/5 p-4 rounded-xl border border-brand-blue/10 flex flex-col gap-2">
                   <div className="flex items-center gap-2">
                     <Video className="h-3 w-3 text-brand-blue" />
                     <p className="text-[10px] text-brand-blue font-black uppercase tracking-widest">Camera Permissions Tip</p>
                   </div>
-                  <p className="text-[9px] text-slate-400 font-medium leading-relaxed">
+                  <p className="text-[9px] text-slate-500 font-medium leading-relaxed">
                     If camera access fails, click the <strong>"Open in New Tab"</strong> button in the stream player or your browser's address bar to enable permissions.
                   </p>
                 </div>
               </div>
 
-              <p className="text-[10px] text-slate-500 italic text-center pt-2">
+              <p className="text-[10px] text-slate-400 italic text-center pt-2">
                 After running the SQL, click "Retry Access" below.
               </p>
             </div>
           ) : fetchError === 'TABLES_MISSING' ? (
             <div className="space-y-6 text-left">
-              <p className="text-slate-300 leading-relaxed">
+              <p className="text-slate-600 leading-relaxed text-sm">
                 The database tables are missing. Please run the standard setup SQL:
               </p>
-              <div className="bg-slate-950 p-4 rounded-xl border border-white/10 font-mono text-[9px] text-emerald-400 overflow-x-auto whitespace-pre max-h-[300px]">
+              <div className="bg-slate-100 p-4 rounded-xl border border-slate-200 font-mono text-[9px] text-emerald-600 overflow-x-auto whitespace-pre max-h-[300px]">
 {`CREATE TABLE public.users (
   uid uuid REFERENCES auth.users NOT NULL PRIMARY KEY,
   email text,
@@ -296,7 +296,7 @@ CREATE TABLE public.chat_messages (
   text text NOT NULL,
   "userId" uuid REFERENCES public.users(uid),
   "userName" text,
-  "userPhoto" text,
+  "userPhote" text,
   timestamp timestamp with time zone DEFAULT now()
 );
 
@@ -316,7 +316,7 @@ CREATE POLICY "Auth Users Insert Chat" ON public.chat_messages FOR INSERT WITH C
               </div>
             </div>
           ) : (
-            <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400">
+            <div className="p-4 bg-red-50 p-4 border border-red-100 rounded-xl text-red-500">
               {fetchError}
             </div>
           )}
@@ -325,13 +325,13 @@ CREATE POLICY "Auth Users Insert Chat" ON public.chat_messages FOR INSERT WITH C
         <div className="flex flex-col gap-3 w-full max-w-xs">
           <button 
             onClick={() => user && fetchProfile(user.id)}
-            className="w-full bg-brand-blue py-4 rounded-xl text-xs font-black uppercase tracking-widest text-white hover:bg-blue-500 transition-all shadow-xl shadow-blue-500/20"
+            className="w-full bg-brand-blue py-4 rounded-xl text-xs font-black uppercase tracking-widest text-white hover:bg-blue-600 transition-all shadow-lg shadow-blue-500/20"
           >
             Retry Access
           </button>
           <button 
             onClick={() => supabase.auth.signOut()}
-            className="w-full bg-white/5 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-white transition-all border border-white/5"
+            className="w-full bg-slate-100 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-900 transition-all border border-slate-200"
           >
             Switch Account / Logout
           </button>
@@ -342,19 +342,19 @@ CREATE POLICY "Auth Users Insert Chat" ON public.chat_messages FOR INSERT WITH C
 
   if (!user) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-brand-darkest p-4 overflow-hidden relative">
-        <div className="absolute inset-0 bg-gradient-to-tr from-brand-blue/20 to-transparent pointer-events-none" />
+      <div className="flex min-h-screen flex-col items-center justify-center bg-slate-50 p-4 overflow-hidden relative">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,var(--color-blue-100),transparent_50%)] pointer-events-none opacity-50" />
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-md space-y-6 sm:space-y-8 rounded-[32px] bg-slate-900/40 p-6 sm:p-10 backdrop-blur-2xl border border-white/10 shadow-2xl shadow-blue-500/10 relative z-10"
+          className="w-full max-w-md space-y-6 sm:space-y-8 rounded-[32px] bg-white p-6 sm:p-10 border border-slate-200 shadow-2xl shadow-blue-500/5 relative z-10"
         >
           <div className="flex flex-col items-center space-y-4 sm:space-y-6">
-            <div className="flex h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-2xl bg-brand-blue shadow-xl shadow-blue-500/20">
-              <School className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
+            <div className="flex h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-2xl bg-brand-blue shadow-xl shadow-blue-500/10 overflow-hidden">
+              <img src="/logo.png" alt="Logo" className="h-full w-full object-cover" />
             </div>
             <div className="space-y-1">
-              <h1 className="text-center font-display text-3xl sm:text-4xl font-black tracking-tighter uppercase text-slate-50">
+              <h1 className="text-center font-display text-3xl sm:text-4xl font-black tracking-tighter uppercase text-slate-900">
                 Ecole <span className="text-brand-blue">Nadjah</span>
               </h1>
               <p className="text-center text-[10px] sm:text-sm font-medium text-slate-400 uppercase tracking-widest">
@@ -363,12 +363,12 @@ CREATE POLICY "Auth Users Insert Chat" ON public.chat_messages FOR INSERT WITH C
             </div>
           </div>
 
-          <div className="w-full space-y-6">
+          <div className="w-full space-y-6 text-slate-900">
             {authError && (
               <motion.div 
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
-                className="bg-brand-blue/10 border border-brand-blue/20 p-4 rounded-xl"
+                className="bg-brand-blue/5 border border-brand-blue/10 p-4 rounded-xl"
               >
                 <div className="text-[10px] text-brand-blue font-bold tracking-wide leading-relaxed">
                   {authError.includes('PENDING_OR_INVALID') ? (
@@ -377,31 +377,31 @@ CREATE POLICY "Auth Users Insert Chat" ON public.chat_messages FOR INSERT WITH C
                         <Loader2 className="h-4 w-4 animate-spin" />
                         <p className="font-black uppercase tracking-tight italic">Waiting for Manager</p>
                       </div>
-                      <p className="text-slate-300 leading-relaxed font-medium">
+                      <p className="text-slate-600 leading-relaxed font-medium">
                         Verification is <span className="text-brand-blue">Manual</span>. The manager must add your email to the system directly.
                       </p>
-                      <div className="bg-brand-blue/10 p-4 rounded-xl border border-brand-blue/20 space-y-3">
+                      <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
                         <div className="flex items-center gap-2">
                           <Database className="h-3 w-3 text-brand-blue" />
                           <p className="text-[9px] text-brand-blue font-black uppercase tracking-widest">Manager Workspace</p>
                         </div>
-                        <p className="text-[9px] text-slate-400 leading-relaxed font-medium">
+                        <p className="text-[9px] text-slate-500 leading-relaxed font-medium">
                           The manager must add your email to the database manually.<br/><br/>
-                          <span className="text-white">Admin Check:</span> Supabase &rarr; Auth &rarr; Users &rarr; Add User.<br/>
-                          Verify that <span className="text-white">"Auto-confirm user"</span> is enabled.
+                          <span className="text-slate-900 font-bold">Admin Check:</span> Supabase &rarr; Auth &rarr; Users &rarr; Add User.<br/>
+                          Verify that <span className="text-slate-900 font-bold">"Auto-confirm user"</span> is enabled.
                         </p>
                       </div>
-                      <p className="text-[10px] text-slate-500 font-bold italic">
+                      <p className="text-[10px] text-slate-400 font-bold italic text-center">
                         Approval typically takes less than 24 hours.
                       </p>
                     </div>
                   ) : authError.includes('CONFIRM_REQUIRED') ? (
                     <div className="space-y-4">
-                      <div className="flex items-center gap-3 text-amber-500 mb-2">
+                      <div className="flex items-center gap-3 text-amber-600 mb-2">
                         <Mail className="h-5 w-5" />
                         <p className="font-black uppercase tracking-tight italic">Email Confirmation</p>
                       </div>
-                      <p className="text-slate-300 leading-relaxed font-medium">
+                      <p className="text-slate-600 leading-relaxed font-medium">
                         Your email needs to be confirmed. Please check your inbox for a confirmation link from Supabase.
                       </p>
                     </div>
@@ -412,59 +412,59 @@ CREATE POLICY "Auth Users Insert Chat" ON public.chat_messages FOR INSERT WITH C
 
             <form onSubmit={signInWithEmail} className="space-y-3">
               <div className="relative group">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-brand-blue transition-colors" />
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-brand-blue transition-colors" />
                 <input 
                   type="email"
                   placeholder="Email Address"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-white text-sm focus:outline-none focus:border-brand-blue/50 transition-all font-medium"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 pl-12 pr-4 text-slate-900 text-sm focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue/10 transition-all font-medium"
                 />
               </div>
               <div className="relative group">
-                <Key className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-brand-blue transition-colors" />
+                <Key className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-brand-blue transition-colors" />
                 <input 
                   type="password"
                   placeholder="Password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-white text-sm focus:outline-none focus:border-brand-blue/50 transition-all font-medium"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 pl-12 pr-4 text-slate-900 text-sm focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue/10 transition-all font-medium"
                 />
               </div>
               <button 
                 type="submit"
                 disabled={authLoading}
-                className="w-full bg-brand-blue hover:bg-blue-500 disabled:opacity-50 text-white font-black py-4 rounded-2xl text-xs uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3 shadow-xl shadow-blue-500/20"
+                className="w-full bg-brand-blue hover:bg-blue-600 disabled:opacity-50 text-white font-black py-4 rounded-2xl text-xs uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3 shadow-lg shadow-blue-500/20"
               >
                 {authLoading ? "Authenticating..." : "Access Dashboard"}
                 {!authLoading && <ArrowRight className="h-4 w-4" />}
               </button>
             </form>
             
-            <p className="text-[10px] text-slate-500 font-medium text-center px-4 leading-relaxed">
-              Don't have an account? Access is granted manually by the <span className="text-slate-400">School Administrator</span> after verification.
+            <p className="text-[10px] text-slate-400 font-medium text-center px-4 leading-relaxed">
+              Don't have an account? Access is granted manually by the <span className="text-slate-500 font-bold">School Administrator</span> after verification.
             </p>
 
             <div className="relative flex items-center py-2">
-                  <div className="flex-grow border-t border-white/5"></div>
-                  <span className="flex-shrink mx-4 text-[10px] font-black text-slate-600 uppercase tracking-widest">or use</span>
-                  <div className="flex-grow border-t border-white/5"></div>
+                  <div className="flex-grow border-t border-slate-100"></div>
+                  <span className="flex-shrink mx-4 text-[10px] font-black text-slate-300 uppercase tracking-widest">or use</span>
+                  <div className="flex-grow border-t border-slate-100"></div>
                 </div>
 
                 <button
                   onClick={signInWithGoogle}
-                  className="group relative flex w-full items-center justify-center space-x-3 rounded-2xl bg-white/5 py-4 text-white font-bold transition-all hover:bg-white/10 hover:border-white/20 border border-white/10 active:scale-[0.98]"
+                  className="group relative flex w-full items-center justify-center space-x-3 rounded-2xl bg-white py-4 text-slate-600 font-bold transition-all hover:bg-slate-50 border border-slate-200 active:scale-[0.98] shadow-sm"
                 >
-                  <div className="h-5 w-5 bg-white rounded-full p-1 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <div className="h-5 w-5 bg-white rounded-full p-1 flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
                     <img src="https://www.gstatic.com/images/branding/googleg/1x/googleg_standard_color_128dp.png" alt="Google" className="h-full w-full" />
                   </div>
                   <span className="text-sm font-black uppercase tracking-widest">Google Account</span>
                 </button>
               </div>
           
-          <div className="text-center text-[10px] font-black uppercase tracking-[0.2em] text-slate-600">
+          <div className="text-center text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">
             Professional Streaming Engine
           </div>
         </motion.div>

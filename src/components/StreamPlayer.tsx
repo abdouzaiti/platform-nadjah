@@ -357,10 +357,10 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
   const hasRecording = stream.status === "offline" && stream.recordingUrl;
 
   return (
-    <div ref={containerRef} className="flex h-screen w-full bg-black text-white overflow-hidden relative">
+    <div ref={containerRef} className="flex h-screen w-full bg-slate-50 text-slate-900 overflow-hidden relative">
       {/* Video Content */}
       <div className="flex-1 flex flex-col relative w-full h-full">
-        <div className="flex-1 bg-black relative group">
+        <div className="flex-1 bg-white relative group">
           {/* Main Video Area */}
           <div className="h-full w-full flex items-center justify-center relative overflow-hidden">
              {isLive && (
@@ -374,13 +374,13 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
                      localTracks.videoTrack ? (
                        <AgoraPlayer videoTrack={localTracks.videoTrack} />
                      ) : (
-                       <div className="flex flex-col items-center justify-center h-full bg-slate-900/50 space-y-4">
-                         <div className="h-20 w-20 rounded-full bg-brand-blue/10 flex items-center justify-center border border-brand-blue/20">
-                            <VideoOff className="h-8 w-8 text-brand-blue/50" />
+                       <div className="flex flex-col items-center justify-center h-full bg-slate-50/50 space-y-4">
+                         <div className="h-20 w-20 rounded-full bg-brand-blue/5 flex items-center justify-center border border-brand-blue/10">
+                            <VideoOff className="h-8 w-8 text-brand-blue/30" />
                          </div>
                          <div className="text-center">
-                            <p className="text-white text-sm font-black uppercase tracking-widest">Audio Only Active</p>
-                            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">No camera detected</p>
+                            <p className="text-slate-900 text-sm font-black uppercase tracking-widest">Audio Only Active</p>
+                            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">No camera detected</p>
                          </div>
                        </div>
                      )
@@ -388,16 +388,16 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
                      <div className="flex flex-col items-center justify-center h-full space-y-4 px-6 text-center">
                         {agoraError ? (
                           <>
-                            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-500/10 border border-red-500/20">
+                             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-50 border border-red-100">
                               <X className="h-8 w-8 text-red-500" />
                             </div>
                             <div className="space-y-2">
                               <p className="text-red-500 font-black uppercase tracking-widest text-[10px]">Connection Failure</p>
-                              <p className="text-slate-400 text-xs font-medium max-w-xs">{agoraError}</p>
+                              <p className="text-slate-500 text-xs font-medium max-w-xs">{agoraError}</p>
                               <div className="flex flex-col gap-2 w-full max-w-xs pt-4">
                                 <button 
                                   onClick={() => window.location.reload()}
-                                  className="w-full px-4 py-3 bg-brand-blue hover:bg-blue-500 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all text-white shadow-xl shadow-blue-500/20"
+                                  className="w-full px-4 py-3 bg-brand-blue hover:bg-blue-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all text-white shadow-lg shadow-blue-500/20"
                                 >
                                   Retry Connection
                                 </button>
@@ -405,7 +405,7 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
                                   href={window.location.href}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="w-full px-4 py-3 bg-white/5 hover:bg-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest border border-white/5 transition-all text-white flex items-center justify-center gap-2"
+                                  className="w-full px-4 py-3 bg-white hover:bg-slate-50 rounded-xl text-[10px] font-black uppercase tracking-widest border border-slate-100 transition-all text-slate-500 flex items-center justify-center gap-2 shadow-sm"
                                 >
                                   <Share2 className="h-3 w-3" />
                                   Open in New Tab
@@ -448,14 +448,14 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
                      <AgoraPlayer videoTrack={teacherVideo} />
                    ) : (
                      <div className="z-10 text-center space-y-6">
-                        <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-brand-blue/10 border border-brand-blue/30 backdrop-blur-3xl animate-pulse">
+                        <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-brand-blue/5 border border-brand-blue/10 backdrop-blur-3xl animate-pulse">
                             <Play className="h-8 w-8 text-brand-blue fill-current" />
                         </div>
                         <div className="space-y-2">
-                          <h3 className="text-2xl font-black font-display uppercase tracking-widest italic leading-none">
+                          <h3 className="text-2xl font-black font-display uppercase tracking-widest italic leading-none text-slate-900">
                               Connecting to Class
                           </h3>
-                          <p className="text-slate-500 font-bold tracking-widest text-[8px] uppercase italic opacity-60">Waiting for Teacher Output</p>
+                          <p className="text-slate-400 font-bold tracking-widest text-[8px] uppercase italic opacity-60">Waiting for Teacher Output</p>
                         </div>
                      </div>
                    )
@@ -463,12 +463,12 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
 
                  {/* Autoplay Fallback Overlay */}
                  {!isTeacherView && !hasAudioStarted && isLive && (
-                    <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                    <div className="absolute inset-0 z-40 flex items-center justify-center bg-white/60 backdrop-blur-sm">
                       <motion.button 
                         initial={{ scale: 0.9, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
                         onClick={resumeAudio}
-                        className="bg-brand-blue hover:bg-blue-500 text-white px-8 py-4 rounded-full flex items-center gap-3 shadow-2xl shadow-blue-500/40 group transition-all"
+                        className="bg-brand-blue hover:bg-blue-600 text-white px-8 py-4 rounded-full flex items-center gap-3 shadow-2xl shadow-blue-500/40 group transition-all"
                       >
                          <Play className="h-6 w-6 fill-current group-hover:scale-110 transition-transform text-white" />
                          <span className="text-sm font-black uppercase tracking-widest text-white">Connect Audio</span>
@@ -492,9 +492,9 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
                                 className="flex items-start gap-2 py-1"
                               >
                                  <img src={msg.userPhoto || `https://ui-avatars.com/api/?name=${encodeURIComponent(msg.userName)}&background=0D8ABC&color=fff`} className="w-8 h-8 rounded-full border border-white/10 shrink-0" alt="" />
-                                 <div className="bg-black/20 backdrop-blur-md px-3 py-2 rounded-2xl rounded-tl-none border border-white/5 pointer-events-auto">
+                                 <div className="bg-white/80 backdrop-blur-md px-3 py-2 rounded-2xl rounded-tl-none border border-white/50 pointer-events-auto shadow-sm">
                                    <p className="text-[10px] font-black uppercase text-brand-blue leading-none mb-1">{msg.userName.split(" ")[0]}</p>
-                                   <p className="text-sm text-white font-medium leading-tight">{msg.text}</p>
+                                   <p className="text-sm text-slate-800 font-medium leading-tight">{msg.text}</p>
                                  </div>
                               </motion.div>
                             ))}
@@ -516,47 +516,47 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
                </div>
              ) : (
                <div className="z-10 text-center space-y-6">
-                  <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-slate-800 border border-white/5 backdrop-blur-3xl">
-                      <VideoOff className="h-10 w-10 text-slate-500" />
+                  <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-white border border-slate-100 shadow-sm shadow-slate-200/50">
+                      <VideoOff className="h-10 w-10 text-slate-200" />
                   </div>
                   <div className="space-y-2">
-                    <h3 className="text-3xl font-black font-display uppercase tracking-widest italic leading-none">
+                    <h3 className="text-3xl font-black font-display uppercase tracking-widest italic leading-none text-slate-900">
                         Session Offline
                     </h3>
-                    <p className="text-slate-500 font-bold tracking-widest text-[10px] uppercase italic opacity-60">The teacher has concluded this session</p>
+                    <p className="text-slate-400 font-bold tracking-widest text-[10px] uppercase italic opacity-60">The teacher has concluded this session</p>
                   </div>
                </div>
              )}
           </div>
 
           {/* Player Overlay Top */}
-          <div className="absolute inset-x-0 top-0 p-4 md:p-6 flex items-start justify-between bg-gradient-to-b from-black/60 to-transparent pointer-events-none z-40">
+          <div className="absolute inset-x-0 top-0 p-4 md:p-6 flex items-start justify-between bg-gradient-to-b from-white/80 to-transparent pointer-events-none z-40">
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-2 pointer-events-auto">
                 <img 
-                  src={profile.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.displayName)}&background=0D8ABC&color=fff`} 
-                  className="w-10 h-10 rounded-full border border-white/20" 
+                  src={profile.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.displayName)}&background=3b82f6&color=fff`} 
+                  className="w-10 h-10 rounded-full border-2 border-white shadow-md" 
                   alt="" 
                 />
-                <div className="bg-black/40 backdrop-blur-md px-3 py-1 rounded-full border border-white/5">
-                  <p className="text-[10px] font-black uppercase tracking-tighter text-white">{stream.title}</p>
+                <div className="bg-white/70 backdrop-blur-md px-3 py-1 rounded-full border border-slate-100 shadow-sm">
+                  <p className="text-[10px] font-black uppercase tracking-tighter text-slate-900">{stream.title}</p>
                   <p className="text-[8px] font-bold text-brand-blue uppercase">{stream.teacherName}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
                   {isLive ? (
-                    <span className="bg-red-600 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest text-white animate-pulse">Live</span>
+                    <span className="bg-red-600 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest text-white shadow-lg shadow-red-500/20 animate-pulse">Live</span>
                   ) : hasRecording ? (
-                    <span className="bg-brand-blue px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest text-white">Record</span>
+                    <span className="bg-brand-blue px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest text-white shadow-lg shadow-blue-500/20">Record</span>
                   ) : null}
-                  <div className="bg-black/40 backdrop-blur-md px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest text-white border border-white/10 flex items-center gap-1">
+                  <div className="bg-white/70 backdrop-blur-md px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest text-slate-600 border border-slate-100 shadow-sm flex items-center gap-1">
                     <Users className="h-2 w-2" />
                     <span>{liveViewers}</span>
                   </div>
               </div>
             </div>
             {onClose && !isEnding && (
-                <button onClick={onClose} className="pointer-events-auto rounded-full bg-black/40 p-2 text-white border border-white/5 backdrop-blur-md hover:bg-white/20 transition-all">
+                <button onClick={onClose} className="pointer-events-auto rounded-full bg-white/70 p-2 text-slate-600 border border-slate-100 shadow-sm backdrop-blur-md hover:bg-slate-50 transition-all active:scale-95">
                     <X className="h-5 w-5" />
                 </button>
             )}
@@ -568,7 +568,7 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
                <div className="flex items-center gap-2">
                  <button 
                    onClick={() => setHideComments(!hideComments)}
-                   className="h-10 w-10 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white hover:bg-white/10 transition-all"
+                   className="h-10 w-10 flex items-center justify-center rounded-full bg-white/70 backdrop-blur-md border border-slate-100 text-slate-600 hover:bg-white transition-all shadow-sm active:scale-95 pointer-events-auto"
                    title={hideComments ? "Show comments" : "Hide comments"}
                  >
                    {hideComments ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}
@@ -576,7 +576,7 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
                  {!isTeacherView && (
                     <button 
                       onClick={toggleFullscreen}
-                      className="h-10 w-10 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white hover:bg-white/10 transition-all"
+                      className="h-10 w-10 flex items-center justify-center rounded-full bg-white/70 backdrop-blur-md border border-slate-100 text-slate-600 hover:bg-white transition-all shadow-sm active:scale-95 pointer-events-auto"
                       title="Toggle Fullscreen"
                     >
                       {isFullscreen ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}
@@ -584,24 +584,24 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
                  )}
                </div>
                
-               <form onSubmit={handleSendMessage} className="flex-1 flex items-center bg-black/40 backdrop-blur-xl rounded-full border border-white/10 px-4 py-1">
+               <form onSubmit={handleSendMessage} className="flex-1 flex items-center bg-white/70 backdrop-blur-xl rounded-full border border-slate-100 px-4 py-1 shadow-sm pointer-events-auto group-focus-within:bg-white transition-all">
                  <input 
                    type="text" 
                    value={chatMessage}
                    onChange={(e) => setChatMessage(e.target.value)}
                    placeholder="Comment..." 
-                   className="flex-1 bg-transparent border-none py-2 text-sm text-white placeholder-slate-400 outline-none"
+                   className="flex-1 bg-transparent border-none py-2 text-sm text-slate-900 placeholder-slate-400 outline-none"
                  />
                  <button 
                    type="submit"
                    disabled={!chatMessage.trim()}
-                   className="p-2 text-white hover:text-brand-blue transition-colors disabled:opacity-20"
+                   className="p-2 text-slate-400 hover:text-brand-blue transition-colors disabled:opacity-20"
                  >
                    <Send className="h-4 w-4" />
                  </button>
                </form>
                {!isTeacherView && (
-                 <button className="h-10 w-10 flex items-center justify-center rounded-full bg-white/10 backdrop-blur-md border border-white/10 text-white">
+                 <button className="h-10 w-10 flex items-center justify-center rounded-full bg-white/70 backdrop-blur-md border border-slate-100 text-slate-600 hover:text-red-500 shadow-sm pointer-events-auto active:scale-110 transition-all">
                    <Heart className="h-5 w-5" />
                  </button>
                )}
@@ -610,19 +610,19 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
 
           {/* Teacher Controls */}
           {isTeacherView && isLive && !isEnding && (
-            <div className="absolute top-20 right-6 flex flex-col gap-3 group-hover:opacity-100 opacity-60 transition-opacity z-40">
+            <div className="absolute top-24 right-6 flex flex-col gap-3 group-hover:opacity-100 opacity-60 transition-opacity z-40">
                <button 
                  onClick={toggleMute}
                  className={cn(
-                   "flex items-center justify-center w-10 h-10 rounded-full transition-all border backdrop-blur-md",
-                   isMuted ? "bg-red-600/40 border-red-500 text-red-500" : "bg-emerald-600/40 border-emerald-500 text-emerald-500"
+                   "flex items-center justify-center w-10 h-10 rounded-full transition-all border backdrop-blur-md shadow-lg",
+                   isMuted ? "bg-red-50 border-red-200 text-red-500" : "bg-emerald-50 border-emerald-200 text-emerald-500"
                  )}
                >
                  {isMuted ? <VideoOff className="h-4 w-4" /> : <Users className="h-4 w-4" />}
                </button>
                <button 
                  onClick={() => setIsEnding(true)}
-                 className="flex items-center justify-center w-10 h-10 rounded-full bg-red-600/40 border border-red-500 text-red-500 backdrop-blur-md"
+                 className="flex items-center justify-center w-10 h-10 rounded-full bg-white border border-slate-100 text-slate-400 hover:text-red-500 backdrop-blur-md shadow-lg active:scale-95 transition-all"
                >
                  <X className="h-4 w-4" />
                </button>
@@ -631,16 +631,16 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
 
           {/* Finish Modal */}
           <AnimatePresence>
-            {isEnding && (/* ... modal code remains similar but styled more sleekly ... */
+            {isEnding && (
               <motion.div 
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
-                className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xl p-6"
+                className="absolute inset-0 z-50 flex items-center justify-center bg-slate-100/50 backdrop-blur-xl p-6"
               >
-                <div className="bg-slate-900/90 w-full max-w-sm rounded-[40px] p-8 border border-white/10 shadow-2xl space-y-6">
+                <div className="bg-white w-full max-w-sm rounded-[40px] p-8 border border-slate-100 shadow-2xl shadow-blue-500/10 space-y-6">
                   <div className="text-center space-y-2">
-                    <h4 className="text-2xl font-black font-display uppercase tracking-tighter italic">End Class?</h4>
+                    <h4 className="text-2xl font-black font-display uppercase tracking-tighter italic text-slate-900">End Class?</h4>
                     <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Share the recording with students.</p>
                   </div>
                   
@@ -650,20 +650,20 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
                       placeholder="Recording URL (optional)"
                       value={recordingUrlInput}
                       onChange={(e) => setRecordingUrlInput(e.target.value)}
-                      className="w-full bg-white/5 border border-white/10 p-4 rounded-2xl text-xs outline-none focus:ring-1 focus:ring-brand-blue"
+                      className="w-full bg-slate-50 border border-slate-100 p-4 rounded-2xl text-xs outline-none focus:border-brand-blue transition-colors shadow-sm"
                     />
                   </div>
 
                   <div className="flex flex-col gap-3">
                     <button 
                       onClick={handleEndStream}
-                      className="w-full py-4 bg-brand-blue text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-2xl shadow-blue-500/20"
+                      className="w-full py-4 bg-brand-blue text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-blue-500/20 hover:bg-blue-600 transition-all"
                     >
                       Publish & Finish
                     </button>
                     <button 
                       onClick={() => setIsEnding(false)}
-                      className="w-full py-4 bg-white/5 text-slate-400 rounded-2xl text-[10px] font-black uppercase"
+                      className="w-full py-4 bg-slate-50 text-slate-400 rounded-2xl text-[10px] font-black uppercase hover:bg-slate-100 transition-all"
                     >
                       Cancel
                     </button>

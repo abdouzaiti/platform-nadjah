@@ -12,20 +12,20 @@
 
 @layer base {
   body {
-    @apply bg-brand-darkest text-slate-50 font-sans antialiased;
+    @apply bg-slate-50 text-slate-900 font-sans antialiased;
   }
 }
 
 .glass-panel {
-  @apply bg-slate-900/50 backdrop-blur-xl border border-white/10;
+  @apply bg-white/70 backdrop-blur-xl border border-slate-200/60 shadow-sm;
 }
 
 .glass-sidebar {
-  @apply bg-slate-950/80 backdrop-blur-md border-white/5;
+  @apply bg-white/90 backdrop-blur-md border-r border-slate-200/50 shadow-sm;
 }
 
 .netflix-gradient {
-  background: linear-gradient(to top, rgba(2, 6, 23, 0.95) 0%, transparent 100%);
+  background: linear-gradient(to top, rgba(255, 255, 255, 0.95) 0%, transparent 100%);
 }
 
 .no-scrollbar::-webkit-scrollbar {

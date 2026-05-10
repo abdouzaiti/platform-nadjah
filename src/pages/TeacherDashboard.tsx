@@ -146,7 +146,7 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
   }
 
   return (
-    <div className="flex h-screen bg-brand-darkest overflow-hidden">
+    <div className="flex h-screen bg-slate-50 overflow-hidden text-slate-900">
       <Sidebar 
         profile={profile} 
         activeTab={activeTab} 
@@ -158,17 +158,17 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
         onClose={() => setIsSidebarOpen(false)}
       />
       
-      <main className="flex-1 overflow-y-auto p-4 md:p-8 no-scrollbar bg-gradient-to-b from-brand-surface to-brand-darkest relative">
+      <main className="flex-1 overflow-y-auto p-4 md:p-8 no-scrollbar bg-slate-50/50 relative">
         {/* Mobile Navbar */}
-        <div className="lg:hidden flex items-center justify-between mb-6 bg-slate-900/50 p-3 rounded-2xl border border-white/5 backdrop-blur-md">
+        <div className="lg:hidden flex items-center justify-between mb-6 glass-panel p-3 rounded-2xl shadow-sm">
           <button 
             onClick={() => setIsSidebarOpen(true)}
-            className="p-2 bg-brand-blue/10 rounded-xl text-brand-blue border border-brand-blue/20 active:scale-95 transition-all"
+            className="p-2 bg-brand-blue/5 rounded-xl text-brand-blue border border-brand-blue/10 active:scale-95 transition-all"
           >
             <Menu className="h-6 w-6" />
           </button>
           <div className="flex items-center space-x-2">
-            <div className="h-8 w-8 rounded bg-brand-blue flex items-center justify-center">
+            <div className="h-8 w-8 rounded bg-brand-blue flex items-center justify-center shadow-lg shadow-blue-500/10">
               <Plus className="h-4 w-4 text-white" />
             </div>
           </div>
@@ -176,50 +176,50 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
         {activeTab === "start-stream" ? (
           <div className="mx-auto max-w-2xl space-y-8">
              <div className="space-y-4 text-center">
-                <h2 className="font-display text-5xl font-black text-white uppercase italic tracking-tight">Initiate Stream</h2>
-                <p className="text-slate-400 font-medium tracking-wide">Configure your session parameters for the student collective.</p>
+                <h2 className="font-display text-5xl font-black text-slate-900 uppercase italic tracking-tight">Initiate Stream</h2>
+                <p className="text-slate-500 font-medium tracking-wide">Configure your session parameters for the student collective.</p>
              </div>
 
-             <form onSubmit={handleStartStream} className="space-y-6 rounded-[24px] sm:rounded-[40px] bg-slate-900/40 p-6 sm:p-10 backdrop-blur-2xl border border-white/5 shadow-2xl shadow-blue-500/10">
+             <form onSubmit={handleStartStream} className="space-y-6 rounded-[24px] sm:rounded-[40px] bg-white p-6 sm:p-10 border border-slate-100 shadow-2xl shadow-blue-500/5">
                 <div className="space-y-4">
-                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2">Lesson Title</label>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2 font-display">Lesson Title</label>
                     <input 
                         required
                         type="text" 
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
                         placeholder="Advanced Calculus"
-                        className="w-full rounded-xl sm:rounded-2xl border border-white/5 bg-slate-800/50 p-4 font-bold text-white outline-none focus:ring-1 focus:ring-brand-blue"
+                        className="w-full rounded-xl sm:rounded-2xl border border-slate-100 bg-slate-50 p-4 font-bold text-slate-900 outline-none focus:border-brand-blue transition-colors shadow-sm"
                     />
                 </div>
 
                 <div className="space-y-4">
-                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2">Description</label>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2 font-display">Description</label>
                     <textarea 
                         required
                         rows={4}
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
                         placeholder="Lesson topics..."
-                        className="w-full rounded-xl sm:rounded-2xl border border-white/5 bg-slate-800/50 p-4 font-medium text-slate-300 outline-none focus:ring-1 focus:ring-brand-blue"
+                        className="w-full rounded-xl sm:rounded-2xl border border-slate-100 bg-slate-50 p-4 font-medium text-slate-600 outline-none focus:border-brand-blue transition-colors shadow-sm"
                     />
                 </div>
 
                 <div className="space-y-4">
-                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2">Thumbnail URL</label>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2 font-display">Thumbnail URL</label>
                     <input 
                         type="url" 
                         value={thumb}
                         onChange={(e) => setThumb(e.target.value)}
                         placeholder="https://images.unsplash.com/..."
-                        className="w-full rounded-xl sm:rounded-2xl border border-white/5 bg-slate-800/50 p-4 text-xs text-slate-400 outline-none focus:ring-1 focus:ring-brand-blue"
+                        className="w-full rounded-xl sm:rounded-2xl border border-slate-100 bg-slate-50 p-4 text-xs text-slate-400 outline-none focus:border-brand-blue transition-colors shadow-sm"
                     />
                 </div>
 
                 <button 
                     disabled={loading}
                     type="submit"
-                    className="flex w-full items-center justify-center space-x-3 rounded-xl sm:rounded-2xl bg-brand-blue py-4 sm:py-5 text-sm font-black uppercase tracking-widest text-white shadow-xl shadow-blue-500/20 transition-all hover:bg-blue-500 disabled:opacity-50"
+                    className="flex w-full items-center justify-center space-x-3 rounded-xl sm:rounded-2xl bg-brand-blue py-4 sm:py-5 text-sm font-black uppercase tracking-widest text-white shadow-xl shadow-blue-500/20 transition-all hover:bg-blue-600 disabled:opacity-50"
                 >
                     {loading ? <Loader2 className="h-6 w-6 animate-spin" /> : (
                         <>
@@ -232,15 +232,15 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
           </div>
         ) : (
           <div className="space-y-8 sm:space-y-12">
-            <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-8 border-b border-white/5">
+            <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-8 border-b border-slate-100">
                 <div className="space-y-1">
-                    <h2 className="font-display text-2xl sm:text-4xl font-black text-white uppercase italic tracking-tighter">Academic Control</h2>
-                    <p className="text-slate-500 font-bold tracking-widest text-[8px] sm:text-[10px] uppercase">Welcome, Professor {profile.displayName.split(" ")[0]}</p>
+                    <h2 className="font-display text-2xl sm:text-4xl font-black text-slate-900 uppercase italic tracking-tighter">Academic Control</h2>
+                    <p className="text-slate-400 font-bold tracking-widest text-[8px] sm:text-[10px] uppercase">Welcome, Professor {profile.displayName.split(" ")[0]}</p>
                 </div>
                 <div className="flex items-center gap-2 sm:gap-3">
                   <button 
                     onClick={() => setActiveTab("start-stream")}
-                    className="flex-1 sm:flex-none flex items-center justify-center space-x-2 rounded-xl bg-brand-blue px-4 sm:px-6 py-3 text-[9px] sm:text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-blue-500/20"
+                    className="flex-1 sm:flex-none flex items-center justify-center space-x-2 rounded-xl bg-brand-blue px-4 sm:px-6 py-3 text-[9px] sm:text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-blue-500/10 hover:bg-blue-600 transition-all"
                   >
                       <Plus className="h-4 w-4" />
                       <span>Create</span>
@@ -249,53 +249,53 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
             </header>
 
             <section className="grid gap-4 sm:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                <div className="rounded-[24px] sm:rounded-[32px] bg-slate-900/40 p-6 sm:p-8 border border-white/5 backdrop-blur-xl">
-                   <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">Engagement</p>
-                   <p className="text-4xl sm:text-5xl font-black font-display text-white italic">1.2k</p>
+                <div className="rounded-[24px] sm:rounded-[32px] bg-white p-6 sm:p-8 border border-slate-100 shadow-sm">
+                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Engagement</p>
+                   <p className="text-4xl sm:text-5xl font-black font-display text-slate-900 italic">1.2k</p>
                 </div>
-                <div className="rounded-[24px] sm:rounded-[32px] bg-slate-900/40 p-6 sm:p-8 border border-white/5 backdrop-blur-xl">
-                   <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">Active</p>
+                <div className="rounded-[24px] sm:rounded-[32px] bg-white p-6 sm:p-8 border border-slate-100 shadow-sm">
+                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Active</p>
                    <p className="text-4xl sm:text-5xl font-black font-display text-brand-blue italic">{myStreams.filter(s => s.status === 'live').length}</p>
                 </div>
-                <div className="rounded-[24px] sm:rounded-[32px] bg-gradient-to-br from-brand-blue to-blue-700 p-6 sm:p-8 text-white shadow-xl shadow-blue-500/20">
+                <div className="rounded-[24px] sm:rounded-[32px] bg-gradient-to-br from-brand-blue to-blue-700 p-6 sm:p-8 text-white shadow-xl shadow-blue-500/10">
                    <p className="text-[10px] font-black text-white/50 uppercase tracking-[0.2em] mb-4">Broadcasts</p>
                    <p className="text-4xl sm:text-5xl font-black font-display italic tracking-tighter">{myStreams.length}</p>
                 </div>
             </section>
 
             <section className="space-y-6">
-                <h3 className="font-display text-xl font-black text-white uppercase italic tracking-tight">Archive</h3>
+                <h3 className="font-display text-xl font-black text-slate-900 uppercase italic tracking-tight">Archive</h3>
                 <div className="grid gap-3 sm:gap-4">
                     {myStreams.length === 0 ? (
-                        <div className="flex h-32 items-center justify-center rounded-2xl border border-white/5 bg-slate-900/20">
-                            <p className="font-black text-slate-600 uppercase tracking-widest text-[10px]">No records</p>
+                        <div className="flex h-32 items-center justify-center rounded-2xl border border-slate-100 bg-white shadow-sm">
+                            <p className="font-black text-slate-300 uppercase tracking-widest text-[10px]">No records</p>
                         </div>
                     ) : (
                         myStreams.map((stream) => (
                             <motion.div 
                                 key={stream.id}
                                 layout
-                                className="flex flex-col sm:flex-row sm:items-center justify-between rounded-2xl bg-slate-900/40 p-4 border border-white/5 backdrop-blur-sm gap-4 group"
+                                className="flex flex-col sm:flex-row sm:items-center justify-between rounded-2xl bg-white p-4 border border-slate-100 shadow-sm hover:shadow-md transition-all gap-4 group"
                             >
                                 <div className="flex items-center space-x-4 sm:space-x-6">
-                                    <div className="relative h-12 w-20 sm:h-16 sm:w-28 overflow-hidden rounded-lg border border-white/5 shrink-0">
+                                    <div className="relative h-12 w-20 sm:h-16 sm:w-28 overflow-hidden rounded-lg border border-slate-100 shrink-0">
                                         <img src={stream.thumbnail || "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80"} alt="" className="h-full w-full object-cover transition-transform group-hover:scale-110" />
                                         {stream.status === 'live' && (
-                                            <div className="absolute inset-0 bg-red-600/20 flex items-center justify-center">
+                                            <div className="absolute inset-0 bg-red-500/10 flex items-center justify-center">
                                                 <div className="h-1.5 w-1.5 rounded-full bg-red-500 animate-ping"></div>
                                             </div>
                                         )}
                                     </div>
                                     <div className="min-w-0">
-                                        <h4 className="text-xs sm:text-sm font-black text-white uppercase tracking-tight group-hover:text-brand-blue truncate">{stream.title}</h4>
+                                        <h4 className="text-xs sm:text-sm font-black text-slate-900 uppercase tracking-tight group-hover:text-brand-blue truncate">{stream.title}</h4>
                                         <div className="flex items-center space-x-3 mt-1">
                                             <span className={cn(
                                                 "text-[7px] sm:text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded",
-                                                stream.status === 'live' ? "bg-red-500/20 text-red-500" : "bg-slate-800 text-slate-500"
+                                                stream.status === 'live' ? "bg-red-50 text-red-600" : "bg-slate-50 text-slate-400"
                                             )}>
                                                 {stream.status}
                                             </span>
-                                            <span className="text-slate-500 text-[8px] sm:text-[10px] font-bold uppercase">{stream.viewersCount} Viewers</span>
+                                            <span className="text-slate-400 text-[8px] sm:text-[10px] font-bold uppercase">{stream.viewersCount} Viewers</span>
                                         </div>
                                     </div>
                                 </div>
@@ -303,19 +303,19 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                                     {stream.status === 'live' ? (
                                         <button 
                                             onClick={() => { setLiveStream(stream); setActiveTab("live-console"); }}
-                                            className="flex items-center space-x-2 rounded-lg bg-brand-blue px-4 py-2 text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-white transition-all hover:bg-blue-500"
+                                            className="flex items-center space-x-2 rounded-lg bg-brand-blue px-4 py-2 text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-white transition-all hover:bg-blue-600 shadow-md shadow-blue-500/10"
                                         >
                                             <Play className="h-3 w-3 fill-current" />
                                             <span>Console</span>
                                         </button>
                                     ) : (
-                                        <button className="rounded-lg bg-slate-800 p-2 text-slate-400 hover:text-white transition-colors">
+                                        <button className="rounded-lg bg-slate-50 p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors">
                                             <Edit3 className="h-4 w-4" />
                                         </button>
                                     )}
                                     <button 
                                         onClick={() => deleteStream(stream.id)}
-                                        className="rounded-lg bg-slate-800 p-2 text-slate-400 hover:bg-red-500/20 hover:text-red-500 transition-colors"
+                                        className="rounded-lg bg-slate-50 p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors"
                                     >
                                         <Trash2 className="h-4 w-4" />
                                     </button>
