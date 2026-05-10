@@ -5,9 +5,10 @@ import { Send, Users, Heart, Share2, MoreHorizontal, X, MessageCircle, Play, Vid
 import { supabase } from "../lib/supabase";
 import { motion, AnimatePresence } from "motion/react";
 import { formatDate, cn } from "../lib/utils";
-import { createAgoraClient, joinChannel, createTracks, leaveChannel } from "../lib/agora";
+import { createAgoraClient, joinChannel, createTracks, leaveChannel, createRTMClient } from "../lib/agora";
 import AgoraPlayer from "./AgoraPlayer";
 import { IAgoraRTCClient, ICameraVideoTrack, IMicrophoneAudioTrack, IRemoteVideoTrack } from "agora-rtc-sdk-ng";
+import { RTM } from "agora-rtm-sdk";
 
 const Player = ReactPlayer as any;
 
@@ -27,6 +28,7 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
 
   // Agora State
   const [agoraClient, setAgoraClient] = useState<IAgoraRTCClient | null>(null);
+  const [rtmClient, setRtmClient] = useState<RTM | null>(null);
   const [localTracks, setLocalTracks] = useState<{ audioTrack: IMicrophoneAudioTrack; videoTrack: ICameraVideoTrack | null } | null>(null);
   const [remoteStudents, setRemoteStudents] = useState<IRemoteVideoTrack | null>(null);
   const [teacherVideo, setTeacherVideo] = useState<IRemoteVideoTrack | null>(null);
@@ -67,7 +69,13 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
           filter: `streamId=eq.${stream.id}`
         },
         (payload) => {
-          setMessages(prev => [...prev, payload.new as ChatMessageData]);
+          const newMsg = payload.new as ChatMessageData;
+          // Prevent duplicates if also received via RTM
+          setMessages(prev => {
+            if (prev.some(m => m.id === newMsg.id)) return prev;
+            const updated = [...prev, newMsg];
+            return updated;
+          });
           setTimeout(() => {
             if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
           }, 100);
@@ -80,12 +88,15 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
     };
   }, [stream.id]);
 
-  // Agora Lifecycle (Unchanged logic, just ensure consistency)
+  // Agora Lifecycle (RTC + RTM)
   useEffect(() => {
     if (stream.status !== "live") return;
 
     const client = createAgoraClient();
+    const rtm = createRTMClient(profile.uid);
+    
     setAgoraClient(client);
+    setRtmClient(rtm);
 
     const setupStream = async () => {
       try {
@@ -93,8 +104,35 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
         setInitTakingLong(false);
         setIsInitializingTracks(true);
         
+        // RTC Join
         await joinChannel(client, stream.id, profile.uid, isTeacherView ? "host" : "audience");
         
+        // RTM Join
+        try {
+          await rtm.login();
+          await rtm.subscribe(stream.id);
+          
+          rtm.addEventListener("message", (event) => {
+            try {
+              const data = JSON.parse(event.message as string);
+              if (data.type === "chat") {
+                const newMsg = data.payload as ChatMessageData;
+                setMessages(prev => {
+                   if (prev.some(m => m.id === newMsg.id)) return prev;
+                   return [...prev, newMsg];
+                });
+                setTimeout(() => {
+                  if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+                }, 100);
+              }
+            } catch (e) {
+              console.error("RTM Message Parse Error:", e);
+            }
+          });
+        } catch (rtmErr) {
+          console.error("RTM Setup Error (Optional):", rtmErr);
+        }
+
         if (isTeacherView) {
           const timeout = setTimeout(() => setInitTakingLong(true), 8000);
           const tracks = await createTracks();
@@ -152,6 +190,9 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
       if (client) {
         leaveChannel(client, localTracks || undefined);
       }
+      if (rtm) {
+        rtm.logout();
+      }
     };
   }, [stream.id, stream.status, isTeacherView, profile.uid]);
 
@@ -159,21 +200,39 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
     e.preventDefault();
     if (!chatMessage.trim()) return;
 
-    try {
-      const { error } = await supabase.from("chat_messages").insert({
-        streamId: stream.id,
-        text: chatMessage,
-        userId: profile.uid,
-        userName: profile.displayName,
-        userPhoto: profile.photoURL,
-        timestamp: new Date().toISOString(),
-      });
+    const newMsgId = Math.random().toString(36).substring(7);
+    const msgData: ChatMessageData = {
+      id: newMsgId,
+      streamId: stream.id,
+      text: chatMessage,
+      userId: profile.uid,
+      userName: profile.displayName,
+      userPhoto: profile.photoURL,
+      timestamp: new Date().toISOString(),
+    };
 
+    // Optimistic update
+    setMessages(prev => [...prev, msgData]);
+    setChatMessage("");
+    setTimeout(() => {
+      if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }, 100);
+
+    try {
+      // 1. Send via RTM (Instant broadcast for live viewers)
+      if (rtmClient) {
+        rtmClient.publish(stream.id, JSON.stringify({
+          type: "chat",
+          payload: msgData
+        }));
+      }
+
+      // 2. Persist to Supabase
+      const { error } = await supabase.from("chat_messages").insert(msgData);
       if (error) throw error;
-      setChatMessage("");
     } catch (err: any) {
       console.error("Chat error:", err);
-      alert(err.message || "Failed to send message");
+      // We don't alert here to not interrupt flow, msg is already optimistic
     }
   };
 
@@ -333,6 +392,29 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
                          <span className="text-sm font-black uppercase tracking-widest text-white">Connect Audio</span>
                       </motion.button>
                     </div>
+                 )}
+
+                 {/* Live Chat Overlay (Danmaku-lite) */}
+                 {isLive && messages.length > 0 && (
+                   <div className="absolute bottom-24 left-6 z-30 pointer-events-none space-y-2 max-w-[240px]">
+                      <AnimatePresence>
+                         {messages.slice(-3).map((msg, i) => (
+                           <motion.div 
+                             key={msg.id}
+                             initial={{ opacity: 0, x: -20, scale: 0.8 }}
+                             animate={{ opacity: 1 - (2-i)*0.3, x: 0, scale: 1 }}
+                             exit={{ opacity: 0, x: 20 }}
+                             className="flex items-center gap-2 bg-black/40 backdrop-blur-md px-3 py-2 rounded-xl border border-white/5"
+                           >
+                              <img src={msg.userPhoto} className="w-5 h-5 rounded-full border border-white/10" alt="" />
+                              <div className="min-w-0">
+                                <p className="text-[9px] font-black uppercase text-brand-blue truncate leading-none mb-0.5">{msg.userName.split(" ")[0]}</p>
+                                <p className="text-[11px] text-white font-bold leading-tight truncate">{msg.text}</p>
+                              </div>
+                           </motion.div>
+                         ))}
+                      </AnimatePresence>
+                   </div>
                  )}
                </div>
              ) : hasRecording ? (
@@ -507,8 +589,16 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
               <MessageCircle className="h-4 w-4 text-brand-blue" />
               <span className="font-black uppercase tracking-[0.2em] text-[10px] text-slate-400">Classroom Feed</span>
            </div>
-           <div className="flex h-5 w-8 items-center justify-center rounded-full bg-slate-800 border border-white/5">
-              <span className="text-[10px] font-black">{messages.length}</span>
+           <div className="flex items-center gap-3">
+              {isLive && rtmClient && (
+                <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-emerald-500/10 border border-emerald-500/20">
+                   <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse"></div>
+                   <span className="text-[8px] font-black text-emerald-500 uppercase tracking-widest">RTM Sync</span>
+                </div>
+              )}
+              <div className="flex h-5 w-8 items-center justify-center rounded-full bg-slate-800 border border-white/5">
+                 <span className="text-[10px] font-black">{messages.length}</span>
+              </div>
            </div>
         </div>
 

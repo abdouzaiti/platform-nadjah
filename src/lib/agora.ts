@@ -1,10 +1,15 @@
 import AgoraRTC, { IAgoraRTCClient, ICameraVideoTrack, IMicrophoneAudioTrack } from "agora-rtc-sdk-ng";
+import { RTM } from "agora-rtm-sdk";
 
 const APP_ID = import.meta.env.VITE_AGORA_APP_ID || "565b28c24bb04c59bd6ee0d0ce3198bd";
 const TOKEN = import.meta.env.VITE_AGORA_TOKEN || null;
 
 export const createAgoraClient = () => {
   return AgoraRTC.createClient({ mode: "live", codec: "vp8" });
+};
+
+export const createRTMClient = (uid: string) => {
+  return new RTM(APP_ID, uid);
 };
 
 export const joinChannel = async (
