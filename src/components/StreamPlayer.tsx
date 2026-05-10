@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import ReactPlayer from "react-player";
 import { StreamData, UserProfile, ChatMessageData } from "../types";
-import { Send, Users, Heart, Share2, MoreHorizontal, X, MessageCircle, Play, VideoOff, Save, Check } from "lucide-react";
+import { Send, Users, Heart, Share2, MoreHorizontal, X, MessageCircle, Play, VideoOff, Save, Check, Maximize2, Minimize2, Eye, EyeOff } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { motion, AnimatePresence } from "motion/react";
 import { formatDate, cn } from "../lib/utils";
@@ -24,6 +24,10 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
   const [messages, setMessages] = useState<ChatMessageData[]>([]);
   const [isEnding, setIsEnding] = useState(false);
   const [recordingUrlInput, setRecordingUrlInput] = useState("");
+  const [hideComments, setHideComments] = useState(false);
+  const [liveViewers, setLiveViewers] = useState(stream.viewersCount || 0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Agora State
@@ -135,6 +139,29 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
         // RTC Join
         await joinChannel(client, stream.id, profile.uid, isTeacherView ? "host" : "audience");
         
+        // Real-time Viewers Tracking
+        const updateViewers = () => {
+          // RTC tracks remote users. Host + remote users.
+          setLiveViewers(client.remoteUsers.length + 1);
+        };
+
+        client.on("user-joined", updateViewers);
+        client.on("user-left", updateViewers);
+        if (!isTeacherView) {
+           // Increment DB count for analytics but use local state for real-time UI
+           const syncIncrement = async () => {
+             try {
+               const { error } = await supabase.rpc('increment_viewers', { stream_id: stream.id });
+               if (error) throw error;
+             } catch (err) {
+               // Fallback if RPC not defined
+               await supabase.from('streams').update({ viewersCount: (stream.viewersCount || 0) + 1 }).eq('id', stream.id);
+             }
+           };
+           syncIncrement();
+        }
+        updateViewers();
+        
         // After joining, check if there are already users in the channel (safeguard)
         if (!isTeacherView) {
           for (const user of client.remoteUsers) {
@@ -214,6 +241,18 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
       }
       if (rtm) {
         rtm.logout();
+      }
+      if (!isTeacherView) {
+        const syncDecrement = async () => {
+          try {
+            const { error } = await supabase.rpc('decrement_viewers', { stream_id: stream.id });
+            if (error) throw error;
+          } catch (err) {
+            // Fallback
+            await supabase.from('streams').update({ viewersCount: Math.max(0, (stream.viewersCount || 1) - 1) }).eq('id', stream.id);
+          }
+        };
+        syncDecrement();
       }
     };
   }, [stream.id, stream.status, isTeacherView, profile.uid]);
@@ -295,11 +334,30 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
     });
   };
 
+  const toggleFullscreen = () => {
+    if (!containerRef.current) return;
+    if (!document.fullscreenElement) {
+      containerRef.current.requestFullscreen().catch(err => {
+        console.error(`Error attempting to enable full-screen mode: ${err.message}`);
+      });
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen();
+      setIsFullscreen(false);
+    }
+  };
+
+  useEffect(() => {
+    const handleFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', handleFsChange);
+    return () => document.removeEventListener('fullscreenchange', handleFsChange);
+  }, []);
+
   const isLive = stream.status === "live";
   const hasRecording = stream.status === "offline" && stream.recordingUrl;
 
   return (
-    <div className="flex h-screen w-full bg-black text-white overflow-hidden relative">
+    <div ref={containerRef} className="flex h-screen w-full bg-black text-white overflow-hidden relative">
       {/* Video Content */}
       <div className="flex-1 flex flex-col relative w-full h-full">
         <div className="flex-1 bg-black relative group">
@@ -419,7 +477,7 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
                  )}
 
                  {/* Instagram-style Live Chat Overlay */}
-                 {isLive && (
+                 {isLive && !hideComments && (
                    <div className="absolute inset-0 z-30 pointer-events-none flex flex-col justify-end pb-24 md:pb-32 px-4 md:px-8">
                       <div 
                         className="max-h-[40vh] overflow-y-auto no-scrollbar space-y-2 max-w-[85%] md:max-w-[400px] [mask-image:linear-gradient(to_top,black_80%,transparent_100%)] pt-10"
@@ -493,7 +551,7 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
                   ) : null}
                   <div className="bg-black/40 backdrop-blur-md px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest text-white border border-white/10 flex items-center gap-1">
                     <Users className="h-2 w-2" />
-                    <span>{stream.viewersCount}</span>
+                    <span>{liveViewers}</span>
                   </div>
               </div>
             </div>
@@ -507,6 +565,25 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
           {/* Floating Transparent Chat Input */}
           {isLive && (
             <div className="absolute bottom-6 inset-x-0 px-4 md:px-8 z-40 flex items-center gap-3">
+               <div className="flex items-center gap-2">
+                 <button 
+                   onClick={() => setHideComments(!hideComments)}
+                   className="h-10 w-10 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white hover:bg-white/10 transition-all"
+                   title={hideComments ? "Show comments" : "Hide comments"}
+                 >
+                   {hideComments ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}
+                 </button>
+                 {!isTeacherView && (
+                    <button 
+                      onClick={toggleFullscreen}
+                      className="h-10 w-10 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white hover:bg-white/10 transition-all"
+                      title="Toggle Fullscreen"
+                    >
+                      {isFullscreen ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}
+                    </button>
+                 )}
+               </div>
+               
                <form onSubmit={handleSendMessage} className="flex-1 flex items-center bg-black/40 backdrop-blur-xl rounded-full border border-white/10 px-4 py-1">
                  <input 
                    type="text" 

@@ -236,36 +236,6 @@ VALUES ('${user?.id}', '${user?.email}', '${user?.email?.split('@')[0]}', 'teach
                   </pre>
                 </div>
 
-                <div className="bg-amber-500/10 p-4 rounded-xl border border-amber-500/20 space-y-3">
-                  <p className="text-[10px] text-amber-500 font-black uppercase tracking-widest">Database Maintenance</p>
-                  <p className="text-[9px] text-slate-400 font-medium leading-relaxed">
-                    If deletion fails, run this "Cascading Fix" in the SQL Editor to clean up dependencies:
-                  </p>
-                  <pre className="text-[9px] text-amber-400 font-mono bg-black/40 p-2 rounded border border-white/5 space-y-1">
-{`-- 1. Ensure columns exist
-ALTER TABLE public.streams 
-ADD COLUMN IF NOT EXISTS "viewersCount" integer DEFAULT 0,
-ADD COLUMN IF NOT EXISTS "updatedAt" timestamp with time zone DEFAULT now();
-
--- 2. Fix Chat Cascade
-ALTER TABLE public.chat_messages 
-DROP CONSTRAINT IF EXISTS chat_messages_streamId_fkey;
-ALTER TABLE public.chat_messages 
-ADD CONSTRAINT chat_messages_streamId_fkey 
-FOREIGN KEY ("streamId") REFERENCES public.streams(id) ON DELETE CASCADE;
-
--- 3. Fix Enrollments Cascade (If exists)
-DO $$ 
-BEGIN 
-  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'stream_enrollments') THEN
-    ALTER TABLE public.stream_enrollments DROP CONSTRAINT IF EXISTS stream_enrollments_streamId_fkey;
-    ALTER TABLE public.stream_enrollments ADD CONSTRAINT stream_enrollments_streamId_fkey 
-    FOREIGN KEY ("streamId") REFERENCES public.streams(id) ON DELETE CASCADE;
-  END IF;
-END $$;`}
-                  </pre>
-                </div>
-
                 <div className="bg-emerald-500/10 p-4 rounded-xl border border-emerald-500/20 flex items-center gap-3">
                   <div className="h-8 w-8 rounded-full bg-emerald-500/20 flex items-center justify-center">
                     <CheckCircle2 className="h-4 w-4 text-emerald-500" />

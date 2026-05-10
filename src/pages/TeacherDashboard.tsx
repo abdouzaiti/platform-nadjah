@@ -121,31 +121,23 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
   const deleteStream = async (streamId: string) => {
     if (!confirm("Are you sure you want to permanently delete this session? This will also remove all chat records.")) return;
     
-    // Optimistic update
-    const previousStreams = [...myStreams];
-    setMyStreams(myStreams.filter(s => s.id !== streamId));
-    
+    setLoading(true);
     try {
+      // Manual Cascade: Delete dependencies first so user doesn't have to touch SQL
+      await supabase.from('chat_messages').delete().eq('streamId', streamId);
+      
       const { error } = await supabase
         .from("streams")
         .delete()
         .eq("id", streamId);
         
       if (error) throw error;
+      setMyStreams(prev => prev.filter(s => s.id !== streamId));
     } catch (err: any) {
-      console.error("Delete stream error FULL:", err);
-      // Revert optimistic update
-      setMyStreams(previousStreams);
-      
-      let message = "Deletion failed.";
-      if (err.message?.includes("foreign key")) {
-        message = "Deletion blocked: There are records (like chat or attendance) linked to this session. Please go to the login screen and run the 'Cascading Fix' SQL provided there.";
-      } else if (err.code === "42501") {
-        message = "Permission Denied: Your account doesn't have permission to delete this record. Ensure you are the creator of this stream.";
-      } else {
-        message = `Error: ${err.message || "Unknown error during deletion"}`;
-      }
-      alert(message);
+      console.error("Delete stream error:", err);
+      alert(err.message || "Failed to delete session. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -246,24 +238,6 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                     <p className="text-slate-500 font-bold tracking-widest text-[8px] sm:text-[10px] uppercase">Welcome, Professor {profile.displayName.split(" ")[0]}</p>
                 </div>
                 <div className="flex items-center gap-2 sm:gap-3">
-                  <button 
-                    onClick={() => {
-                        const sql = `-- Run this in Supabase SQL Editor to fix deletion issues:
-ALTER TABLE public.chat_messages DROP CONSTRAINT IF EXISTS chat_messages_streamId_fkey;
-ALTER TABLE public.chat_messages ADD CONSTRAINT chat_messages_streamId_fkey FOREIGN KEY ("streamId") REFERENCES public.streams(id) ON DELETE CASCADE;
--- If you have enrollments:
-DO $$ BEGIN IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'stream_enrollments') THEN 
-ALTER TABLE public.stream_enrollments DROP CONSTRAINT IF EXISTS stream_enrollments_streamId_fkey;
-ALTER TABLE public.stream_enrollments ADD CONSTRAINT stream_enrollments_streamId_fkey FOREIGN KEY ("streamId") REFERENCES public.streams(id) ON DELETE CASCADE;
-END IF; END $$;`;
-                        navigator.clipboard.writeText(sql);
-                        alert("Cascading Fix SQL copied to clipboard! Run it in Supabase SQL Editor.");
-                    }}
-                    className="flex-1 sm:flex-none flex items-center justify-center space-x-2 rounded-xl bg-orange-500/10 px-3 sm:px-4 py-3 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-orange-500 border border-orange-500/20"
-                  >
-                      <Database className="h-3 w-3" />
-                      <span>Repair</span>
-                  </button>
                   <button 
                     onClick={() => setActiveTab("start-stream")}
                     className="flex-1 sm:flex-none flex items-center justify-center space-x-2 rounded-xl bg-brand-blue px-4 sm:px-6 py-3 text-[9px] sm:text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-blue-500/20"
