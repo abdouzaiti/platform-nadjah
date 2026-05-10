@@ -25,11 +25,18 @@ export const joinChannel = async (
 
   try {
     // Attempt to join with token if provided, otherwise null
-    await client.join(APP_ID, channelName, TOKEN, uid);
+    // Add a small random component to UID to prevent UID_CONFLICT errors on rapid reloads
+    const suffix = Math.floor(Math.random() * 1000);
+    const uniqueUid = typeof uid === 'number' ? uid + suffix : `${uid}_${suffix}`;
+    
+    await client.join(APP_ID, channelName, TOKEN, uniqueUid);
   } catch (err: any) {
     console.error("Agora Join Error:", err);
     if (err.message?.includes("dynamic use static key")) {
       throw new Error("Security Mismatch: Your Agora project requires a Token. Either provide VITE_AGORA_TOKEN or disable 'App Certificate' in Agora Console for testing.");
+    }
+    if (err.message?.includes("UID_CONFLICT")) {
+      throw new Error("Connection Conflict: This account is already active in another tab or window. Please close other sessions and try again.");
     }
     throw err;
   }
@@ -41,9 +48,31 @@ export const createTracks = async () => {
   try {
     const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
     return { audioTrack, videoTrack };
-  } catch (err) {
-    console.error("Agora Track Creation Error:", err);
-    throw new Error("Failed to access camera or microphone. Please check permissions.");
+  } catch (err: any) {
+    console.error("Agora Full Track Creation Error:", err);
+    
+    // Fallback: Try just microphone if camera fails (common for some setups)
+    if (err.name === "NotFoundError" || err.message?.includes("DEVICE_NOT_FOUND")) {
+      try {
+        console.log("Attempting microphone-only fallback...");
+        const audioTrack = await AgoraRTC.createMicrophoneAudioTrack();
+        return { audioTrack, videoTrack: null };
+      } catch (micErr) {
+        console.error("Mic-only fallback failed:", micErr);
+      }
+    }
+    
+    let message = "Failed to access camera or microphone.";
+    
+    if (err.name === "NotAllowedError" || err.message?.includes("Permission denied")) {
+      message = "Permission Denied: Please click 'Allow' when your browser asks for camera access. If you're in an app preview, try opening the app in a 'New Tab'.";
+    } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
+      message = "No Devices Found: We couldn't detect a camera or microphone. Please plug them in and try again.";
+    } else if (err.name === "NotReadableError" || err.name === "TrackStartError") {
+      message = "Hardware In Use: Your camera or microphone is being used by another application (like Zoom or Teams).";
+    }
+    
+    throw new Error(message);
   }
 };
 

@@ -2,7 +2,7 @@ import React from "react";
 import { UserProfile, StreamData } from "../types";
 import Sidebar from "../components/Sidebar";
 import { supabase } from "../lib/supabase";
-import { Plus, Video, Trash2, Edit3, Loader2, Play, Users, Menu, X } from "lucide-react";
+import { Plus, Video, Trash2, Edit3, Loader2, Play, Users, Menu, X, Database } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import StreamPlayer from "../components/StreamPlayer";
 import { cn } from "../lib/utils";
@@ -133,17 +133,17 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
         
       if (error) throw error;
     } catch (err: any) {
-      console.error("Delete stream error:", err);
+      console.error("Delete stream error FULL:", err);
       // Revert optimistic update
       setMyStreams(previousStreams);
       
-      let message = "Failed to delete stream.";
+      let message = "Deletion failed.";
       if (err.message?.includes("foreign key")) {
-        message = "Deletion failed: There are students or records attached to this stream. Please run the 'Database Maintenance' SQL fix on the login screen.";
+        message = "Deletion blocked: There are records (like chat or attendance) linked to this session. Please go to the login screen and run the 'Cascading Fix' SQL provided there.";
       } else if (err.code === "42501") {
-        message = "Permission Denied: You do not have authority to delete this record.";
+        message = "Permission Denied: Your account doesn't have permission to delete this record. Ensure you are the creator of this stream.";
       } else {
-        message = err.message || message;
+        message = `Error: ${err.message || "Unknown error during deletion"}`;
       }
       alert(message);
     }
@@ -245,13 +245,33 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                     <h2 className="font-display text-4xl font-black text-white uppercase italic tracking-tighter">Academic Control</h2>
                     <p className="text-slate-500 font-bold tracking-widest text-[10px] uppercase">Welcome back, Professor {profile.displayName.split(" ")[0]}</p>
                 </div>
-                <button 
-                  onClick={() => setActiveTab("start-stream")}
-                  className="flex items-center space-x-2 rounded-xl bg-brand-blue px-6 py-3 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-blue-500/20 transition-all hover:bg-blue-500 hover:scale-105"
-                >
-                    <Plus className="h-4 w-4" />
-                    <span>Create Session</span>
-                </button>
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={() => {
+                      const sql = `-- Run this in Supabase SQL Editor to fix deletion issues:
+ALTER TABLE public.chat_messages DROP CONSTRAINT IF EXISTS chat_messages_streamId_fkey;
+ALTER TABLE public.chat_messages ADD CONSTRAINT chat_messages_streamId_fkey FOREIGN KEY ("streamId") REFERENCES public.streams(id) ON DELETE CASCADE;
+-- If you have enrollments:
+DO $$ BEGIN IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'stream_enrollments') THEN 
+ALTER TABLE public.stream_enrollments DROP CONSTRAINT IF EXISTS stream_enrollments_streamId_fkey;
+ALTER TABLE public.stream_enrollments ADD CONSTRAINT stream_enrollments_streamId_fkey FOREIGN KEY ("streamId") REFERENCES public.streams(id) ON DELETE CASCADE;
+END IF; END $$;`;
+                      navigator.clipboard.writeText(sql);
+                      alert("Cascading Fix SQL copied to clipboard! Run it in Supabase SQL Editor.");
+                    }}
+                    className="flex items-center space-x-2 rounded-xl bg-orange-500/10 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-orange-500 border border-orange-500/20 hover:bg-orange-500/20 transition-all"
+                  >
+                      <Database className="h-3 w-3" />
+                      <span>Repair DB</span>
+                  </button>
+                  <button 
+                    onClick={() => setActiveTab("start-stream")}
+                    className="flex items-center space-x-2 rounded-xl bg-brand-blue px-6 py-3 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-blue-500/20 transition-all hover:bg-blue-500 hover:scale-105"
+                  >
+                      <Plus className="h-4 w-4" />
+                      <span>Create Session</span>
+                  </button>
+                </div>
             </header>
 
             <section className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">

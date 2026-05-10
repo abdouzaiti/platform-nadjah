@@ -239,23 +239,30 @@ VALUES ('${user?.id}', '${user?.email}', '${user?.email?.split('@')[0]}', 'teach
                 <div className="bg-amber-500/10 p-4 rounded-xl border border-amber-500/20 space-y-3">
                   <p className="text-[10px] text-amber-500 font-black uppercase tracking-widest">Database Maintenance</p>
                   <p className="text-[9px] text-slate-400 font-medium leading-relaxed">
-                    If you see errors about <code className="text-white">updatedAt</code>, <code className="text-white">viewersCount</code>, or <code className="text-white">foreign key</code>, run this in the SQL Editor:
+                    If deletion fails, run this "Cascading Fix" in the SQL Editor to clean up dependencies:
                   </p>
                   <pre className="text-[9px] text-amber-400 font-mono bg-black/40 p-2 rounded border border-white/5 space-y-1">
-{`-- 1. Add missing columns
+{`-- 1. Ensure columns exist
 ALTER TABLE public.streams 
 ADD COLUMN IF NOT EXISTS "viewersCount" integer DEFAULT 0,
 ADD COLUMN IF NOT EXISTS "updatedAt" timestamp with time zone DEFAULT now();
 
--- 2. Fix deletion constraints
+-- 2. Fix Chat Cascade
 ALTER TABLE public.chat_messages 
 DROP CONSTRAINT IF EXISTS chat_messages_streamId_fkey;
-
 ALTER TABLE public.chat_messages 
 ADD CONSTRAINT chat_messages_streamId_fkey 
-FOREIGN KEY ("streamId") 
-REFERENCES public.streams(id) 
-ON DELETE CASCADE;`}
+FOREIGN KEY ("streamId") REFERENCES public.streams(id) ON DELETE CASCADE;
+
+-- 3. Fix Enrollments Cascade (If exists)
+DO $$ 
+BEGIN 
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'stream_enrollments') THEN
+    ALTER TABLE public.stream_enrollments DROP CONSTRAINT IF EXISTS stream_enrollments_streamId_fkey;
+    ALTER TABLE public.stream_enrollments ADD CONSTRAINT stream_enrollments_streamId_fkey 
+    FOREIGN KEY ("streamId") REFERENCES public.streams(id) ON DELETE CASCADE;
+  END IF;
+END $$;`}
                   </pre>
                 </div>
 
@@ -267,6 +274,16 @@ ON DELETE CASCADE;`}
                     <p className="text-[10px] text-emerald-500 font-black uppercase tracking-widest">Agora Streaming Ready</p>
                     <p className="text-[9px] text-slate-400 font-medium">Classroom video engine is online and configured.</p>
                   </div>
+                </div>
+
+                <div className="bg-brand-blue/10 p-4 rounded-xl border border-brand-blue/20 flex flex-col gap-2">
+                  <div className="flex items-center gap-2">
+                    <Video className="h-3 w-3 text-brand-blue" />
+                    <p className="text-[10px] text-brand-blue font-black uppercase tracking-widest">Camera Permissions Tip</p>
+                  </div>
+                  <p className="text-[9px] text-slate-400 font-medium leading-relaxed">
+                    If camera access fails, click the <strong>"Open in New Tab"</strong> button in the stream player or your browser's address bar to enable permissions.
+                  </p>
                 </div>
               </div>
 

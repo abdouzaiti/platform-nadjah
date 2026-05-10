@@ -27,10 +27,15 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
 
   // Agora State
   const [agoraClient, setAgoraClient] = useState<IAgoraRTCClient | null>(null);
-  const [localTracks, setLocalTracks] = useState<{ audioTrack: IMicrophoneAudioTrack; videoTrack: ICameraVideoTrack } | null>(null);
+  const [localTracks, setLocalTracks] = useState<{ audioTrack: IMicrophoneAudioTrack; videoTrack: ICameraVideoTrack | null } | null>(null);
   const [remoteStudents, setRemoteStudents] = useState<IRemoteVideoTrack | null>(null);
   const [teacherVideo, setTeacherVideo] = useState<IRemoteVideoTrack | null>(null);
+  const [isMuted, setIsMuted] = useState(false);
+  const [hasAudioStarted, setHasAudioStarted] = useState(true);
+  const [micVolume, setMicVolume] = useState(0);
   const [agoraError, setAgoraError] = useState<string | null>(null);
+  const [isInitializingTracks, setIsInitializingTracks] = useState(false);
+  const [initTakingLong, setInitTakingLong] = useState(false);
 
   useEffect(() => {
     const fetchMessages = async () => {
@@ -85,23 +90,59 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
     const setupStream = async () => {
       try {
         setAgoraError(null);
+        setInitTakingLong(false);
+        setIsInitializingTracks(true);
+        
         await joinChannel(client, stream.id, profile.uid, isTeacherView ? "host" : "audience");
         
         if (isTeacherView) {
+          const timeout = setTimeout(() => setInitTakingLong(true), 8000);
           const tracks = await createTracks();
+          clearTimeout(timeout);
           setLocalTracks(tracks);
-          await client.publish([tracks.audioTrack, tracks.videoTrack]);
+          
+          const tracksToPublish = [tracks.audioTrack];
+          if (tracks.videoTrack) tracksToPublish.push(tracks.videoTrack);
+          
+          await client.publish(tracksToPublish);
+
+          // Monitor mic volume
+          const interval = setInterval(() => {
+            if (tracks.audioTrack) {
+              setMicVolume(tracks.audioTrack.getVolumeLevel() * 100);
+            }
+          }, 100);
+          return () => clearInterval(interval);
         } else {
           client.on("user-published", async (user, mediaType) => {
-            await client.subscribe(user, mediaType);
+            try {
+              await client.subscribe(user, mediaType);
+              if (mediaType === "video") {
+                setTeacherVideo(user.videoTrack || null);
+              }
+              if (mediaType === "audio") {
+                user.audioTrack?.play()?.catch(err => {
+                  if (err.name === "NotAllowedError") {
+                    setHasAudioStarted(false);
+                  }
+                });
+              }
+            } catch (err) {
+              console.error("Subscription error:", err);
+            }
+          });
+
+          client.on("user-unpublished", (user, mediaType) => {
             if (mediaType === "video") {
-              setTeacherVideo(user.videoTrack!);
+              setTeacherVideo(null);
             }
           });
         }
+        setIsInitializingTracks(false);
       } catch (err: any) {
         console.error("Agora Setup Error:", err);
         setAgoraError(err.message || "Failed to establish live connection");
+        setIsInitializingTracks(false);
       }
     };
 
@@ -155,6 +196,24 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
     }
   };
 
+  const toggleMute = async () => {
+    if (!localTracks?.audioTrack) return;
+    try {
+      await localTracks.audioTrack.setEnabled(isMuted);
+      setIsMuted(!isMuted);
+    } catch (err) {
+      console.error("Mute toggle error:", err);
+    }
+  };
+
+  const resumeAudio = () => {
+    setHasAudioStarted(true);
+    // SDK will retry playing or we can iterate over users
+    agoraClient?.remoteUsers.forEach(user => {
+      user.audioTrack?.play();
+    });
+  };
+
   const isLive = stream.status === "live";
   const hasRecording = stream.status === "offline" && stream.recordingUrl;
 
@@ -171,7 +230,19 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
                <div className="w-full h-full">
                  {isTeacherView ? (
                    localTracks ? (
-                     <AgoraPlayer videoTrack={localTracks.videoTrack} />
+                     localTracks.videoTrack ? (
+                       <AgoraPlayer videoTrack={localTracks.videoTrack} />
+                     ) : (
+                       <div className="flex flex-col items-center justify-center h-full bg-slate-900/50 space-y-4">
+                         <div className="h-20 w-20 rounded-full bg-brand-blue/10 flex items-center justify-center border border-brand-blue/20">
+                            <VideoOff className="h-8 w-8 text-brand-blue/50" />
+                         </div>
+                         <div className="text-center">
+                            <p className="text-white text-sm font-black uppercase tracking-widest">Audio Only Active</p>
+                            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">No camera detected</p>
+                         </div>
+                       </div>
+                     )
                    ) : (
                      <div className="flex flex-col items-center justify-center h-full space-y-4 px-6 text-center">
                         {agoraError ? (
@@ -182,18 +253,51 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
                             <div className="space-y-2">
                               <p className="text-red-500 font-black uppercase tracking-widest text-[10px]">Connection Failure</p>
                               <p className="text-slate-400 text-xs font-medium max-w-xs">{agoraError}</p>
-                              <button 
-                                onClick={() => window.location.reload()}
-                                className="mt-4 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-[10px] font-black uppercase tracking-widest border border-white/5 transition-all text-white"
-                              >
-                                Retry Connection
-                              </button>
+                              <div className="flex flex-col gap-2 w-full max-w-xs pt-4">
+                                <button 
+                                  onClick={() => window.location.reload()}
+                                  className="w-full px-4 py-3 bg-brand-blue hover:bg-blue-500 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all text-white shadow-xl shadow-blue-500/20"
+                                >
+                                  Retry Connection
+                                </button>
+                                <a 
+                                  href={window.location.href}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="w-full px-4 py-3 bg-white/5 hover:bg-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest border border-white/5 transition-all text-white flex items-center justify-center gap-2"
+                                >
+                                  <Share2 className="h-3 w-3" />
+                                  Open in New Tab
+                                </a>
+                              </div>
                             </div>
                           </>
                         ) : (
                           <>
                             <div className="w-16 h-16 rounded-full border-4 border-brand-blue border-t-transparent animate-spin"></div>
-                            <p className="text-brand-blue font-black uppercase tracking-widest text-xs">Initializing Camera...</p>
+                            <div className="space-y-2">
+                              <p className="text-brand-blue font-black uppercase tracking-widest text-xs">Initializing Camera...</p>
+                              {initTakingLong && (
+                                <motion.div 
+                                  initial={{ opacity: 0, y: 10 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  className="space-y-4"
+                                >
+                                  <p className="text-[10px] text-slate-500 font-medium max-w-[200px] mx-auto leading-relaxed">
+                                    Still waiting for permissions. If you don't see a popup, try opening the classroom in a new window.
+                                  </p>
+                                  <a 
+                                    href={window.location.href}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-2 px-4 py-2 bg-brand-blue/10 border border-brand-blue/20 rounded-lg text-[10px] font-black uppercase tracking-widest text-brand-blue hover:bg-brand-blue/20 transition-all"
+                                  >
+                                    <Share2 className="h-3 w-3" />
+                                    Open New Tab
+                                  </a>
+                                </motion.div>
+                              )}
+                            </div>
                           </>
                         )}
                      </div>
@@ -214,6 +318,21 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
                         </div>
                      </div>
                    )
+                 )}
+
+                 {/* Autoplay Fallback Overlay */}
+                 {!isTeacherView && !hasAudioStarted && isLive && (
+                    <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                      <motion.button 
+                        initial={{ scale: 0.9, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        onClick={resumeAudio}
+                        className="bg-brand-blue hover:bg-blue-500 text-white px-8 py-4 rounded-2xl flex items-center gap-3 shadow-2xl shadow-blue-500/40 group transition-all"
+                      >
+                         <Play className="h-6 w-6 fill-current group-hover:scale-110 transition-transform text-white" />
+                         <span className="text-sm font-black uppercase tracking-widest text-white">Connect Audio</span>
+                      </motion.button>
+                    </div>
                  )}
                </div>
              ) : hasRecording ? (
@@ -251,6 +370,19 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
                   <span className="bg-brand-blue px-2.5 py-1 rounded text-[10px] font-black uppercase tracking-widest text-white shadow-lg shadow-blue-600/20">Recorded</span>
                 ) : null}
                 <span className="bg-black/40 backdrop-blur-md px-2 py-1 rounded text-[10px] font-black uppercase tracking-widest text-white border border-white/10 italic">Nadjah CDN v2</span>
+                
+                {isTeacherView && isLive && localTracks && (
+                  <div className="bg-black/40 backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-2 border border-white/5">
+                    <div className="w-16 h-1 w-full bg-slate-800 rounded-full overflow-hidden">
+                      <motion.div 
+                        className="h-full bg-emerald-500" 
+                        animate={{ width: `${Math.min(micVolume * 2, 100)}%` }}
+                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                      />
+                    </div>
+                    <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Mic Active</span>
+                  </div>
+                )}
             </div>
             {onClose && !isEnding && (
                 <button onClick={onClose} className="pointer-events-auto rounded-full bg-white/10 p-2 text-white border border-white/5 backdrop-blur-xl hover:bg-white/20 transition-all">
@@ -262,6 +394,15 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
           {/* Teacher Termination Controls */}
           {isTeacherView && isLive && !isEnding && (
             <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-slate-900/80 backdrop-blur-2xl p-2 rounded-2xl border border-white/10 shadow-2xl opacity-0 group-hover:opacity-100 transition-all">
+               <button 
+                 onClick={toggleMute}
+                 className={cn(
+                   "flex items-center justify-center w-12 h-12 rounded-xl transition-all border",
+                   isMuted ? "bg-red-600/20 border-red-500 text-red-500" : "bg-emerald-600/20 border-emerald-500 text-emerald-500"
+                 )}
+               >
+                 {isMuted ? <VideoOff className="h-5 w-5" /> : <Users className="h-5 w-5" />}
+               </button>
                <button 
                  onClick={() => setIsEnding(true)}
                  className="flex items-center space-x-3 bg-red-600 hover:bg-red-500 px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all"
