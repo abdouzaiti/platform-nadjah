@@ -3,7 +3,7 @@ import { supabase, supabaseConfigured, isProperAnonKey } from "./lib/supabase";
 import { UserProfile, UserRole } from "./types";
 import TeacherDashboard from "./pages/TeacherDashboard";
 import StudentDashboard from "./pages/StudentDashboard";
-import { LogIn, GraduationCap, School, Loader2, Database, Key, CheckCircle2, Mail, ArrowRight } from "lucide-react";
+import { LogIn, GraduationCap, School, Loader2, Database, Key, CheckCircle2, Mail, ArrowRight, Video } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 export default function App() {

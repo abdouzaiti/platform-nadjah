@@ -25,6 +25,7 @@ export interface StreamData {
 
 export interface ChatMessageData {
   id: string;
+  streamId: string;
   text: string;
   userId: string;
   userName: string;

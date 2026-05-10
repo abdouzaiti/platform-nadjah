@@ -8,7 +8,7 @@ import { formatDate, cn } from "../lib/utils";
 import { createAgoraClient, joinChannel, createTracks, leaveChannel, createRTMClient } from "../lib/agora";
 import AgoraPlayer from "./AgoraPlayer";
 import { IAgoraRTCClient, ICameraVideoTrack, IMicrophoneAudioTrack, IRemoteVideoTrack } from "agora-rtc-sdk-ng";
-import { RTM } from "agora-rtm-sdk";
+import AgoraRTM from "agora-rtm-sdk";
 
 const Player = ReactPlayer as any;
 
@@ -28,7 +28,7 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
 
   // Agora State
   const [agoraClient, setAgoraClient] = useState<IAgoraRTCClient | null>(null);
-  const [rtmClient, setRtmClient] = useState<RTM | null>(null);
+  const [rtmClient, setRtmClient] = useState<any | null>(null);
   const [localTracks, setLocalTracks] = useState<{ audioTrack: IMicrophoneAudioTrack; videoTrack: ICameraVideoTrack | null } | null>(null);
   const [remoteStudents, setRemoteStudents] = useState<IRemoteVideoTrack | null>(null);
   const [teacherVideo, setTeacherVideo] = useState<IRemoteVideoTrack | null>(null);
@@ -139,7 +139,7 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
           clearTimeout(timeout);
           setLocalTracks(tracks);
           
-          const tracksToPublish = [tracks.audioTrack];
+          const tracksToPublish: any[] = [tracks.audioTrack];
           if (tracks.videoTrack) tracksToPublish.push(tracks.videoTrack);
           
           await client.publish(tracksToPublish);
@@ -159,11 +159,13 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
                 setTeacherVideo(user.videoTrack || null);
               }
               if (mediaType === "audio") {
-                user.audioTrack?.play()?.catch(err => {
+                try {
+                  user.audioTrack?.play();
+                } catch (err: any) {
                   if (err.name === "NotAllowedError") {
                     setHasAudioStarted(false);
                   }
-                });
+                }
               }
             } catch (err) {
               console.error("Subscription error:", err);
@@ -188,7 +190,10 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
 
     return () => {
       if (client) {
-        leaveChannel(client, localTracks || undefined);
+        leaveChannel(client, localTracks ? { 
+          audioTrack: localTracks.audioTrack, 
+          videoTrack: localTracks.videoTrack || undefined 
+        } : undefined);
       }
       if (rtm) {
         rtm.logout();
