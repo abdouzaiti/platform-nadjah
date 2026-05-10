@@ -1,6 +1,6 @@
 {
-  "name": "Ecole Nadjah Live",
-  "description": "A professional live streaming platform for Ecole Nadjah with dedicated dashboards for teachers to stream and students to watch.",
+  "name": "Nadjah Live",
+  "description": "A premium real-time educational broadcasting platform designed for seamless teacher-student interaction, live lecture streaming, and digital classroom management.",
   "requestFramePermissions": [
     "camera",
     "microphone"
