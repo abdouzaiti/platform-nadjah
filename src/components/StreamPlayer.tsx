@@ -9,6 +9,7 @@ import { createAgoraClient, joinChannel, createTracks, leaveChannel, createRTMCl
 import AgoraPlayer from "./AgoraPlayer";
 import { IAgoraRTCClient, ICameraVideoTrack, IMicrophoneAudioTrack, IRemoteVideoTrack } from "agora-rtc-sdk-ng";
 import AgoraRTM from "agora-rtm-sdk";
+import { useTranslation } from "react-i18next";
 
 const Player = ReactPlayer as any;
 
@@ -20,6 +21,7 @@ interface StreamPlayerProps {
 }
 
 export default function StreamPlayer({ stream, profile, onClose, isTeacherView }: StreamPlayerProps) {
+  const { t, i18n } = useTranslation();
   const [chatMessage, setChatMessage] = useState("");
   const [messages, setMessages] = useState<ChatMessageData[]>([]);
   const [isEnding, setIsEnding] = useState(false);
@@ -461,7 +463,7 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
                    )
                  )}
 
-                 {/* Autoplay Fallback Overlay */}
+                  {/* Autoplay Fallback Overlay */}
                  {!isTeacherView && !hasAudioStarted && isLive && (
                     <div className="absolute inset-0 z-40 flex items-center justify-center bg-white/60 backdrop-blur-sm">
                       <motion.button 
@@ -470,8 +472,8 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
                         onClick={resumeAudio}
                         className="bg-brand-blue hover:bg-blue-600 text-white px-8 py-4 rounded-full flex items-center gap-3 shadow-2xl shadow-blue-500/40 group transition-all"
                       >
-                         <Play className="h-6 w-6 fill-current group-hover:scale-110 transition-transform text-white" />
-                         <span className="text-sm font-black uppercase tracking-widest text-white">Connect Audio</span>
+                         <Play className={cn("h-6 w-6 fill-current group-hover:scale-110 transition-transform text-white", i18n.language === 'ar' ? "rotate-180" : "")} />
+                         <span className="text-sm font-black uppercase tracking-widest text-white">{t('connect_audio')}</span>
                       </motion.button>
                     </div>
                  )}
@@ -480,19 +482,25 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
                  {isLive && !hideComments && (
                    <div className="absolute inset-0 z-30 pointer-events-none flex flex-col justify-end pb-24 md:pb-32 px-4 md:px-8">
                       <div 
-                        className="max-h-[40vh] overflow-y-auto no-scrollbar space-y-2 max-w-[85%] md:max-w-[400px] [mask-image:linear-gradient(to_top,black_80%,transparent_100%)] pt-10"
+                        className={cn(
+                          "max-h-[40vh] overflow-y-auto no-scrollbar space-y-2 max-w-[85%] md:max-w-[400px] pt-10",
+                          i18n.language === 'ar' ? "[mask-image:linear-gradient(to_top,black_80%,transparent_100%)] text-right self-end" : "[mask-image:linear-gradient(to_top,black_80%,transparent_100%)] text-left self-start"
+                        )}
                         ref={scrollRef}
                       >
                          <AnimatePresence>
                             {messages.map((msg) => (
                               <motion.div 
                                 key={msg.id}
-                                initial={{ opacity: 0, x: -20, scale: 0.8 }}
+                                initial={{ opacity: 0, x: i18n.language === 'ar' ? 20 : -20, scale: 0.8 }}
                                 animate={{ opacity: 1, x: 0, scale: 1 }}
-                                className="flex items-start gap-2 py-1"
+                                className={cn("flex items-start gap-2 py-1", i18n.language === 'ar' ? "flex-row-reverse" : "flex-row")}
                               >
                                  <img src={msg.userPhoto || `https://ui-avatars.com/api/?name=${encodeURIComponent(msg.userName)}&background=0D8ABC&color=fff`} className="w-8 h-8 rounded-full border border-white/10 shrink-0" alt="" />
-                                 <div className="bg-white/80 backdrop-blur-md px-3 py-2 rounded-2xl rounded-tl-none border border-white/50 pointer-events-auto shadow-sm">
+                                 <div className={cn(
+                                   "bg-white/80 backdrop-blur-md px-3 py-2 rounded-2xl border border-white/50 pointer-events-auto shadow-sm",
+                                   i18n.language === 'ar' ? "rounded-tr-none" : "rounded-tl-none"
+                                 )}>
                                    <p className="text-[10px] font-black uppercase text-brand-blue leading-none mb-1">{msg.userName.split(" ")[0]}</p>
                                    <p className="text-sm text-slate-800 font-medium leading-tight">{msg.text}</p>
                                  </div>
@@ -521,9 +529,9 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
                   </div>
                   <div className="space-y-2">
                     <h3 className="text-3xl font-black font-display uppercase tracking-widest italic leading-none text-slate-900">
-                        Session Offline
+                        {t('session_offline')}
                     </h3>
-                    <p className="text-slate-400 font-bold tracking-widest text-[10px] uppercase italic opacity-60">The teacher has concluded this session</p>
+                    <p className="text-slate-400 font-bold tracking-widest text-[10px] uppercase italic opacity-60">{t('teacher_concluded')}</p>
                   </div>
                </div>
              )}
@@ -564,12 +572,12 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
 
           {/* Floating Transparent Chat Input */}
           {isLive && (
-            <div className="absolute bottom-6 inset-x-0 px-4 md:px-8 z-40 flex items-center gap-3">
-               <div className="flex items-center gap-2">
+            <div className="absolute bottom-6 inset-x-0 px-4 md:px-8 z-40 flex items-center gap-3 rtl:flex-row-reverse">
+               <div className="flex items-center gap-2 rtl:flex-row-reverse">
                  <button 
                    onClick={() => setHideComments(!hideComments)}
                    className="h-10 w-10 flex items-center justify-center rounded-full bg-white/70 backdrop-blur-md border border-slate-100 text-slate-600 hover:bg-white transition-all shadow-sm active:scale-95 pointer-events-auto"
-                   title={hideComments ? "Show comments" : "Hide comments"}
+                   title={hideComments ? t('show_comments') : t('hide_comments')}
                  >
                    {hideComments ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}
                  </button>
@@ -577,27 +585,27 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
                     <button 
                       onClick={toggleFullscreen}
                       className="h-10 w-10 flex items-center justify-center rounded-full bg-white/70 backdrop-blur-md border border-slate-100 text-slate-600 hover:bg-white transition-all shadow-sm active:scale-95 pointer-events-auto"
-                      title="Toggle Fullscreen"
+                      title={t('toggle_fullscreen')}
                     >
                       {isFullscreen ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}
                     </button>
                  )}
                </div>
                
-               <form onSubmit={handleSendMessage} className="flex-1 flex items-center bg-white/70 backdrop-blur-xl rounded-full border border-slate-100 px-4 py-1 shadow-sm pointer-events-auto group-focus-within:bg-white transition-all">
+               <form onSubmit={handleSendMessage} className="flex-1 flex items-center bg-white/70 backdrop-blur-xl rounded-full border border-slate-100 px-4 py-1 shadow-sm pointer-events-auto group-focus-within:bg-white transition-all rtl:flex-row-reverse">
                  <input 
                    type="text" 
                    value={chatMessage}
                    onChange={(e) => setChatMessage(e.target.value)}
-                   placeholder="Comment..." 
-                   className="flex-1 bg-transparent border-none py-2 text-sm text-slate-900 placeholder-slate-400 outline-none"
+                   placeholder={t('send_comment')} 
+                   className="flex-1 bg-transparent border-none py-2 text-sm text-slate-900 placeholder-slate-400 outline-none rtl:text-right"
                  />
                  <button 
                    type="submit"
                    disabled={!chatMessage.trim()}
                    className="p-2 text-slate-400 hover:text-brand-blue transition-colors disabled:opacity-20"
                  >
-                   <Send className="h-4 w-4" />
+                   <Send className={cn("h-4 w-4", i18n.language === 'ar' ? "rotate-180" : "")} />
                  </button>
                </form>
                {!isTeacherView && (
@@ -638,10 +646,10 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
                 exit={{ opacity: 0, scale: 0.9 }}
                 className="absolute inset-0 z-50 flex items-center justify-center bg-slate-100/50 backdrop-blur-xl p-6"
               >
-                <div className="bg-white w-full max-w-sm rounded-[40px] p-8 border border-slate-100 shadow-2xl shadow-blue-500/10 space-y-6">
-                  <div className="text-center space-y-2">
-                    <h4 className="text-2xl font-black font-display uppercase tracking-tighter italic text-slate-900">End Class?</h4>
-                    <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Share the recording with students.</p>
+                <div className="bg-white w-full max-w-sm rounded-[40px] p-8 border border-slate-100 shadow-2xl shadow-blue-500/10 space-y-6 text-center">
+                  <div className="space-y-2">
+                    <h4 className="text-2xl font-black font-display uppercase tracking-tighter italic text-slate-900">{t('end_class')}</h4>
+                    <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">{t('share_recording')}</p>
                   </div>
                   
                   <div className="space-y-4">
@@ -650,7 +658,7 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
                       placeholder="Recording URL (optional)"
                       value={recordingUrlInput}
                       onChange={(e) => setRecordingUrlInput(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-100 p-4 rounded-2xl text-xs outline-none focus:border-brand-blue transition-colors shadow-sm"
+                      className="w-full bg-slate-50 border border-slate-100 p-4 rounded-2xl text-xs outline-none focus:border-brand-blue transition-colors shadow-sm rtl:text-right"
                     />
                   </div>
 
@@ -659,13 +667,13 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
                       onClick={handleEndStream}
                       className="w-full py-4 bg-brand-blue text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-blue-500/20 hover:bg-blue-600 transition-all"
                     >
-                      Publish & Finish
+                      {t('publish_finish')}
                     </button>
                     <button 
                       onClick={() => setIsEnding(false)}
                       className="w-full py-4 bg-slate-50 text-slate-400 rounded-2xl text-[10px] font-black uppercase hover:bg-slate-100 transition-all"
                     >
-                      Cancel
+                      {t('cancel')}
                     </button>
                   </div>
                 </div>

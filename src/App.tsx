@@ -3,10 +3,13 @@ import { supabase, supabaseConfigured, isProperAnonKey } from "./lib/supabase";
 import { UserProfile, UserRole } from "./types";
 import TeacherDashboard from "./pages/TeacherDashboard";
 import StudentDashboard from "./pages/StudentDashboard";
-import { LogIn, GraduationCap, School, Loader2, Database, Key, CheckCircle2, Mail, ArrowRight, Video } from "lucide-react";
+import { LogIn, GraduationCap, School, Loader2, Database, Key, CheckCircle2, Mail, ArrowRight, Video, Languages } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { useTranslation } from "react-i18next";
+import { cn } from "./lib/utils";
 
 export default function App() {
+  const { t, i18n } = useTranslation();
   const [user, setUser] = React.useState<any>(null);
   const [loading, setLoading] = React.useState(true);
   const [profile, setProfile] = React.useState<UserProfile | null>(null);
@@ -123,6 +126,10 @@ export default function App() {
     } finally {
       setAuthLoading(false);
     }
+  };
+
+  const toggleLanguage = (lng: string) => {
+    i18n.changeLanguage(lng);
   };
 
   const isStuck = user && !profile && !profileLoading && !fetchError;
@@ -349,16 +356,32 @@ CREATE POLICY "Auth Users Insert Chat" ON public.chat_messages FOR INSERT WITH C
           animate={{ opacity: 1, y: 0 }}
           className="w-full max-w-md space-y-6 sm:space-y-8 rounded-[32px] bg-white p-6 sm:p-10 border border-slate-200 shadow-2xl shadow-blue-500/5 relative z-10"
         >
+          <div className="flex justify-center gap-2 mb-4">
+            {['ar', 'fr', 'en'].map((lng) => (
+              <button
+                key={lng}
+                onClick={() => toggleLanguage(lng)}
+                className={`px-3 py-1 text-[10px] font-black uppercase rounded-full transition-all ${
+                  i18n.language === lng 
+                  ? "bg-brand-blue text-white shadow-md shadow-blue-500/20" 
+                  : "bg-slate-100 text-slate-400 hover:bg-slate-200"
+                }`}
+              >
+                {lng}
+              </button>
+            ))}
+          </div>
+
           <div className="flex flex-col items-center space-y-4 sm:space-y-6">
             <div className="flex h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-2xl bg-brand-blue shadow-xl shadow-blue-500/10 overflow-hidden">
               <img src="/logo.png" alt="Logo" className="h-full w-full object-cover" />
             </div>
             <div className="space-y-1">
               <h1 className="text-center font-display text-3xl sm:text-4xl font-black tracking-tighter uppercase text-slate-900">
-                Ecole <span className="text-brand-blue">Nadjah</span>
+                {i18n.language === 'en' ? 'Ecole' : t('login_title').split(' ')[0]} <span className="text-brand-blue">{i18n.language === 'en' ? 'Nadjah' : t('login_title').split(' ')[1]}</span>
               </h1>
               <p className="text-center text-[10px] sm:text-sm font-medium text-slate-400 uppercase tracking-widest">
-                Premium Virtual Learning
+                {t('login_subtitle')}
               </p>
             </div>
           </div>
@@ -415,7 +438,7 @@ CREATE POLICY "Auth Users Insert Chat" ON public.chat_messages FOR INSERT WITH C
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-brand-blue transition-colors" />
                 <input 
                   type="email"
-                  placeholder="Email Address"
+                  placeholder={t('email_address')}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -426,7 +449,7 @@ CREATE POLICY "Auth Users Insert Chat" ON public.chat_messages FOR INSERT WITH C
                 <Key className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-brand-blue transition-colors" />
                 <input 
                   type="password"
-                  placeholder="Password"
+                  placeholder={t('password')}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -438,8 +461,8 @@ CREATE POLICY "Auth Users Insert Chat" ON public.chat_messages FOR INSERT WITH C
                 disabled={authLoading}
                 className="w-full bg-brand-blue hover:bg-blue-600 disabled:opacity-50 text-white font-black py-4 rounded-2xl text-xs uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3 shadow-lg shadow-blue-500/20"
               >
-                {authLoading ? "Authenticating..." : "Access Dashboard"}
-                {!authLoading && <ArrowRight className="h-4 w-4" />}
+                {authLoading ? t('authenticating') : t('access_dashboard')}
+                {!authLoading && <ArrowRight className={cn("h-4 w-4", i18n.language === 'ar' ? "rotate-180" : "")} />}
               </button>
             </form>
             
@@ -460,12 +483,12 @@ CREATE POLICY "Auth Users Insert Chat" ON public.chat_messages FOR INSERT WITH C
                   <div className="h-5 w-5 bg-white rounded-full p-1 flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
                     <img src="https://www.gstatic.com/images/branding/googleg/1x/googleg_standard_color_128dp.png" alt="Google" className="h-full w-full" />
                   </div>
-                  <span className="text-sm font-black uppercase tracking-widest">Google Account</span>
+                  <span className="text-sm font-black uppercase tracking-widest">{t('google_account')}</span>
                 </button>
               </div>
           
           <div className="text-center text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">
-            Professional Streaming Engine
+            {t('professional_engine')}
           </div>
         </motion.div>
       </div>

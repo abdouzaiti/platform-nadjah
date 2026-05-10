@@ -6,12 +6,14 @@ import { Play, Eye, Clock, Search, Bell, Menu } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "../lib/utils";
 import StreamPlayer from "../components/StreamPlayer";
+import { useTranslation } from "react-i18next";
 
 interface StudentDashboardProps {
   profile: UserProfile;
 }
 
 export default function StudentDashboard({ profile }: StudentDashboardProps) {
+  const { t, i18n } = useTranslation();
   const [activeTab, setActiveTab] = React.useState("browse");
   const [streams, setStreams] = React.useState<StreamData[]>([]);
   const [selectedStream, setSelectedStream] = React.useState<StreamData | null>(null);
@@ -85,16 +87,16 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
                     <Menu className="h-6 w-6" />
                   </button>
                   <div className="relative w-32 sm:w-40 md:w-96 group">
-                      <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 group-focus-within:text-brand-blue" />
+                      <Search className="absolute left-4 rtl:left-auto rtl:right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 group-focus-within:text-brand-blue" />
                       <input 
                           type="text" 
-                          placeholder="Search..." 
-                          className="w-full rounded-xl border border-slate-100 bg-white py-2 sm:py-2.5 pl-11 pr-4 text-[10px] sm:text-sm text-slate-900 outline-none focus:border-brand-blue transition-all shadow-sm"
+                          placeholder={t('search')} 
+                          className="w-full rounded-xl border border-slate-100 bg-white py-2 sm:py-2.5 pl-11 rtl:pl-4 rtl:pr-11 pr-4 text-[10px] sm:text-sm text-slate-900 outline-none focus:border-brand-blue transition-all shadow-sm"
                       />
                   </div>
                 </div>
-                <div className="flex items-center space-x-3 sm:space-x-6">
-                    <div className="hidden sm:flex items-center gap-2 bg-brand-blue/5 px-3 py-1.5 rounded-full border border-brand-blue/10">
+                <div className="flex items-center space-x-3 sm:space-x-6 rtl:space-x-reverse">
+                    <div className="hidden sm:flex items-center gap-2 bg-brand-blue/5 px-3 py-1.5 rounded-full border border-brand-blue/10 rtl:space-x-reverse">
                       <div className="w-2 h-2 rounded-full bg-brand-blue animate-pulse"></div>
                       <span className="text-[8px] sm:text-[10px] font-black text-brand-blue uppercase tracking-widest">Live Open</span>
                     </div>
@@ -114,23 +116,23 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
                 onClick={() => setSelectedStream(heroStream)}
               >
                  <img src={heroStream.thumbnail || "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&q=80"} alt="" className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                 <div className="netflix-gradient absolute inset-0 flex flex-col justify-end p-6 sm:p-12">
-                    <div className="flex items-center space-x-2 sm:space-x-4 mb-2 sm:mb-4">
-                        <span className="flex items-center space-x-2 rounded px-2 py-0.5 sm:px-2.5 sm:py-1 bg-red-600 text-[8px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-white shadow-lg shadow-red-500/20">
+                  <div className="netflix-gradient absolute inset-0 flex flex-col justify-end p-6 sm:p-12 text-left rtl:text-right">
+                    <div className="flex items-center space-x-2 sm:space-x-4 rtl:space-x-reverse mb-2 sm:mb-4">
+                        <span className="flex items-center space-x-2 rtl:space-x-reverse rounded px-2 py-0.5 sm:px-2.5 sm:py-1 bg-red-600 text-[8px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-white shadow-lg shadow-red-500/20">
                             <span className="block h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full bg-white animate-pulse"></span>
-                            <span>Live Now</span>
+                            <span>{t('live_now')}</span>
                         </span>
                         <div className="h-4 w-px bg-slate-200"></div>
                         <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-slate-500">{heroStream.teacherName}</span>
                     </div>
                     <h2 className="font-display text-2xl sm:text-5xl font-black tracking-tight text-slate-900 mb-2 sm:mb-4 max-w-2xl uppercase italic leading-[1.1]">{heroStream.title}</h2>
                     <p className="max-w-xl text-xs sm:text-base text-slate-500 mb-4 sm:mb-8 line-clamp-2 font-medium leading-relaxed hidden xs:block">{heroStream.description}</p>
-                    <div className="flex items-center space-x-4">
+                    <div className="flex items-center space-x-4 rtl:space-x-reverse">
                         <button 
-                            className="flex items-center space-x-3 rounded-xl bg-brand-blue px-5 py-3 sm:px-8 sm:py-4 text-xs sm:text-sm font-black uppercase tracking-widest text-white transition-all shadow-xl shadow-blue-500/20 hover:bg-blue-600 hover:scale-[1.02] active:scale-[0.98]"
+                            className="flex items-center space-x-3 rtl:space-x-reverse rounded-xl bg-brand-blue px-5 py-3 sm:px-8 sm:py-4 text-xs sm:text-sm font-black uppercase tracking-widest text-white transition-all shadow-xl shadow-blue-500/20 hover:bg-blue-600 hover:scale-[1.02] active:scale-[0.98]"
                         >
-                            <Play className="h-4 w-4 sm:h-5 sm:w-5 fill-current" />
-                            <span>Join Classroom</span>
+                            <Play className={cn("h-4 w-4 sm:h-5 sm:w-5 fill-current", i18n.language === 'ar' ? "rotate-180" : "")} />
+                            <span>{t('join_classroom')}</span>
                         </button>
                     </div>
                  </div>
@@ -140,18 +142,18 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
                     <div className="w-12 h-12 sm:w-16 sm:h-16 bg-slate-50 rounded-2xl flex items-center justify-center mb-4">
                        <Clock className="h-6 w-6 sm:h-8 sm:w-8 text-slate-300" />
                     </div>
-                    <p className="text-sm sm:text-lg font-black text-slate-400 uppercase tracking-widest">No live sessions now</p>
-                    <p className="text-slate-300 text-[10px] sm:text-sm">Check the schedule for upcoming classes</p>
+                    <p className="text-sm sm:text-lg font-black text-slate-400 uppercase tracking-widest">{t('no_live_now')}</p>
+                    <p className="text-slate-300 text-[10px] sm:text-sm">{t('check_schedule')}</p>
                 </section>
             )}
 
             {/* Live Row */}
             <section className="space-y-6">
                 <div className="flex items-center justify-between">
-                    <h3 className="font-display text-lg sm:text-xl font-black text-slate-900 uppercase italic tracking-tight">Active Classrooms</h3>
-                    <button className="text-[10px] font-black text-brand-blue uppercase tracking-widest hover:underline">View All</button>
+                    <h3 className="font-display text-lg sm:text-xl font-black text-slate-900 uppercase italic tracking-tight">{t('active_classrooms')}</h3>
+                    <button className="text-[10px] font-black text-brand-blue uppercase tracking-widest hover:underline">{t('view_all')}</button>
                 </div>
-                <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-4">
+                <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-4 text-left rtl:text-right">
                     {streams.map((stream, idx) => (
                         <motion.div 
                             key={stream.id}
@@ -164,22 +166,22 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
                             <div className="relative aspect-video overflow-hidden rounded-xl sm:rounded-2xl border border-slate-100 bg-white transition-all group-hover:border-brand-blue shadow-sm group-hover:shadow-md">
                                 <img src={stream.thumbnail || "https://images.unsplash.com/photo-1427504494785-3a9ca7044f45?auto=format&fit=crop&q=80"} alt="" className="h-full w-full object-cover transition-transform group-hover:scale-110" />
                                 {stream.status === 'live' ? (
-                                    <div className="absolute left-2 top-2 sm:left-3 sm:top-3 flex items-center space-x-2 rounded bg-red-600 px-1.5 py-0.5 text-[7px] sm:text-[8px] font-black text-white uppercase tracking-[0.2em] shadow-lg shadow-red-500/20">
+                                    <div className="absolute left-2 top-2 sm:left-3 sm:top-3 flex items-center space-x-2 rtl:space-x-reverse rounded bg-red-600 px-1.5 py-0.5 text-[7px] sm:text-[8px] font-black text-white uppercase tracking-[0.2em] shadow-lg shadow-red-500/20">
                                         <span className="block h-1 w-1 sm:h-1.5 sm:w-1.5 rounded-full bg-white animate-pulse"></span>
-                                        <span>Live</span>
+                                        <span>{t('live_now')}</span>
                                     </div>
                                 ) : (
-                                    <div className="absolute left-2 top-2 sm:left-3 sm:top-3 flex items-center space-x-2 rounded bg-brand-blue px-1.5 py-0.5 text-[7px] sm:text-[8px] font-black text-white uppercase tracking-[0.2em] shadow-lg shadow-blue-500/20">
+                                    <div className="absolute left-2 top-2 sm:left-3 sm:top-3 flex items-center space-x-2 rtl:space-x-reverse rounded bg-brand-blue px-1.5 py-0.5 text-[7px] sm:text-[8px] font-black text-white uppercase tracking-[0.2em] shadow-lg shadow-blue-500/20">
                                         <Play className="h-2 w-2 fill-current" />
-                                        <span>Recorded</span>
+                                        <span>{t('recorded')}</span>
                                     </div>
                                 )}
                                 <div className="absolute inset-0 bg-white/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
                                     <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-brand-blue flex items-center justify-center shadow-xl shadow-blue-500/20 transform scale-90 group-hover:scale-100 transition-transform">
-                                        <Play className="h-4 w-4 sm:h-5 sm:w-5 text-white fill-white ml-0.5" />
+                                        <Play className={cn("h-4 w-4 sm:h-5 sm:w-5 text-white fill-white ml-0.5 rtl:ml-0 rtl:mr-0.5", i18n.language === 'ar' ? "rotate-180" : "")} />
                                     </div>
                                 </div>
-                                <div className="absolute right-2 bottom-2 sm:right-3 sm:bottom-3 flex items-center space-x-1.5 rounded bg-white/90 backdrop-blur-md px-1.5 py-1 text-[7px] sm:text-[8px] font-bold text-slate-900 uppercase border border-slate-100 shadow-sm">
+                                <div className="absolute right-2 bottom-2 sm:right-3 sm:bottom-3 flex items-center space-x-1.5 rtl:space-x-reverse rounded bg-white/90 backdrop-blur-md px-1.5 py-1 text-[7px] sm:text-[8px] font-bold text-slate-900 uppercase border border-slate-100 shadow-sm">
                                     <Eye className="h-2 w-2 sm:h-3 sm:w-3 text-brand-blue" />
                                     <span>{stream.status === 'live' ? `${stream.viewersCount}` : "Past"}</span>
                                 </div>
