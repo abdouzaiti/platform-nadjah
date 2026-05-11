@@ -1,6 +1,8 @@
 import AgoraRTC, { IAgoraRTCClient, ICameraVideoTrack, IMicrophoneAudioTrack } from "agora-rtc-sdk-ng";
 import AgoraRTM from "agora-rtm-sdk";
 
+export { AgoraRTC };
+
 const APP_ID = import.meta.env.VITE_AGORA_APP_ID || "565b28c24bb04c59bd6ee0d0ce3198bd";
 const TOKEN = import.meta.env.VITE_AGORA_TOKEN || null;
 
@@ -49,9 +51,12 @@ export const joinChannel = async (
   return client;
 };
 
-export const createTracks = async () => {
+export const createTracks = async (facingMode: "user" | "environment" = "user") => {
   try {
-    const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
+    const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks(
+      {},
+      { facingMode }
+    );
     return { audioTrack, videoTrack };
   } catch (err: any) {
     console.error("Agora Full Track Creation Error:", err);

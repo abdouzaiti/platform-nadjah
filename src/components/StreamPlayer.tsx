@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
 import ReactPlayer from "react-player";
 import { StreamData, UserProfile, ChatMessageData } from "../types";
-import { Send, Users, Heart, Share2, MoreHorizontal, X, MessageCircle, Play, VideoOff, Save, Check, Maximize2, Minimize2, Eye, EyeOff } from "lucide-react";
+import { Send, Users, Heart, Share2, MoreHorizontal, X, MessageCircle, Play, VideoOff, Save, Check, Maximize2, Minimize2, Eye, EyeOff, RefreshCw } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { motion, AnimatePresence } from "motion/react";
 import { formatDate, cn } from "../lib/utils";
-import { createAgoraClient, joinChannel, createTracks, leaveChannel, createRTMClient } from "../lib/agora";
+import { createAgoraClient, joinChannel, createTracks, leaveChannel, createRTMClient, AgoraRTC } from "../lib/agora";
 import AgoraPlayer from "./AgoraPlayer";
 import { IAgoraRTCClient, ICameraVideoTrack, IMicrophoneAudioTrack, IRemoteVideoTrack } from "agora-rtc-sdk-ng";
 import AgoraRTM from "agora-rtm-sdk";
@@ -39,6 +39,8 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
   const [remoteStudents, setRemoteStudents] = useState<IRemoteVideoTrack | null>(null);
   const [teacherVideo, setTeacherVideo] = useState<IRemoteVideoTrack | null>(null);
   const [isMuted, setIsMuted] = useState(false);
+  const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
+  const [isFlipping, setIsFlipping] = useState(false);
   const [hasAudioStarted, setHasAudioStarted] = useState(true);
   const [micVolume, setMicVolume] = useState(0);
   const [agoraError, setAgoraError] = useState<string | null>(null);
@@ -325,6 +327,34 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
       setIsMuted(!isMuted);
     } catch (err) {
       console.error("Mute toggle error:", err);
+    }
+  };
+
+  const toggleFlipCamera = async () => {
+    if (!isTeacherView || !agoraClient || !localTracks?.videoTrack || isFlipping) return;
+    
+    setIsFlipping(true);
+    const newFacingMode = facingMode === "user" ? "environment" : "user";
+    
+    try {
+      // 1. Unpublish old video track
+      await agoraClient.unpublish(localTracks.videoTrack);
+      localTracks.videoTrack.stop();
+      localTracks.videoTrack.close();
+      
+      // 2. Create new video track with new facing mode
+      const newVideoTrack = await AgoraRTC.createCameraVideoTrack({ facingMode: newFacingMode });
+      
+      // 3. Update state
+      setLocalTracks(prev => prev ? { ...prev, videoTrack: newVideoTrack } : null);
+      setFacingMode(newFacingMode);
+      
+      // 4. Publish new track
+      await agoraClient.publish(newVideoTrack);
+    } catch (err) {
+      console.error("Flip camera error:", err);
+    } finally {
+      setIsFlipping(false);
     }
   };
 
@@ -629,11 +659,22 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
                  {isMuted ? <VideoOff className="h-4 w-4" /> : <Users className="h-4 w-4" />}
                </button>
                <button 
+                 disabled={isFlipping}
+                 onClick={toggleFlipCamera}
+                 className={cn(
+                   "flex items-center justify-center w-10 h-10 rounded-full bg-white border border-slate-100 text-slate-600 backdrop-blur-md shadow-lg active:scale-95 transition-all",
+                   isFlipping && "animate-spin opacity-50"
+                 )}
+                 title="Flip Camera"
+               >
+                 <RefreshCw className="h-4 w-4" />
+               </button>
+               <button 
                  onClick={() => setIsEnding(true)}
                  className="flex items-center justify-center w-10 h-10 rounded-full bg-white border border-slate-100 text-slate-400 hover:text-red-500 backdrop-blur-md shadow-lg active:scale-95 transition-all"
                >
                  <X className="h-4 w-4" />
-               </button>
+                </button>
             </div>
           )}
 
