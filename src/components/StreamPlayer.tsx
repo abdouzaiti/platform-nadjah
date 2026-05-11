@@ -331,26 +331,27 @@ export default function StreamPlayer({ stream, profile, onClose, isTeacherView }
   };
 
   const toggleFlipCamera = async () => {
-    if (!isTeacherView || !agoraClient || !localTracks?.videoTrack || isFlipping) return;
+    if (!isTeacherView || !localTracks?.videoTrack || isFlipping) return;
     
     setIsFlipping(true);
-    const newFacingMode = facingMode === "user" ? "environment" : "user";
     
     try {
-      // 1. Unpublish old video track
-      await agoraClient.unpublish(localTracks.videoTrack);
-      localTracks.videoTrack.stop();
-      localTracks.videoTrack.close();
-      
-      // 2. Create new video track with new facing mode
-      const newVideoTrack = await AgoraRTC.createCameraVideoTrack({ facingMode: newFacingMode });
-      
-      // 3. Update state
-      setLocalTracks(prev => prev ? { ...prev, videoTrack: newVideoTrack } : null);
-      setFacingMode(newFacingMode);
-      
-      // 4. Publish new track
-      await agoraClient.publish(newVideoTrack);
+      const devices = await AgoraRTC.getCameras();
+      if (devices.length < 2) {
+        console.log("Only one camera detected");
+        return;
+      }
+
+      const currentDeviceId = localTracks.videoTrack.getMediaStreamTrack().getSettings().deviceId;
+      // Find the "other" camera. If multiple, cycle through them.
+      const currentIndex = devices.findIndex(d => d.deviceId === currentDeviceId);
+      const nextIndex = (currentIndex + 1) % devices.length;
+      const nextDevice = devices[nextIndex];
+
+      if (nextDevice) {
+        await localTracks.videoTrack.setDevice(nextDevice.deviceId);
+        setFacingMode(prev => prev === "user" ? "environment" : "user");
+      }
     } catch (err) {
       console.error("Flip camera error:", err);
     } finally {
