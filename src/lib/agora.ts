@@ -7,7 +7,8 @@ const APP_ID = import.meta.env.VITE_AGORA_APP_ID || "565b28c24bb04c59bd6ee0d0ce3
 const TOKEN = import.meta.env.VITE_AGORA_TOKEN || null;
 
 export const createAgoraClient = () => {
-  return AgoraRTC.createClient({ mode: "live", codec: "vp8" });
+  const client = AgoraRTC.createClient({ mode: "live", codec: "vp8" });
+  return client;
 };
 
 export const createRTMClient = (uid: string) => {
@@ -26,6 +27,12 @@ export const joinChannel = async (
 
   if (role === "host") {
     await client.setClientRole("host");
+    // Enable dual-stream mode to support adaptive quality for students with weak connection
+    try {
+      await client.enableDualStream();
+    } catch (e) {
+      console.warn("Dual stream enable failed", e);
+    }
   } else {
     await client.setClientRole("audience");
   }
@@ -55,7 +62,11 @@ export const createTracks = async (facingMode: "user" | "environment" = "user") 
   try {
     const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks(
       {},
-      { facingMode }
+      { 
+        facingMode, 
+        encoderConfig: "1080p_1", // Max quality 1080p
+        optimizationMode: "detail", // Better for seeing text/board clearly
+      }
     );
     return { audioTrack, videoTrack };
   } catch (err: any) {
