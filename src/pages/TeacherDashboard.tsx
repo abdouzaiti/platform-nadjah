@@ -1,8 +1,8 @@
 import React from "react";
-import { UserProfile, StreamData } from "../types";
+import { UserProfile, TeacherCommunity, ClassRoom, RoomType, LiveSession } from "../types";
 import Sidebar from "../components/Sidebar";
 import { supabase } from "../lib/supabase";
-import { Plus, Video, Trash2, Edit3, Loader2, Play, Users, Menu, X, Database } from "lucide-react";
+import { Plus, Video, Trash2, Edit3, Loader2, Play, Users, Menu, X, Database, MessageSquare, Megaphone, FileText, Settings, Hash, Radio } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import StreamPlayer from "../components/StreamPlayer";
 import { cn } from "../lib/utils";
@@ -14,137 +14,194 @@ interface TeacherDashboardProps {
 
 export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
   const { t, i18n } = useTranslation();
-  const [activeTab, setActiveTab] = React.useState("browse");
-  const [myStreams, setMyStreams] = React.useState<StreamData[]>([]);
-  const [loading, setLoading] = React.useState(false);
-  const [liveStream, setLiveStream] = React.useState<StreamData | null>(null);
+  const [activeTab, setActiveTab] = React.useState("rooms");
+  const [community, setCommunity] = React.useState<TeacherCommunity | null>(null);
+  const [rooms, setRooms] = React.useState<ClassRoom[]>([]);
+  const [loading, setLoading] = React.useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
+  
+  // Create Community State
+  const [commName, setCommName] = React.useState("");
+  const [commUsername, setCommUsername] = React.useState("");
+  const [commDescription, setCommDescription] = React.useState("");
 
-  // Form State
-  const [title, setTitle] = React.useState("");
-  const [description, setDescription] = React.useState("");
-  const [thumb, setThumb] = React.useState("");
+  // Create Room State
+  const [roomName, setRoomName] = React.useState("");
+  const [roomType, setRoomType] = React.useState<RoomType>("live");
+
+  // Active Session State
+  const [activeRoom, setActiveRoom] = React.useState<ClassRoom | null>(null);
+  const [activeSession, setActiveSession] = React.useState<LiveSession | null>(null);
 
   React.useEffect(() => {
-    // Initial fetch
-    const fetchMyStreams = async () => {
-      const { data, error } = await supabase
-        .from("streams")
-        .select("*")
-        .eq("teacherId", profile.uid)
-        .order("createdAt", { ascending: false });
-      
-      if (!error && data) {
-        setMyStreams(data as StreamData[]);
+    const initDashboard = async () => {
+      setLoading(true);
+      try {
+        const { data: commData, error: commError } = await supabase
+          .from("teacher_communities")
+          .select("*")
+          .eq("teacher_id", profile.id)
+          .maybeSingle();
+
+        if (commError) throw commError;
+        setCommunity(commData as TeacherCommunity);
+
+        if (commData) {
+          const { data: roomData, error: roomError } = await supabase
+            .from("class_rooms")
+            .select("*")
+            .eq("community_id", commData.id)
+            .order("created_at", { ascending: true });
+
+          if (roomError) throw roomError;
+          setRooms(roomData as ClassRoom[]);
+        }
+      } catch (err) {
+        console.error("Init dashboard error:", err);
+      } finally {
+        setLoading(false);
       }
     };
 
-    fetchMyStreams();
+    initDashboard();
 
-    // Subscribe to changes
-    const channel = supabase
-      .channel('my-streams')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'streams',
-          filter: `teacherId=eq.${profile.uid}`
-        },
-        () => {
-          fetchMyStreams();
-        }
-      )
+    const commChannel = supabase.channel('community-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'teacher_communities', filter: `teacher_id=eq.${profile.id}` }, () => initDashboard())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'class_rooms' }, () => initDashboard())
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(commChannel);
     };
-  }, [profile.uid]);
+  }, [profile.id]);
 
-  const handleStartStream = async (e: React.FormEvent) => {
+  const handleCreateCommunity = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const streamData = {
-        title,
-        description,
-        teacherId: profile.uid,
-        teacherName: profile.displayName,
-        status: "live",
-        thumbnail: thumb || "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80",
-        viewersCount: 0,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      
       const { data, error } = await supabase
-        .from("streams")
-        .insert(streamData)
+        .from("teacher_communities")
+        .insert({
+          teacher_id: profile.id,
+          community_name: commName,
+          community_username: commUsername,
+          description: commDescription
+        })
         .select()
         .single();
 
       if (error) throw error;
-      
-      setLiveStream(data as StreamData);
-      setActiveTab("live-console");
-      setTitle("");
-      setDescription("");
-      setThumb("");
+      setCommunity(data as TeacherCommunity);
     } catch (err: any) {
-      console.error("Stream creation error:", err);
-      alert(err.message || "Failed to start stream");
+      alert(err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const stopStream = async (streamId: string) => {
-     try {
-        const { error } = await supabase
-          .from("streams")
-          .update({
-            status: "offline",
-            updatedAt: new Date().toISOString()
-          })
-          .eq("id", streamId);
-
-        if (error) throw error;
-        
-        setLiveStream(null);
-        setActiveTab("browse");
-     } catch (err: any) {
-        console.error("Stop stream error:", err);
-        alert(err.message || "Failed to stop stream");
-     }
-  };
-
-  const deleteStream = async (streamId: string) => {
-    if (!confirm("Are you sure you want to permanently delete this session? This will also remove all chat records.")) return;
-    
+  const handleCreateRoom = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!community) return;
     setLoading(true);
     try {
-      // Manual Cascade: Delete dependencies first so user doesn't have to touch SQL
-      await supabase.from('chat_messages').delete().eq('streamId', streamId);
-      
       const { error } = await supabase
-        .from("streams")
-        .delete()
-        .eq("id", streamId);
-        
+        .from("class_rooms")
+        .insert({
+          community_id: community.id,
+          room_name: roomName,
+          room_type: roomType
+        });
+
       if (error) throw error;
-      setMyStreams(prev => prev.filter(s => s.id !== streamId));
+      setRoomName("");
+      setActiveTab("rooms");
     } catch (err: any) {
-      console.error("Delete stream error:", err);
-      alert(err.message || "Failed to delete session. Please try again.");
+      alert(err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  if (activeTab === "live-console" && liveStream) {
-    return <StreamPlayer stream={liveStream} profile={profile} isTeacherView onClose={() => stopStream(liveStream.id)} />;
+  const handleGoLive = async (room: ClassRoom) => {
+    try {
+      setLoading(true);
+      // Check for existing live session
+      const { data: existing, error: checkError } = await supabase
+        .from("live_sessions")
+        .select("*")
+        .eq("room_id", room.id)
+        .eq("status", "live")
+        .maybeSingle();
+
+      if (existing) {
+        setActiveRoom(room);
+        setActiveSession(existing as LiveSession);
+        return;
+      }
+
+      // Create new session
+      const { data, error } = await supabase
+        .from("live_sessions")
+        .insert({
+          room_id: room.id,
+          status: "live",
+          started_at: new Date().toISOString(),
+          title: `${room.room_name} Live`
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      setActiveRoom(room);
+      setActiveSession(data as LiveSession);
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteRoom = async (roomId: string) => {
+    if (!confirm("Are you sure you want to delete this room?")) return;
+    try {
+      const { error } = await supabase.from("class_rooms").delete().eq("id", roomId);
+      if (error) throw error;
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
+  const getRoomIcon = (type: RoomType) => {
+    switch (type) {
+      case "live": return <Radio className="h-4 w-4" />;
+      case "chat": return <MessageSquare className="h-4 w-4" />;
+      case "announcements": return <Megaphone className="h-4 w-4" />;
+      case "files": return <FileText className="h-4 w-4" />;
+      default: return <Hash className="h-4 w-4" />;
+    }
+  };
+
+  if (activeRoom && activeSession) {
+    return (
+      <StreamPlayer 
+        room={activeRoom} 
+        session={activeSession} 
+        profile={profile} 
+        isTeacherView 
+        onClose={() => {
+          setActiveRoom(null);
+          setActiveSession(null);
+        }} 
+      />
+    );
+  }
+
+  if (loading && !community) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-slate-50">
+        <Loader2 className="h-10 w-10 animate-spin text-brand-blue" />
+      </div>
+    );
   }
 
   return (
@@ -160,173 +217,195 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
         onClose={() => setIsSidebarOpen(false)}
       />
       
-      <main className="flex-1 overflow-y-auto p-4 md:p-8 no-scrollbar bg-slate-50/50 relative">
-        {/* Mobile Navbar */}
-        <div className="lg:hidden flex items-center justify-between mb-6 glass-panel p-3 rounded-2xl shadow-sm">
-          <button 
-            onClick={() => setIsSidebarOpen(true)}
-            className="p-2 bg-brand-blue/5 rounded-xl text-brand-blue border border-brand-blue/10 active:scale-95 transition-all"
-          >
-            <Menu className="h-6 w-6" />
-          </button>
-          <div className="flex items-center space-x-2">
-            <div className="h-8 w-8 rounded bg-brand-blue flex items-center justify-center shadow-lg shadow-blue-500/10">
-              <Plus className="h-4 w-4 text-white" />
-            </div>
-          </div>
-        </div>
-        {activeTab === "start-stream" ? (
-          <div className="mx-auto max-w-2xl space-y-8">
-             <div className="space-y-4 text-center">
-                <h2 className="font-display text-5xl font-black text-slate-900 uppercase italic tracking-tight">{t('initiate_stream')}</h2>
-                <p className="text-slate-500 font-medium tracking-wide">Configure your session parameters for the student collective.</p>
-             </div>
+      <main className="flex-1 overflow-y-auto p-4 md:p-8 no-scrollbar bg-slate-50/50">
+        {!community ? (
+          <div className="mx-auto max-w-2xl mt-10">
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="space-y-8 text-center"
+            >
+              <div className="space-y-4">
+                <h2 className="text-4xl font-black font-display uppercase italic tracking-tight text-slate-900">{t('create_community', 'Create Your Community')}</h2>
+                <p className="text-slate-500 font-medium tracking-wide">Build your server and start inviting students.</p>
+              </div>
 
-             <form onSubmit={handleStartStream} className="space-y-6 rounded-[24px] sm:rounded-[40px] bg-white p-6 sm:p-10 border border-slate-100 shadow-2xl shadow-blue-500/5">
-                <div className="space-y-4">
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2 font-display">{t('lesson_title')}</label>
-                    <input 
-                        required
-                        type="text" 
-                        value={title}
-                        onChange={(e) => setTitle(e.target.value)}
-                        placeholder="Advanced Calculus"
-                        className="w-full rounded-xl sm:rounded-2xl border border-slate-100 bg-slate-50 p-4 font-bold text-slate-900 outline-none focus:border-brand-blue transition-colors shadow-sm"
-                    />
+              <form onSubmit={handleCreateCommunity} className="bg-white p-10 rounded-[40px] border border-slate-100 shadow-2xl shadow-blue-500/5 space-y-6 text-left">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">{t('community_name', 'Community Name')}</label>
+                  <input 
+                    required
+                    value={commName}
+                    onChange={(e) => setCommName(e.target.value)}
+                    placeholder="Prof. Ahmed's Academy"
+                    className={cn("w-full bg-slate-50 border border-slate-100 p-4 rounded-2xl font-bold outline-none focus:border-brand-blue transition-all", i18n.language === 'ar' ? 'text-right' : 'text-left')}
+                  />
                 </div>
-
-                <div className="space-y-4">
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2 font-display">{t('description')}</label>
-                    <textarea 
-                        required
-                        rows={4}
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                        placeholder="Lesson topics..."
-                        className="w-full rounded-xl sm:rounded-2xl border border-slate-100 bg-slate-50 p-4 font-medium text-slate-600 outline-none focus:border-brand-blue transition-colors shadow-sm"
-                    />
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">{t('community_username', 'Community Username')}</label>
+                  <input 
+                    required
+                    value={commUsername}
+                    onChange={(e) => setCommUsername(e.target.value.toLowerCase().replace(/\s/g, ''))}
+                    placeholder="ahmed_academy"
+                    className={cn("w-full bg-slate-50 border border-slate-100 p-4 rounded-2xl font-mono text-sm outline-none focus:border-brand-blue transition-all", i18n.language === 'ar' ? 'text-right' : 'text-left')}
+                  />
+                  <p className="text-[10px] text-slate-400 italic">This will be used for students to find your server.</p>
                 </div>
-
-                <div className="space-y-4">
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2 font-display">{t('thumbnail_url')}</label>
-                    <input 
-                        type="url" 
-                        value={thumb}
-                        onChange={(e) => setThumb(e.target.value)}
-                        placeholder="https://images.unsplash.com/..."
-                        className="w-full rounded-xl sm:rounded-2xl border border-slate-100 bg-slate-50 p-4 text-xs text-slate-400 outline-none focus:border-brand-blue transition-colors shadow-sm"
-                    />
-                </div>
-
                 <button 
-                    disabled={loading}
-                    type="submit"
-                    className="flex w-full items-center justify-center space-x-3 rtl:space-x-reverse rounded-xl sm:rounded-2xl bg-brand-blue py-4 sm:py-5 text-sm font-black uppercase tracking-widest text-white shadow-xl shadow-blue-500/20 transition-all hover:bg-blue-600 disabled:opacity-50"
+                  disabled={loading}
+                  type="submit"
+                  className="w-full py-5 bg-brand-blue text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-blue-500/20 hover:bg-blue-600 transition-all flex items-center justify-center gap-3"
                 >
-                    {loading ? <Loader2 className="h-6 w-6 animate-spin" /> : (
-                        <>
-                            <Video className="h-5 w-5" />
-                            <span>{t('start_streaming')}</span>
-                        </>
-                    )}
+                  {loading ? <Loader2 className="h-6 w-6 animate-spin" /> : t('launch_community', 'Launch Community')}
                 </button>
-             </form>
+              </form>
+            </motion.div>
           </div>
         ) : (
-          <div className="space-y-8 sm:space-y-12">
+          <div className="space-y-8">
             <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-8 border-b border-slate-100">
                 <div className="space-y-1">
-                    <h2 className="font-display text-2xl sm:text-4xl font-black text-slate-900 uppercase italic tracking-tighter">{t('academic_control')}</h2>
-                    <p className="text-slate-400 font-bold tracking-widest text-[8px] sm:text-[10px] uppercase">{t('welcome_professor')} {profile.displayName.split(" ")[0]}</p>
+                    <h2 className="font-display text-2xl sm:text-4xl font-black text-slate-900 uppercase italic tracking-tighter">{community.community_name}</h2>
+                    <p className="text-slate-400 font-bold tracking-widest text-[10px] uppercase">@{community.community_username} • {rooms.length} {t('rooms', 'Rooms')}</p>
                 </div>
-                <div className="flex items-center gap-2 sm:gap-3 rtl:space-x-reverse">
+                <div className="flex items-center gap-3">
                   <button 
-                    onClick={() => setActiveTab("start-stream")}
-                    className="flex-1 sm:flex-none flex items-center justify-center space-x-2 rounded-xl bg-brand-blue px-4 sm:px-6 py-3 text-[9px] sm:text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-blue-500/10 hover:bg-blue-600 transition-all"
+                    onClick={() => setActiveTab("create-room")}
+                    className="flex items-center gap-2 bg-brand-blue text-white px-6 py-3 rounded-xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-blue-500/10 hover:bg-blue-600 transition-all"
                   >
-                      <Plus className="h-4 w-4" />
-                      <span>{i18n.language === 'ar' ? 'إنشاء' : 'Create'}</span>
+                    <Plus className="h-4 w-4" />
+                    {t('add_room', 'Add Room')}
                   </button>
                 </div>
             </header>
 
-            <section className="grid gap-4 sm:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                <div className="rounded-[24px] sm:rounded-[32px] bg-white p-6 sm:p-8 border border-slate-100 shadow-sm">
-                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">{t('engagement')}</p>
-                   <p className="text-4xl sm:text-5xl font-black font-display text-slate-900 italic">1.2k</p>
+            {activeTab === "create-room" ? (
+              <div className="max-w-xl mx-auto py-10">
+                <div className="space-y-6 bg-white p-8 rounded-[32px] border border-slate-100 shadow-xl shadow-blue-500/5">
+                  <div className="text-center space-y-2">
+                    <h3 className="text-2xl font-black font-display uppercase italic text-slate-900">New Room</h3>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Create a channel for your community.</p>
+                  </div>
+                  <form onSubmit={handleCreateRoom} className="space-y-6">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Room Name</label>
+                      <input 
+                        required
+                        value={roomName}
+                        onChange={(e) => setRoomName(e.target.value)}
+                        placeholder="Live Class BAC"
+                        className="w-full bg-slate-50 border border-slate-100 p-4 rounded-2xl font-bold outline-none focus:border-brand-blue transition-all"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      {(['live', 'chat', 'announcements', 'files'] as RoomType[]).map((type) => (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => setRoomType(type)}
+                          className={cn(
+                            "flex items-center gap-3 p-4 rounded-2xl border transition-all text-left",
+                            roomType === type 
+                              ? "bg-brand-blue border-brand-blue text-white shadow-lg shadow-blue-500/20" 
+                              : "bg-slate-50 border-slate-100 text-slate-500 hover:bg-white"
+                          )}
+                        >
+                          <div className={cn("p-2 rounded-lg", roomType === type ? "bg-white/20" : "bg-white shadow-sm")}>
+                            {getRoomIcon(type)}
+                          </div>
+                          <span className="text-[10px] font-black uppercase tracking-wider">{type}</span>
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex gap-4">
+                      <button 
+                        type="button"
+                        onClick={() => setActiveTab("rooms")}
+                        className="flex-1 py-4 bg-slate-100 text-slate-500 rounded-2xl font-black uppercase tracking-widest text-[10px]"
+                      >
+                        Cancel
+                      </button>
+                      <button 
+                        type="submit"
+                        disabled={loading}
+                        className="flex-[2] py-4 bg-emerald-500 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-emerald-500/20 hover:bg-emerald-600 transition-all"
+                      >
+                        {loading ? <Loader2 className="h-5 w-5 animate-spin mx-auto" /> : "Create Room"}
+                      </button>
+                    </div>
+                  </form>
                 </div>
-                <div className="rounded-[24px] sm:rounded-[32px] bg-white p-6 sm:p-8 border border-slate-100 shadow-sm">
-                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">{t('active')}</p>
-                   <p className="text-4xl sm:text-5xl font-black font-display text-brand-blue italic">{myStreams.filter(s => s.status === 'live').length}</p>
-                </div>
-                <div className="rounded-[24px] sm:rounded-[32px] bg-gradient-to-br from-brand-blue to-blue-700 p-6 sm:p-8 text-white shadow-xl shadow-blue-500/10">
-                   <p className="text-[10px] font-black text-white/50 uppercase tracking-[0.2em] mb-4">{t('broadcasts')}</p>
-                   <p className="text-4xl sm:text-5xl font-black font-display italic tracking-tighter">{myStreams.length}</p>
-                </div>
-            </section>
-
-            <section className="space-y-6">
-                <h3 className="font-display text-xl font-black text-slate-900 uppercase italic tracking-tight">{t('academic_archive')}</h3>
-                <div className="grid gap-3 sm:gap-4 text-left">
-                    {myStreams.length === 0 ? (
-                        <div className="flex h-32 items-center justify-center rounded-2xl border border-slate-100 bg-white shadow-sm">
-                            <p className="font-black text-slate-300 uppercase tracking-widest text-[10px]">{t('no_records')}</p>
+              </div>
+            ) : (
+              <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+                {rooms.map((room) => (
+                  <motion.div 
+                    key={room.id}
+                    layout
+                    className="p-6 bg-white rounded-[32px] border border-slate-100 shadow-sm hover:shadow-md transition-all group relative overflow-hidden"
+                  >
+                    <div className="absolute top-0 right-0 p-6 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button 
+                        onClick={() => handleDeleteRoom(room.id)}
+                        className="p-2 text-slate-300 hover:text-red-500"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                    
+                    <div className="flex flex-col gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="p-3 bg-brand-blue/10 rounded-2xl text-brand-blue">
+                          {getRoomIcon(room.room_type)}
                         </div>
-                    ) : (
-                        myStreams.map((stream) => (
-                            <motion.div 
-                                key={stream.id}
-                                layout
-                                className="flex flex-col sm:flex-row sm:items-center justify-between rounded-2xl bg-white p-4 border border-slate-100 shadow-sm hover:shadow-md transition-all gap-4 group"
-                            >
-                                <div className="flex items-center space-x-4 sm:space-x-6 rtl:space-x-reverse">
-                                    <div className="relative h-12 w-20 sm:h-16 sm:w-28 overflow-hidden rounded-lg border border-slate-100 shrink-0">
-                                        <img src={stream.thumbnail || "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80"} alt="" className="h-full w-full object-cover transition-transform group-hover:scale-110" />
-                                        {stream.status === 'live' && (
-                                            <div className="absolute inset-0 bg-red-500/10 flex items-center justify-center">
-                                                <div className="h-1.5 w-1.5 rounded-full bg-red-500 animate-ping"></div>
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="min-w-0">
-                                        <h4 className="text-xs sm:text-sm font-black text-slate-900 uppercase tracking-tight group-hover:text-brand-blue truncate">{stream.title}</h4>
-                                        <div className="flex items-center space-x-3 mt-1 rtl:space-x-reverse">
-                                            <span className={cn(
-                                                "text-[7px] sm:text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded",
-                                                stream.status === 'live' ? "bg-red-50 text-red-600" : "bg-slate-50 text-slate-400"
-                                            )}>
-                                                {stream.status === 'live' ? t('live_now') : t('offline')}
-                                            </span>
-                                            <span className="text-slate-400 text-[8px] sm:text-[10px] font-bold uppercase">{stream.viewersCount} {t('viewers')}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="flex items-center justify-end space-x-2 rtl:space-x-reverse">
-                                    {stream.status === 'live' ? (
-                                        <button 
-                                            onClick={() => { setLiveStream(stream); setActiveTab("live-console"); }}
-                                            className="flex items-center space-x-2 rtl:space-x-reverse rounded-lg bg-brand-blue px-4 py-2 text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-white transition-all hover:bg-blue-600 shadow-md shadow-blue-500/10"
-                                        >
-                                            <Play className="h-3 w-3 fill-current" />
-                                            <span>{t('console')}</span>
-                                        </button>
-                                    ) : (
-                                        <button className="rounded-lg bg-slate-50 p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors">
-                                            <Edit3 className="h-4 w-4" />
-                                        </button>
-                                    )}
-                                    <button 
-                                        onClick={() => deleteStream(stream.id)}
-                                        className="rounded-lg bg-slate-50 p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors"
-                                    >
-                                        <Trash2 className="h-4 w-4" />
-                                    </button>
-                                </div>
-                            </motion.div>
-                        ))
-                    )}
-                </div>
-            </section>
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 leading-none mb-1">{room.room_type}</p>
+                          <h4 className="text-sm font-black uppercase text-slate-900 tracking-tight">{room.room_name}</h4>
+                        </div>
+                      </div>
+
+                      <div className="pt-4 flex items-center justify-between border-t border-slate-50">
+                        <div className="flex items-center gap-2">
+                           <Users className="h-3 w-3 text-slate-400" />
+                           <span className="text-[10px] font-bold text-slate-400">Manage Room</span>
+                        </div>
+                        
+                        <button 
+                          onClick={() => handleGoLive(room)}
+                          className={cn(
+                            "px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-md transition-all",
+                            room.room_type === 'live' 
+                              ? "bg-brand-blue text-white shadow-blue-500/10 hover:bg-blue-600"
+                              : "bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                          )}
+                        >
+                          {room.room_type === 'live' ? t('go_live', 'Go Live') : t('open', 'Open')}
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+
+                {rooms.length === 0 && (
+                  <div className="col-span-full py-20 bg-slate-50/50 rounded-[40px] border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-center space-y-4">
+                    <div className="h-16 w-16 bg-white rounded-3xl flex items-center justify-center shadow-lg text-slate-200">
+                      <Hash className="h-8 w-8" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs font-black uppercase tracking-widest text-slate-400">No rooms yet</p>
+                      <p className="text-[10px] font-medium text-slate-400">Create your first room to start interacting.</p>
+                    </div>
+                    <button 
+                      onClick={() => setActiveTab("create-room")}
+                      className="px-6 py-3 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50"
+                    >
+                      New Room
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </main>

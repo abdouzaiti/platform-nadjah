@@ -25,9 +25,9 @@ export default function App() {
     setFetchError(null);
     try {
       const { data, error } = await supabase
-        .from("users")
+        .from("profiles")
         .select("*")
-        .eq("uid", userId)
+        .eq("id", userId)
         .maybeSingle();
 
       if (error) throw error;
@@ -238,8 +238,8 @@ export default function App() {
                   </div>
                   <p className="text-[9px] text-slate-500">To allow yourself as a <span className="text-slate-900 font-bold">Teacher</span>, run this in Supabase SQL Editor:</p>
                   <pre className="text-[9px] text-emerald-600 font-mono overflow-x-auto whitespace-pre p-2 bg-white rounded-lg border border-slate-200">
-{`INSERT INTO public.users (uid, email, "displayName", role)
-VALUES ('${user?.id}', '${user?.email}', '${user?.email?.split('@')[0]}', 'teacher');`}
+{`INSERT INTO public.profiles (id, email, fullname, username, role)
+VALUES ('${user?.id}', '${user?.email}', '${user?.email?.split('@')[0]}', '${user?.email?.split('@')[0]}', 'teacher');`}
                   </pre>
                 </div>
 
@@ -274,52 +274,33 @@ VALUES ('${user?.id}', '${user?.email}', '${user?.email?.split('@')[0]}', 'teach
                 The database tables are missing. Please run the standard setup SQL:
               </p>
               <div className="bg-slate-100 p-4 rounded-xl border border-slate-200 font-mono text-[9px] text-emerald-600 overflow-x-auto whitespace-pre max-h-[300px]">
-{`CREATE TABLE public.users (
-  uid uuid REFERENCES auth.users NOT NULL PRIMARY KEY,
+{`CREATE TABLE public.profiles (
+  id uuid REFERENCES auth.users NOT NULL PRIMARY KEY,
+  fullname text,
   email text,
-  role text CHECK (role IN ('student', 'teacher')),
-  "displayName" text,
-  "photoURL" text,
-  "createdAt" timestamp with time zone DEFAULT now()
+  username text UNIQUE,
+  avatar_url text,
+  role text CHECK (role IN ('admin', 'teacher', 'student')),
+  created_at timestamp with time zone DEFAULT now()
 );
 
-CREATE TABLE public.streams (
+CREATE TABLE public.teacher_communities (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  title text NOT NULL,
+  teacher_id uuid REFERENCES public.profiles(id),
+  community_name text NOT NULL,
+  community_username text UNIQUE NOT NULL,
+  community_password text,
   description text,
-  "teacherId" uuid REFERENCES public.users(uid),
-  "teacherName" text,
-  status text DEFAULT 'offline',
-  thumbnail text,
-  "viewersCount" integer DEFAULT 0,
-  "recordingUrl" text,
-  "createdAt" timestamp with time zone DEFAULT now(),
-  "updatedAt" timestamp with time zone DEFAULT now()
+  created_at timestamp with time zone DEFAULT now()
 );
 
-CREATE TABLE public.chat_messages (
+CREATE TABLE public.class_rooms (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  "streamId" uuid REFERENCES public.streams(id) ON DELETE CASCADE,
-  text text NOT NULL,
-  "userId" uuid REFERENCES public.users(uid),
-  "userName" text,
-  "userPhote" text,
-  timestamp timestamp with time zone DEFAULT now()
-);
-
-ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.streams ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.chat_messages ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Allow Public Read" ON public.users FOR SELECT USING (true);
-CREATE POLICY "Allow Public Read Streams" ON public.streams FOR SELECT USING (true);
-CREATE POLICY "Allow Public Read Chat" ON public.chat_messages FOR SELECT USING (true);
-
-CREATE POLICY "Teachers Manage Streams" ON public.streams FOR ALL USING (
-  EXISTS (SELECT 1 FROM public.users WHERE uid = auth.uid() AND role = 'teacher')
-);
-
-CREATE POLICY "Auth Users Insert Chat" ON public.chat_messages FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);`}
+  community_id uuid REFERENCES public.teacher_communities(id),
+  room_name text NOT NULL,
+  room_type text CHECK (room_type IN ('chat', 'live', 'announcements', 'files')),
+  created_at timestamp with time zone DEFAULT now()
+);`}
               </div>
             </div>
           ) : (

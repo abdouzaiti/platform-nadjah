@@ -151,12 +151,12 @@ export default function Sidebar({ profile, activeTab, setActiveTab, isOpen = fal
 
       <div className="border-t border-slate-100 p-4 space-y-4">
         <div className="flex items-center space-x-3 rtl:space-x-reverse px-2 py-2">
-            <img src={profile.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.displayName)}&background=3b82f6&color=fff`} alt="" className="h-10 w-10 rounded-full border-2 border-white shadow-md" />
+            <img src={profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.fullname)}&background=3b82f6&color=fff`} alt="" className="h-10 w-10 rounded-full border-2 border-white shadow-md" />
             <div className="flex-1 overflow-hidden">
-                <p className="truncate text-xs font-black text-slate-900 uppercase tracking-tight">{profile.displayName}</p>
+                <p className="truncate text-xs font-black text-slate-900 uppercase tracking-tight">{profile.fullname}</p>
                 <div className="flex items-center gap-1.5 rtl:space-x-reverse">
                   <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
-                  <p className="text-[9px] font-black text-brand-blue uppercase tracking-widest">{profile.role === 'teacher' ? (i18n.language === 'ar' ? 'أستاذ' : (i18n.language === 'fr' ? 'Professeur' : 'Professor')) : (i18n.language === 'ar' ? 'طالب' : 'Student')}</p>
+                  <p className="text-[9px] font-black text-brand-blue uppercase tracking-widest">{profile.role === 'teacher' ? (i18n.language === 'ar' ? 'أستاذ' : (i18n.language === 'fr' ? 'Professeur' : 'Professor')) : (profile.role === 'admin' ? 'Admin' : (i18n.language === 'ar' ? 'طالب' : 'Student'))}</p>
                 </div>
             </div>
         </div>

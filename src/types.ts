@@ -1,34 +1,58 @@
-export type UserRole = "teacher" | "student";
+export type UserRole = "admin" | "teacher" | "student";
 
 export interface UserProfile {
-  uid: string;
-  displayName: string;
+  id: string;
+  fullname: string;
   email: string;
-  photoURL: string;
+  username: string;
+  avatar_url: string;
   role: UserRole;
-  createdAt: string;
+  created_at: string;
 }
 
-export interface StreamData {
+export interface TeacherCommunity {
   id: string;
-  title: string;
+  teacher_id: string;
+  community_name: string;
+  community_username: string;
+  community_password?: string;
   description: string;
-  teacherId: string;
-  teacherName: string;
-  status: "live" | "offline" | "scheduled";
-  thumbnail: string;
-  viewersCount: number;
-  recordingUrl?: string;
-  createdAt: string;
-  updatedAt: string;
+  created_at: string;
+}
+
+export type RoomType = "chat" | "live" | "announcements" | "files";
+
+export interface ClassRoom {
+  id: string;
+  community_id: string;
+  room_name: string;
+  room_type: RoomType;
+  created_at: string;
+}
+
+export interface LiveSession {
+  id: string;
+  room_id: string;
+  title: string;
+  live_password?: string;
+  status: "live" | "ended" | "scheduled";
+  started_at?: string;
+  ended_at?: string;
 }
 
 export interface ChatMessageData {
   id: string;
-  streamId: string;
-  text: string;
-  userId: string;
-  userName: string;
-  userPhoto: string;
-  timestamp: string;
+  room_id: string;
+  sender_id: string;
+  sender_name?: string;
+  sender_avatar?: string;
+  message: string;
+  created_at: string;
+}
+
+export interface Recording {
+  id: string;
+  live_session_id: string;
+  video_url: string;
+  created_at: string;
 }

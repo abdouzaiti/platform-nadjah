@@ -1,8 +1,8 @@
 import React from "react";
-import { UserProfile, StreamData } from "../types";
+import { UserProfile, TeacherCommunity, ClassRoom, RoomType, LiveSession } from "../types";
 import Sidebar from "../components/Sidebar";
 import { supabase } from "../lib/supabase";
-import { Play, Eye, Clock, Search, Bell, Menu } from "lucide-react";
+import { Play, Eye, Clock, Search, Bell, Menu, Users, Hash, Plus, Loader2, ArrowRight } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "../lib/utils";
 import StreamPlayer from "../components/StreamPlayer";
@@ -14,48 +14,153 @@ interface StudentDashboardProps {
 
 export default function StudentDashboard({ profile }: StudentDashboardProps) {
   const { t, i18n } = useTranslation();
-  const [activeTab, setActiveTab] = React.useState("browse");
-  const [streams, setStreams] = React.useState<StreamData[]>([]);
-  const [selectedStream, setSelectedStream] = React.useState<StreamData | null>(null);
+  const [activeTab, setActiveTab] = React.useState("joined");
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
+  const [loading, setLoading] = React.useState(false);
+
+  // Search communities
+  const [searchQuery, setSearchQuery] = React.useState("");
+  const [searchResults, setSearchResults] = React.useState<TeacherCommunity[]>([]);
+  
+  // Joined rooms
+  const [joinedRooms, setJoinedRooms] = React.useState<(ClassRoom & { community: TeacherCommunity })[]>([]);
+  
+  // Active Community
+  const [selectedCommunity, setSelectedCommunity] = React.useState<TeacherCommunity | null>(null);
+  const [communityRooms, setCommunityRooms] = React.useState<ClassRoom[]>([]);
+
+  // Active Session State
+  const [activeRoom, setActiveRoom] = React.useState<ClassRoom | null>(null);
+  const [activeSession, setActiveSession] = React.useState<LiveSession | null>(null);
 
   React.useEffect(() => {
-    const fetchStreams = async () => {
+    fetchJoinedRooms();
+  }, [profile.id]);
+
+  const fetchJoinedRooms = async () => {
+    try {
       const { data, error } = await supabase
-        .from("streams")
-        .select("*")
-        .eq("status", "live")
-        .order("createdAt", { ascending: false });
+        .from("room_members")
+        .select(`
+          room_id,
+          class_rooms (
+            *,
+            teacher_communities (*)
+          )
+        `)
+        .eq("user_id", profile.id);
+
+      if (error) throw error;
       
-      if (!error && data) {
-        setStreams(data as StreamData[]);
+      const rooms = data.map((item: any) => ({
+        ...item.class_rooms,
+        community: item.class_rooms.teacher_communities
+      }));
+      
+      setJoinedRooms(rooms);
+    } catch (err) {
+      console.error("Fetch joined rooms error:", err);
+    }
+  };
+
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!searchQuery.trim()) return;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("teacher_communities")
+        .select("*")
+        .ilike("community_username", `%${searchQuery}%`);
+      
+      if (error) throw error;
+      setSearchResults(data as TeacherCommunity[]);
+    } catch (err) {
+      console.error("Search error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const viewCommunity = async (comm: TeacherCommunity) => {
+    setSelectedCommunity(comm);
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("class_rooms")
+        .select("*")
+        .eq("community_id", comm.id);
+      
+      if (error) throw error;
+      setCommunityRooms(data as ClassRoom[]);
+      setActiveTab("community-view");
+    } catch (err) {
+      console.error("Fetch community rooms error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const joinRoom = async (room: ClassRoom) => {
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from("room_members")
+        .insert({
+          room_id: room.id,
+          user_id: profile.id
+        });
+      
+      if (error) throw error;
+      alert("Joined successfully!");
+      fetchJoinedRooms();
+    } catch (err: any) {
+      alert(err.message || "Failed to join");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEnterRoom = async (room: ClassRoom) => {
+    try {
+      setLoading(true);
+      // Fetch current live session for this room
+      const { data, error } = await supabase
+        .from("live_sessions")
+        .select("*")
+        .eq("room_id", room.id)
+        .eq("status", "live")
+        .maybeSingle();
+
+      if (error) throw error;
+      
+      if (!data) {
+        alert("No live session active for this room yet.");
+        return;
       }
-    };
 
-    fetchStreams();
+      setActiveRoom(room);
+      setActiveSession(data as LiveSession);
+    } catch (err: any) {
+      alert(err.message || "Failed to join session");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    const channel = supabase
-      .channel('live-streams')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'streams',
-          filter: 'status=eq.live'
-        },
-        () => {
-          fetchStreams();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
-  const heroStream = streams[0];
+  if (activeRoom && activeSession) {
+    return (
+      <StreamPlayer 
+        room={activeRoom} 
+        session={activeSession} 
+        profile={profile} 
+        onClose={() => {
+          setActiveRoom(null);
+          setActiveSession(null);
+        }} 
+      />
+    );
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50 text-slate-900">
@@ -65,135 +170,189 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
         setActiveTab={(tab) => {
           setActiveTab(tab);
           setIsSidebarOpen(false);
+          if (tab !== "community-view") setSelectedCommunity(null);
         }} 
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
       />
       
-      <main className="flex-1 overflow-y-auto no-scrollbar bg-slate-50/50 relative p-4 md:p-0">
-        {selectedStream ? (
-           <div className="h-full">
-              <StreamPlayer stream={selectedStream} profile={profile} onClose={() => setSelectedStream(null)} />
+      <main className="flex-1 overflow-y-auto no-scrollbar bg-slate-50/50 relative p-4 md:p-8">
+        {/* Top Header */}
+        <header className="flex items-center justify-between gap-6 pb-8 border-b border-slate-100 mb-8">
+            <div className="flex items-center gap-4">
+              <button 
+                onClick={() => setIsSidebarOpen(true)}
+                className="lg:hidden p-2 bg-brand-blue/5 rounded-xl text-brand-blue border border-brand-blue/10"
+              >
+                <Menu className="h-6 w-6" />
+              </button>
+              <div className="space-y-1">
+                  <h2 className="font-display text-2xl font-black text-slate-900 uppercase italic tracking-tighter">
+                    {activeTab === 'joined' ? t('joined', "My Classrooms") : (activeTab === 'discover' ? t('discover', "Discover Communities") : selectedCommunity?.community_name)}
+                  </h2>
+                  <p className="text-slate-400 font-bold tracking-widest text-[10px] uppercase">
+                    Welcome back, {profile.fullname.split(" ")[0]}
+                  </p>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-4">
+               <div className="hidden md:flex bg-white rounded-xl shadow-sm border border-slate-100 p-1">
+                 <button 
+                   onClick={() => setActiveTab("joined")}
+                   className={cn("px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all", activeTab === 'joined' ? "bg-brand-blue text-white shadow-md shadow-blue-500/10" : "text-slate-400 hover:text-slate-600")}
+                 >
+                   {t('joined', 'Joined')}
+                 </button>
+                 <button 
+                   onClick={() => setActiveTab("discover")}
+                   className={cn("px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all", activeTab === 'discover' ? "bg-brand-blue text-white shadow-md shadow-blue-500/10" : "text-slate-400 hover:text-slate-600")}
+                 >
+                   {t('discover', 'Discover')}
+                 </button>
+               </div>
+            </div>
+        </header>
+
+        {activeTab === "discover" ? (
+          <div className="space-y-8">
+            <form onSubmit={handleSearch} className="max-w-xl mx-auto flex gap-4">
+              <div className="relative flex-1 group">
+                <Search className={`absolute ${i18n.language === 'ar' ? 'right-4' : 'left-4'} top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-brand-blue`} />
+                <input 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder={t('search_community', 'Search by community username...')}
+                  className={cn("w-full bg-white border border-slate-200 rounded-2xl py-4 pr-4 text-sm font-bold shadow-sm outline-none focus:border-brand-blue transition-all", i18n.language === 'ar' ? 'pr-12 pl-4 text-right' : 'pl-12 pr-4 text-left')}
+                />
+              </div>
+              <button 
+                type="submit"
+                className="bg-brand-blue text-white px-8 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-blue-500/20 hover:bg-blue-600 transition-all"
+              >
+                {t('search', 'Search')}
+              </button>
+            </form>
+
+            <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 pt-6">
+              {searchResults.map((comm) => (
+                <motion.div 
+                  key={comm.id}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm hover:shadow-md transition-all group"
+                >
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className="h-12 w-12 bg-gradient-to-br from-brand-blue to-indigo-600 rounded-2xl flex items-center justify-center text-white font-black text-xl shadow-lg shadow-blue-500/10">
+                      {comm.community_name.charAt(0)}
+                    </div>
+                    <div>
+                      <h4 className="font-black uppercase text-slate-900 leading-none mb-1">{comm.community_name}</h4>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">@{comm.community_username}</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-slate-500 mb-6 line-clamp-2 leading-relaxed">{comm.description || "No description provided."}</p>
+                  <button 
+                    onClick={() => viewCommunity(comm)}
+                    className="w-full py-3 bg-slate-50 text-brand-blue font-black uppercase tracking-widest text-[10px] rounded-xl hover:bg-brand-blue hover:text-white transition-all flex items-center justify-center gap-2"
+                  >
+                    View Server <ArrowRight className="h-3 w-3" />
+                  </button>
+                </motion.div>
+              ))}
+              
+              {searchResults.length === 0 && !loading && searchQuery && (
+                <div className="col-span-full py-20 text-center space-y-4">
+                  <div className="h-20 w-20 bg-slate-100 rounded-full mx-auto flex items-center justify-center text-slate-300">
+                    <Search className="h-10 w-10" />
+                  </div>
+                  <p className="font-black text-slate-400 uppercase tracking-widest">No communities found</p>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : activeTab === "community-view" && selectedCommunity ? (
+           <div className="space-y-8">
+             <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+               {communityRooms.map((room) => {
+                 const isJoined = joinedRooms.some(jr => jr.id === room.id);
+                 return (
+                    <div key={room.id} className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm flex flex-col justify-between">
+                      <div className="flex items-center gap-3 mb-6">
+                        <div className="p-3 bg-slate-50 rounded-xl text-slate-400">
+                          {room.room_type === 'live' ? <Clock className="h-4 w-4 text-red-500" /> : <Hash className="h-4 w-4" />}
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black uppercase text-slate-400 leading-none mb-1">{room.room_type}</p>
+                          <h4 className="text-sm font-black uppercase text-slate-900">{room.room_name}</h4>
+                        </div>
+                      </div>
+                      
+                      <button 
+                        disabled={isJoined || loading}
+                        onClick={() => joinRoom(room)}
+                        className={cn(
+                          "w-full py-3 rounded-xl font-black uppercase tracking-widest text-[10px] transition-all",
+                          isJoined 
+                            ? "bg-emerald-50 text-emerald-600 cursor-default" 
+                            : "bg-brand-blue text-white hover:bg-blue-600 shadow-lg shadow-blue-500/10"
+                        )}
+                      >
+                        {isJoined ? t('member', 'Member') : t('join_room', 'Join Room')}
+                      </button>
+                    </div>
+                 );
+               })}
+             </div>
            </div>
         ) : (
-          <div className="md:p-8 space-y-8 sm:space-y-12">
-            {/* Top Bar */}
-            <header className="flex items-center justify-between gap-4 pb-6 border-b border-slate-100">
-                <div className="flex items-center gap-3">
-                  <button 
-                    onClick={() => setIsSidebarOpen(true)}
-                    className="lg:hidden p-2 bg-brand-blue/5 rounded-xl text-brand-blue border border-brand-blue/10 active:scale-95 transition-all"
-                  >
-                    <Menu className="h-6 w-6" />
-                  </button>
-                  <div className="relative w-32 sm:w-40 md:w-96 group">
-                      <Search className="absolute left-4 rtl:left-auto rtl:right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 group-focus-within:text-brand-blue" />
-                      <input 
-                          type="text" 
-                          placeholder={t('search')} 
-                          className="w-full rounded-xl border border-slate-100 bg-white py-2 sm:py-2.5 pl-11 rtl:pl-4 rtl:pr-11 pr-4 text-[10px] sm:text-sm text-slate-900 outline-none focus:border-brand-blue transition-all shadow-sm"
-                      />
+          <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+            {joinedRooms.map((room) => (
+              <motion.div 
+                key={room.id}
+                layout
+                onClick={() => handleEnterRoom(room)}
+                className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm hover:shadow-md transition-all group relative cursor-pointer"
+              >
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="h-10 w-10 bg-slate-100 rounded-xl flex items-center justify-center font-black text-slate-400">
+                    {room.community.community_name.charAt(0)}
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black uppercase text-slate-900 leading-none mb-1">{room.room_name}</h4>
+                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest italic">{room.community.community_name}</p>
                   </div>
                 </div>
-                <div className="flex items-center space-x-3 sm:space-x-6 rtl:space-x-reverse">
-                    <div className="hidden sm:flex items-center gap-2 bg-brand-blue/5 px-3 py-1.5 rounded-full border border-brand-blue/10 rtl:space-x-reverse">
-                      <div className="w-2 h-2 rounded-full bg-brand-blue animate-pulse"></div>
-                      <span className="text-[8px] sm:text-[10px] font-black text-brand-blue uppercase tracking-widest">Live Open</span>
-                    </div>
-                    <button className="relative rounded-xl bg-white p-2 text-slate-400 border border-slate-100 hover:text-slate-900 transition-all hover:bg-slate-50 shadow-sm">
-                        <Bell className="h-4 w-4 sm:h-5 sm:w-5" />
-                        <span className="absolute right-2 top-2 flex h-2 w-2 rounded-full bg-blue-500 ring-2 ring-white"></span>
-                    </button>
+                
+                <div className="flex items-center justify-between border-t border-slate-50 pt-4">
+                  <div className="flex items-center gap-1.5">
+                    <div className={cn("w-2 h-2 rounded-full", room.room_type === 'live' ? "bg-red-500 animate-pulse" : "bg-slate-300")}></div>
+                    <span className="text-[10px] font-black uppercase text-slate-400">{room.room_type === 'live' ? "Live" : "Room"}</span>
+                  </div>
+                  <button className="bg-brand-blue text-white px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-md shadow-blue-500/10">
+                    Enter
+                  </button>
                 </div>
-            </header>
+              </motion.div>
+            ))}
 
-            {/* Hero Section */}
-            {heroStream ? (
-              <motion.section 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="relative h-[300px] sm:h-[440px] w-full overflow-hidden rounded-[24px] sm:rounded-[40px] border border-slate-100 shadow-2xl shadow-blue-500/10 group cursor-pointer"
-                onClick={() => setSelectedStream(heroStream)}
-              >
-                 <img src={heroStream.thumbnail || "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&q=80"} alt="" className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                  <div className="netflix-gradient absolute inset-0 flex flex-col justify-end p-6 sm:p-12 text-left rtl:text-right">
-                    <div className="flex items-center space-x-2 sm:space-x-4 rtl:space-x-reverse mb-2 sm:mb-4">
-                        <span className="flex items-center space-x-2 rtl:space-x-reverse rounded px-2 py-0.5 sm:px-2.5 sm:py-1 bg-red-600 text-[8px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-white shadow-lg shadow-red-500/20">
-                            <span className="block h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full bg-white animate-pulse"></span>
-                            <span>{t('live_now')}</span>
-                        </span>
-                        <div className="h-4 w-px bg-slate-200"></div>
-                        <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-slate-500">{heroStream.teacherName}</span>
-                    </div>
-                    <h2 className="font-display text-2xl sm:text-5xl font-black tracking-tight text-slate-900 mb-2 sm:mb-4 max-w-2xl uppercase italic leading-[1.1]">{heroStream.title}</h2>
-                    <p className="max-w-xl text-xs sm:text-base text-slate-500 mb-4 sm:mb-8 line-clamp-2 font-medium leading-relaxed hidden xs:block">{heroStream.description}</p>
-                    <div className="flex items-center space-x-4 rtl:space-x-reverse">
-                        <button 
-                            className="flex items-center space-x-3 rtl:space-x-reverse rounded-xl bg-brand-blue px-5 py-3 sm:px-8 sm:py-4 text-xs sm:text-sm font-black uppercase tracking-widest text-white transition-all shadow-xl shadow-blue-500/20 hover:bg-blue-600 hover:scale-[1.02] active:scale-[0.98]"
-                        >
-                            <Play className={cn("h-4 w-4 sm:h-5 sm:w-5 fill-current", i18n.language === 'ar' ? "rotate-180" : "")} />
-                            <span>{t('join_classroom')}</span>
-                        </button>
-                    </div>
-                 </div>
-              </motion.section>
-            ) : (
-                <section className="flex h-60 sm:h-80 flex-col items-center justify-center rounded-[24px] sm:rounded-[40px] border border-slate-100 bg-white shadow-sm">
-                    <div className="w-12 h-12 sm:w-16 sm:h-16 bg-slate-50 rounded-2xl flex items-center justify-center mb-4">
-                       <Clock className="h-6 w-6 sm:h-8 sm:w-8 text-slate-300" />
-                    </div>
-                    <p className="text-sm sm:text-lg font-black text-slate-400 uppercase tracking-widest">{t('no_live_now')}</p>
-                    <p className="text-slate-300 text-[10px] sm:text-sm">{t('check_schedule')}</p>
-                </section>
+            {joinedRooms.length === 0 && (
+              <div className="col-span-full py-32 flex flex-col items-center justify-center space-y-6 text-center">
+                <div className="h-24 w-24 bg-white rounded-[40px] flex items-center justify-center shadow-xl border border-slate-100 text-slate-200">
+                  <Users className="h-12 w-12" />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-xl font-black font-display uppercase italic text-slate-900">Your Classroom is Empty</h3>
+                  <p className="text-xs text-slate-400 max-w-xs mx-auto">Discover teacher communities and join rooms to start learning.</p>
+                </div>
+                <button 
+                  onClick={() => setActiveTab("discover")}
+                  className="px-8 py-4 bg-brand-blue text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl shadow-blue-500/20"
+                >
+                  Explore Communities
+                </button>
+              </div>
             )}
-
-            {/* Live Row */}
-            <section className="space-y-6">
-                <div className="flex items-center justify-between">
-                    <h3 className="font-display text-lg sm:text-xl font-black text-slate-900 uppercase italic tracking-tight">{t('active_classrooms')}</h3>
-                    <button className="text-[10px] font-black text-brand-blue uppercase tracking-widest hover:underline">{t('view_all')}</button>
-                </div>
-                <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-4 text-left rtl:text-right">
-                    {streams.map((stream, idx) => (
-                        <motion.div 
-                            key={stream.id}
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ delay: idx * 0.1 }}
-                            onClick={() => setSelectedStream(stream)}
-                            className="group cursor-pointer space-y-3 sm:space-y-4"
-                        >
-                            <div className="relative aspect-video overflow-hidden rounded-xl sm:rounded-2xl border border-slate-100 bg-white transition-all group-hover:border-brand-blue shadow-sm group-hover:shadow-md">
-                                <img src={stream.thumbnail || "https://images.unsplash.com/photo-1427504494785-3a9ca7044f45?auto=format&fit=crop&q=80"} alt="" className="h-full w-full object-cover transition-transform group-hover:scale-110" />
-                                {stream.status === 'live' ? (
-                                    <div className="absolute left-2 top-2 sm:left-3 sm:top-3 flex items-center space-x-2 rtl:space-x-reverse rounded bg-red-600 px-1.5 py-0.5 text-[7px] sm:text-[8px] font-black text-white uppercase tracking-[0.2em] shadow-lg shadow-red-500/20">
-                                        <span className="block h-1 w-1 sm:h-1.5 sm:w-1.5 rounded-full bg-white animate-pulse"></span>
-                                        <span>{t('live_now')}</span>
-                                    </div>
-                                ) : (
-                                    <div className="absolute left-2 top-2 sm:left-3 sm:top-3 flex items-center space-x-2 rtl:space-x-reverse rounded bg-brand-blue px-1.5 py-0.5 text-[7px] sm:text-[8px] font-black text-white uppercase tracking-[0.2em] shadow-lg shadow-blue-500/20">
-                                        <Play className="h-2 w-2 fill-current" />
-                                        <span>{t('recorded')}</span>
-                                    </div>
-                                )}
-                                <div className="absolute inset-0 bg-white/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
-                                    <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-brand-blue flex items-center justify-center shadow-xl shadow-blue-500/20 transform scale-90 group-hover:scale-100 transition-transform">
-                                        <Play className={cn("h-4 w-4 sm:h-5 sm:w-5 text-white fill-white ml-0.5 rtl:ml-0 rtl:mr-0.5", i18n.language === 'ar' ? "rotate-180" : "")} />
-                                    </div>
-                                </div>
-                                <div className="absolute right-2 bottom-2 sm:right-3 sm:bottom-3 flex items-center space-x-1.5 rtl:space-x-reverse rounded bg-white/90 backdrop-blur-md px-1.5 py-1 text-[7px] sm:text-[8px] font-bold text-slate-900 uppercase border border-slate-100 shadow-sm">
-                                    <Eye className="h-2 w-2 sm:h-3 sm:w-3 text-brand-blue" />
-                                    <span>{stream.status === 'live' ? `${stream.viewersCount}` : "Past"}</span>
-                                </div>
-                            </div>
-                            <div>
-                                <h4 className="font-black text-xs sm:text-sm text-slate-900 uppercase tracking-tight group-hover:text-brand-blue truncate leading-tight mb-1">{stream.title}</h4>
-                                <p className="text-[8px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest">{stream.teacherName}</p>
-                            </div>
-                        </motion.div>
-                    ))}
-                </div>
-            </section>
           </div>
         )}
       </main>

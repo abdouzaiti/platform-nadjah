@@ -61,11 +61,17 @@ export const joinChannel = async (
 export const createTracks = async (facingMode: "user" | "environment" = "user") => {
   try {
     const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks(
-      {},
+      { encoderConfig: "high_quality" },
       { 
         facingMode, 
-        encoderConfig: "1080p_1", // Max quality 1080p
-        optimizationMode: "detail", // Better for seeing text/board clearly
+        encoderConfig: {
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+          frameRate: { ideal: 30 },
+          bitrateMin: 1500,
+          bitrateMax: 3000
+        },
+        optimizationMode: "detail",
       }
     );
     return { audioTrack, videoTrack };
