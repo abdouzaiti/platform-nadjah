@@ -271,7 +271,7 @@ VALUES ('${user?.id}', '${user?.email}', '${user?.email?.split('@')[0]}', '${use
           ) : fetchError === 'TABLES_MISSING' ? (
             <div className="space-y-6 text-left">
               <p className="text-slate-600 leading-relaxed text-sm">
-                The database tables are missing. Please run the standard setup SQL:
+                The database tables are missing. Please run the full overhaul SQL from <strong>supabase_schema.sql</strong> in the Supabase SQL Editor:
               </p>
               <div className="bg-slate-100 p-4 rounded-xl border border-slate-200 font-mono text-[9px] text-emerald-600 overflow-x-auto whitespace-pre max-h-[300px]">
 {`CREATE TABLE public.profiles (
@@ -299,6 +299,33 @@ CREATE TABLE public.class_rooms (
   community_id uuid REFERENCES public.teacher_communities(id),
   room_name text NOT NULL,
   room_type text CHECK (room_type IN ('chat', 'live', 'announcements', 'files')),
+  created_at timestamp with time zone DEFAULT now()
+);
+
+CREATE TABLE public.room_members (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  room_id uuid REFERENCES public.class_rooms(id) ON DELETE CASCADE,
+  user_id uuid REFERENCES public.profiles(id) ON DELETE CASCADE,
+  created_at timestamp with time zone DEFAULT now(),
+  UNIQUE(room_id, user_id)
+);
+
+CREATE TABLE public.live_sessions (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  room_id uuid REFERENCES public.class_rooms(id) ON DELETE CASCADE,
+  title text NOT NULL,
+  status text CHECK (status IN ('live', 'ended', 'scheduled')),
+  started_at timestamp with time zone,
+  ended_at timestamp with time zone
+);
+
+CREATE TABLE public.room_messages (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  room_id uuid REFERENCES public.class_rooms(id) ON DELETE CASCADE,
+  user_id uuid REFERENCES public.profiles(id) ON DELETE CASCADE,
+  message_text text NOT NULL,
+  user_name text,
+  user_avatar text,
   created_at timestamp with time zone DEFAULT now()
 );`}
               </div>
