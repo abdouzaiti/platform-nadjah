@@ -4,9 +4,10 @@ import React, { useEffect, useRef } from "react";
 interface AgoraPlayerProps {
   videoTrack: ICameraVideoTrack | IRemoteVideoTrack | undefined;
   className?: string;
+  mirrored?: boolean;
 }
 
-const AgoraPlayer: React.FC<AgoraPlayerProps> = ({ videoTrack, className }) => {
+const AgoraPlayer: React.FC<AgoraPlayerProps> = ({ videoTrack, className, mirrored }) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -24,7 +25,7 @@ const AgoraPlayer: React.FC<AgoraPlayerProps> = ({ videoTrack, className }) => {
     <div 
       ref={containerRef} 
       className={className} 
-      style={{ width: "100%", height: "100%" }}
+      style={{ width: "100%", height: "100%", transform: mirrored ? "scaleX(-1)" : "none" }}
     />
   );
 };

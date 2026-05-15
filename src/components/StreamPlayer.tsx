@@ -280,6 +280,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
       setChatMessage("");
     } catch (err: any) {
       console.error("Chat error:", err);
+      alert("Failed to send message: " + (err.message || "Unknown error"));
     }
   };
 
@@ -370,7 +371,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                  {isTeacherView ? (
                    localTracks ? (
                      localTracks.videoTrack ? (
-                       <AgoraPlayer videoTrack={localTracks.videoTrack} />
+                       <AgoraPlayer videoTrack={localTracks.videoTrack} mirrored={true} />
                      ) : (
                        <div className="flex flex-col items-center justify-center h-full text-white">
                           <VideoOff className="h-10 w-10 mb-4 opacity-50" />
