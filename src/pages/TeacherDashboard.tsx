@@ -23,6 +23,7 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
   // Create Community State
   const [commName, setCommName] = React.useState("");
   const [commUsername, setCommUsername] = React.useState("");
+  const [commPassword, setCommPassword] = React.useState("");
   const [commDescription, setCommDescription] = React.useState("");
 
   // Create Room State
@@ -85,6 +86,7 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
           teacher_id: profile.id,
           community_name: commName,
           community_username: commUsername,
+          community_password: commPassword,
           description: commDescription
         })
         .select()
@@ -251,6 +253,18 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                     className={cn("w-full bg-slate-50 border border-slate-100 p-4 rounded-2xl font-mono text-sm outline-none focus:border-brand-blue transition-all", i18n.language === 'ar' ? 'text-right' : 'text-left')}
                   />
                   <p className="text-[10px] text-slate-400 italic">This will be used for students to find your server.</p>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">{t('community_password', 'Community Password')}</label>
+                  <input 
+                    required
+                    type="password"
+                    value={commPassword}
+                    onChange={(e) => setCommPassword(e.target.value)}
+                    placeholder="Enter a secure password"
+                    className={cn("w-full bg-slate-50 border border-slate-100 p-4 rounded-2xl font-mono text-sm outline-none focus:border-brand-blue transition-all", i18n.language === 'ar' ? 'text-right' : 'text-left')}
+                  />
+                  <p className="text-[10px] text-slate-400 italic">Students will need this password to join your community.</p>
                 </div>
                 <button 
                   disabled={loading}

@@ -11,7 +11,8 @@ import {
   PlayCircle,
   PlusCircle,
   School,
-  Languages
+  Languages,
+  Search
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { useTranslation } from "react-i18next";
@@ -28,13 +29,12 @@ export default function Sidebar({ profile, activeTab, setActiveTab, isOpen = fal
   const { t, i18n } = useTranslation();
   const isTeacher = profile.role === "teacher";
 
-  const menuItems = [
-    { id: "browse", icon: Home, label: t('browse') },
-    { id: "live", icon: PlayCircle, label: t('live_sidebar') },
-    ...(isTeacher ? [{ id: "mystreams", icon: Tv2, label: t('my_streams') }] : []),
-    { id: "classes", icon: School, label: t('classes') },
-    { id: "community", icon: Users, label: t('community') },
-    { id: "messages", icon: MessageSquare, label: t('messages') },
+  const menuItems = isTeacher ? [
+    { id: "rooms", icon: School, label: t('my_community', 'My Community') },
+    { id: "create-room", icon: PlusCircle, label: t('add_room', 'Add Room') },
+  ] : [
+    { id: "joined", icon: Home, label: t('joined', 'Joined Classrooms') },
+    { id: "discover", icon: Search, label: t('discover', 'Discover Communities') },
   ];
 
   const handleSignOut = async () => {
@@ -85,7 +85,10 @@ export default function Sidebar({ profile, activeTab, setActiveTab, isOpen = fal
             {menuItems.map((item) => (
               <button
                 key={item.id}
-                onClick={() => setActiveTab(item.id)}
+                onClick={() => {
+                  setActiveTab(item.id);
+                  if (onClose) onClose();
+                }}
                 className={cn(
                   "flex w-full items-center space-x-3 rtl:space-x-reverse rounded-lg px-3 py-2.5 text-sm font-bold transition-all",
                   activeTab === item.id 
@@ -125,10 +128,13 @@ export default function Sidebar({ profile, activeTab, setActiveTab, isOpen = fal
               <p className="text-xs font-black uppercase text-white mb-1">{t('teacher_mode')}</p>
               <p className="text-[10px] text-white/70 mb-4 font-medium">{t('manage_broadcasts')}</p>
               <button 
-                onClick={() => setActiveTab("start-stream")}
+                onClick={() => {
+                  setActiveTab("rooms");
+                  if (onClose) onClose();
+                }}
                 className="w-full py-2.5 bg-white text-brand-blue text-[10px] font-black rounded uppercase tracking-wider transition-all hover:bg-slate-50 hover:scale-[1.02] active:scale-[0.98]"
               >
-                {t('go_live')}
+                {t('manage_rooms', 'Manage Rooms')}
               </button>
            </div>
         )}

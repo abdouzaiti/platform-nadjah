@@ -83,6 +83,14 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
   };
 
   const viewCommunity = async (comm: TeacherCommunity) => {
+    if (comm.community_password) {
+      const enteredPassword = prompt(`The community "${comm.community_name}" requires a password to view or join. Please enter it:`);
+      if (enteredPassword !== comm.community_password) {
+        alert("Incorrect password!");
+        return;
+      }
+    }
+
     setSelectedCommunity(comm);
     setLoading(true);
     try {
@@ -102,6 +110,15 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
   };
 
   const joinRoom = async (room: ClassRoom) => {
+    // Check if the community has a password
+    if (selectedCommunity?.community_password) {
+      const enteredPassword = prompt("This community requires a password to join. Please enter the password:");
+      if (enteredPassword !== selectedCommunity.community_password) {
+        alert("Incorrect password!");
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       const { error } = await supabase
