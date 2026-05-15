@@ -113,6 +113,10 @@ BEGIN
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='room_messages') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='room_messages' AND column_name='user_avatar') THEN
         ALTER TABLE public.room_messages ADD COLUMN user_avatar text;
     END IF;
+    -- Ensure user_name exists
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='room_messages') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='room_messages' AND column_name='user_name') THEN
+        ALTER TABLE public.room_messages ADD COLUMN user_name text;
+    END IF;
     -- Ensure live_password is nullable
     IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='live_sessions' AND column_name='live_password' AND is_nullable = 'NO') THEN
         ALTER TABLE public.live_sessions ALTER COLUMN live_password DROP NOT NULL;
