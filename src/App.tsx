@@ -330,8 +330,39 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='fullname') THEN ALTER TABLE public.profiles ADD COLUMN fullname text; END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='username') THEN ALTER TABLE public.profiles ADD COLUMN username text; END IF;
   
-  -- 1.5 Ensure community_password exists
+  -- 1.5 Ensure communities and related tables exist
+  CREATE TABLE IF NOT EXISTS public.teacher_communities (
+    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+    teacher_id uuid REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+    community_name text NOT NULL,
+    community_username text UNIQUE NOT NULL,
+    community_password text,
+    description text,
+    created_at timestamp with time zone DEFAULT now()
+  );
+
+  CREATE TABLE IF NOT EXISTS public.class_rooms (
+    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+    community_id uuid REFERENCES public.teacher_communities(id) ON DELETE CASCADE NOT NULL,
+    room_name text NOT NULL,
+    room_type text CHECK (room_type IN ('chat', 'live', 'announcements', 'files')) NOT NULL DEFAULT 'chat',
+    created_at timestamp with time zone DEFAULT now()
+  );
+
+  CREATE TABLE IF NOT EXISTS public.room_members (
+    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+    room_id uuid REFERENCES public.class_rooms(id) ON DELETE CASCADE NOT NULL,
+    user_id uuid REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+    created_at timestamp with time zone DEFAULT now(),
+    UNIQUE(room_id, user_id)
+  );
+
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='teacher_communities' AND column_name='community_password') THEN ALTER TABLE public.teacher_communities ADD COLUMN community_password text; END IF;
+
+  -- Enable RLS
+  ALTER TABLE public.teacher_communities ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE public.class_rooms ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE public.room_members ENABLE ROW LEVEL SECURITY;
 
   -- 2. Drop any legacy policies
   DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
@@ -357,6 +388,22 @@ BEGIN
   -- 5. Recreate correct policies
   CREATE POLICY "Profiles are viewable by everyone" ON public.profiles FOR SELECT USING (true);
   CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
+
+  DROP POLICY IF EXISTS "Communities viewable by all" ON public.teacher_communities;
+  DROP POLICY IF EXISTS "Teachers manage communities" ON public.teacher_communities;
+  CREATE POLICY "Communities viewable by all" ON public.teacher_communities FOR SELECT USING (true);
+  CREATE POLICY "Teachers manage communities" ON public.teacher_communities FOR ALL USING (auth.uid() = teacher_id);
+
+  DROP POLICY IF EXISTS "Rooms viewable by all" ON public.class_rooms;
+  DROP POLICY IF EXISTS "Teachers manage rooms" ON public.class_rooms;
+  CREATE POLICY "Rooms viewable by all" ON public.class_rooms FOR SELECT USING (true);
+  CREATE POLICY "Teachers manage rooms" ON public.class_rooms FOR ALL USING (EXISTS (SELECT 1 FROM public.teacher_communities WHERE id = community_id AND teacher_id = auth.uid()));
+
+  DROP POLICY IF EXISTS "Members view memberships" ON public.room_members;
+  DROP POLICY IF EXISTS "Users join rooms" ON public.room_members;
+  CREATE POLICY "Members view memberships" ON public.room_members FOR SELECT USING (auth.uid() = user_id OR EXISTS (SELECT 1 FROM public.class_rooms r JOIN public.teacher_communities c ON r.community_id = c.id WHERE r.id = room_id AND c.teacher_id = auth.uid()));
+  CREATE POLICY "Users join rooms" ON public.room_members FOR INSERT WITH CHECK (auth.uid() = user_id);
+
 END $$;`}
                   </pre>
                 </div>
