@@ -433,11 +433,19 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                 <p className="text-xs font-black uppercase text-slate-900 italic tracking-tighter">{t('live_session', 'Live Session')}</p>
               </div>
             </div>
-            {onClose && (
-               <button onClick={onClose} className="bg-white/80 backdrop-blur-xl p-3 rounded-full text-slate-600 border border-white shadow-sm pointer-events-auto hover:bg-white transition-colors">
-                 <X className="h-5 w-5" />
-               </button>
-            )}
+            <div className="flex gap-2 pointer-events-auto">
+                <button 
+                  onClick={toggleFullscreen} 
+                  className="bg-white/80 backdrop-blur-xl p-3 rounded-full text-slate-600 border border-white shadow-sm hover:bg-white transition-colors"
+                >
+                  {isFullscreen ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}
+                </button>
+                {onClose && (
+                   <button onClick={onClose} className="bg-white/80 backdrop-blur-xl p-3 rounded-full text-slate-600 border border-white shadow-sm pointer-events-auto hover:bg-white transition-colors">
+                     <X className="h-5 w-5" />
+                   </button>
+                )}
+            </div>
           </div>
 
           <div className="absolute bottom-6 inset-x-0 px-6 z-40 flex items-center gap-4">
