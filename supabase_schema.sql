@@ -5,6 +5,26 @@
 -- 0. Extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+-- 0.1 Repair Profiles Table (Ensures columns exist even if table was created previously)
+DO $$ 
+BEGIN 
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='fullname') THEN
+        ALTER TABLE public.profiles ADD COLUMN fullname text;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='name') THEN
+        ALTER TABLE public.profiles ADD COLUMN name text;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='username') THEN
+        ALTER TABLE public.profiles ADD COLUMN username text;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='phone') THEN
+        ALTER TABLE public.profiles ADD COLUMN phone text;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='avatar_url') THEN
+        ALTER TABLE public.profiles ADD COLUMN avatar_url text;
+    END IF;
+END $$;
+
 -- 1. Profiles Table (Main User Data)
 -- We include all common column names for compatibility
 CREATE TABLE IF NOT EXISTS public.profiles (
@@ -66,6 +86,27 @@ CREATE TABLE IF NOT EXISTS registration_requests (
 );
 
 -- 4. Modular School System (The Core Engine)
+
+-- Ensure compatibility if tables were already created with old column names
+DO $$ 
+BEGIN 
+    -- If room_members was created with student_id instead of user_id
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='room_members' AND column_name='student_id') THEN
+        ALTER TABLE public.room_members RENAME COLUMN student_id TO user_id;
+    END IF;
+    -- If room_messages was created with sender_id instead of user_id
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='room_messages' AND column_name='sender_id') THEN
+        ALTER TABLE public.room_messages RENAME COLUMN sender_id TO user_id;
+    END IF;
+    -- In case the tables exist but are missing user_id entirely
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='room_members') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='room_members' AND column_name='user_id') THEN
+        ALTER TABLE public.room_members ADD COLUMN user_id uuid REFERENCES public.profiles(id);
+    END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='room_messages') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='room_messages' AND column_name='user_id') THEN
+        ALTER TABLE public.room_messages ADD COLUMN user_id uuid REFERENCES public.profiles(id);
+    END IF;
+END $$;
+
 CREATE TABLE IF NOT EXISTS public.teacher_communities (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   teacher_id uuid REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,

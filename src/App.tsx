@@ -320,9 +320,41 @@ export default function App() {
                   </div>
                   <p className="text-[9px] text-slate-500">To allow yourself as a <span className="text-slate-900 font-bold">Teacher</span>, run this in Supabase SQL Editor:</p>
                   <pre className="text-[9px] text-emerald-600 font-mono overflow-x-auto whitespace-pre p-2 bg-white rounded-lg border border-slate-200">
-{`INSERT INTO public.profiles (id, email, fullname, name, username, role)
-VALUES ('${user?.id}', '${user?.email}', '${user?.email?.split('@')[0]}', '${user?.email?.split('@')[0]}', '${user?.email?.split('@')[0].replace(/[^a-zA-Z0-9]/g, '').toLowerCase()}', 'teacher')
-ON CONFLICT (id) DO UPDATE SET role = 'teacher';`}
+{`DO $$ 
+DECLARE
+  target_user_id uuid;
+  target_email text := '${user?.email || 'test@example.com'}';
+BEGIN 
+  -- 1. Ensure profile columns exist
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='name') THEN ALTER TABLE public.profiles ADD COLUMN name text; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='fullname') THEN ALTER TABLE public.profiles ADD COLUMN fullname text; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='username') THEN ALTER TABLE public.profiles ADD COLUMN username text; END IF;
+  
+  -- 2. Drop any legacy policies
+  DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
+  DROP POLICY IF EXISTS "Profiles are viewable by everyone" ON public.profiles;
+
+  -- 3. Lookup user from auth.users
+  SELECT id INTO target_user_id FROM auth.users WHERE email = target_email;
+  
+  IF target_user_id IS NOT NULL THEN
+    -- 4. Insert/Update teacher (Role assignment)
+    INSERT INTO public.profiles (id, email, fullname, name, username, role)
+    VALUES (
+      target_user_id, 
+      target_email, 
+      SPLIT_PART(target_email, '@', 1), 
+      SPLIT_PART(target_email, '@', 1), 
+      LOWER(REGEXP_REPLACE(SPLIT_PART(target_email, '@', 1), '[^a-zA-Z0-9]', '', 'g')), 
+      'teacher'
+    )
+    ON CONFLICT (id) DO UPDATE SET role = 'teacher';
+  END IF;
+  
+  -- 5. Recreate correct policies
+  CREATE POLICY "Profiles are viewable by everyone" ON public.profiles FOR SELECT USING (true);
+  CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
+END $$;`}
                   </pre>
                 </div>
 
@@ -366,7 +398,20 @@ ON CONFLICT (id) DO UPDATE SET role = 'teacher';`}
                 The database tables are missing. Please run the full overhaul SQL from <strong>supabase_schema.sql</strong> in the Supabase SQL Editor:
               </p>
               <div className="bg-slate-100 p-4 rounded-xl border border-slate-200 font-mono text-[9px] text-emerald-600 overflow-x-auto whitespace-pre max-h-[300px]">
-{`CREATE TABLE public.profiles (
+{`-- Run this FULL cleanup SQL:
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+DO $$ 
+BEGIN 
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='name') THEN ALTER TABLE public.profiles ADD COLUMN name text; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='fullname') THEN ALTER TABLE public.profiles ADD COLUMN fullname text; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='username') THEN ALTER TABLE public.profiles ADD COLUMN username text; END IF;
+  
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='room_members' AND column_name='student_id') THEN ALTER TABLE public.room_members RENAME COLUMN student_id TO user_id; END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='room_messages' AND column_name='sender_id') THEN ALTER TABLE public.room_messages RENAME COLUMN sender_id TO user_id; END IF;
+END $$;
+
+CREATE TABLE IF NOT EXISTS public.profiles (
   id uuid REFERENCES auth.users NOT NULL PRIMARY KEY,
   fullname text,
   email text,
