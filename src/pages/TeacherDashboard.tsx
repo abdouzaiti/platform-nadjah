@@ -100,6 +100,8 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
     } catch (err: any) {
       if (err.message?.includes('community_password')) {
         setSchemaError("ALTER TABLE public.teacher_communities ADD COLUMN community_password text;");
+      } else if (err.message?.includes('relation') && err.message?.includes('does not exist')) {
+        setSchemaError("It looks like the 'teacher_communities' table does not exist. Please copy the contents of supabase_schema.sql and run it in your Supabase SQL Editor to create the necessary tables.");
       } else {
         alert(err.message);
       }

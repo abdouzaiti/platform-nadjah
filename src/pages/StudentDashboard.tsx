@@ -33,6 +33,16 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
   const [activeRoom, setActiveRoom] = React.useState<ClassRoom | null>(null);
   const [activeSession, setActiveSession] = React.useState<LiveSession | null>(null);
 
+  // Password Modal
+  const [passwordModal, setPasswordModal] = React.useState<{ isOpen: boolean, community: TeacherCommunity | null, action: 'view' | 'join', room: ClassRoom | null }>({
+    isOpen: false,
+    community: null,
+    action: 'view',
+    room: null
+  });
+  const [enteredPassword, setEnteredPassword] = React.useState("");
+  const [passwordError, setPasswordError] = React.useState("");
+
   React.useEffect(() => {
     fetchJoinedRooms();
   }, [profile.id]);
@@ -84,13 +94,13 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
 
   const viewCommunity = async (comm: TeacherCommunity) => {
     if (comm.community_password) {
-      const enteredPassword = prompt(`The community "${comm.community_name}" requires a password to view or join. Please enter it:`);
-      if (enteredPassword !== comm.community_password) {
-        alert("Incorrect password!");
-        return;
-      }
+      setPasswordModal({ isOpen: true, community: comm, action: 'view', room: null });
+      return;
     }
+    proceedViewCommunity(comm);
+  };
 
+  const proceedViewCommunity = async (comm: TeacherCommunity) => {
     setSelectedCommunity(comm);
     setLoading(true);
     try {
@@ -110,15 +120,14 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
   };
 
   const joinRoom = async (room: ClassRoom) => {
-    // Check if the community has a password
     if (selectedCommunity?.community_password) {
-      const enteredPassword = prompt("This community requires a password to join. Please enter the password:");
-      if (enteredPassword !== selectedCommunity.community_password) {
-        alert("Incorrect password!");
-        return;
-      }
+      setPasswordModal({ isOpen: true, community: selectedCommunity, action: 'join', room: room });
+      return;
     }
+    proceedJoinRoom(room);
+  };
 
+  const proceedJoinRoom = async (room: ClassRoom) => {
     setLoading(true);
     try {
       const { error } = await supabase
@@ -135,6 +144,23 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
       alert(err.message || "Failed to join");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (enteredPassword !== passwordModal.community?.community_password) {
+      setPasswordError("Incorrect password");
+      return;
+    }
+    setPasswordError("");
+    const { action, community, room } = passwordModal;
+    setPasswordModal({ isOpen: false, community: null, action: 'view', room: null });
+    setEnteredPassword("");
+    if (action === 'view' && community) {
+      proceedViewCommunity(community);
+    } else if (action === 'join' && room) {
+      proceedJoinRoom(room);
     }
   };
 
@@ -373,6 +399,53 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
           </div>
         )}
       </main>
+
+      {/* Password Modal */}
+      {passwordModal.isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl border border-slate-100 space-y-6">
+            <div className="text-center space-y-2">
+              <h3 className="font-display text-2xl font-black uppercase italic text-slate-900">Enter Password</h3>
+              <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">
+                {passwordModal.community?.community_name}
+              </p>
+            </div>
+            
+            <form onSubmit={handlePasswordSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <input 
+                  autoFocus
+                  type="password"
+                  value={enteredPassword}
+                  onChange={(e) => setEnteredPassword(e.target.value)}
+                  placeholder="Password"
+                  className="w-full bg-slate-50 border border-slate-100 p-4 rounded-xl font-mono text-sm outline-none focus:border-brand-blue transition-all text-center"
+                />
+                {passwordError && <p className="text-xs text-red-500 font-bold text-center">{passwordError}</p>}
+              </div>
+              <div className="flex gap-3">
+                <button 
+                  type="button"
+                  onClick={() => {
+                    setPasswordModal({ isOpen: false, community: null, action: 'view', room: null });
+                    setEnteredPassword("");
+                    setPasswordError("");
+                  }}
+                  className="flex-1 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:bg-slate-50 rounded-xl transition-all"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  className="flex-1 py-3 text-[10px] font-black uppercase tracking-widest bg-brand-blue text-white rounded-xl shadow-lg shadow-blue-500/10 hover:bg-blue-600 transition-all"
+                >
+                  Submit
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
