@@ -1,39 +1,72 @@
--- Final Database Overhaul for Nadjat Live
--- Clean up old architecture
-DROP TABLE IF EXISTS public.chat_messages CASCADE;
-DROP TABLE IF EXISTS public.recorded_lessons CASCADE;
-DROP TABLE IF EXISTS public.enrollments CASCADE;
-DROP TABLE IF EXISTS public.subjects CASCADE;
-DROP TABLE IF EXISTS public.years CASCADE;
-DROP TABLE IF EXISTS public.levels CASCADE;
-DROP TABLE IF EXISTS public.streams CASCADE;
-DROP TABLE IF EXISTS public.live_streams CASCADE;
+-- Ecole Nadjah Final Unified Schema
+-- This schema combines the new modular architecture (Communities/Rooms) 
+-- with the request-based registration system requested by the user.
 
--- Cleanup existing new tables if present for a fresh start
-DROP TABLE IF EXISTS public.recordings CASCADE;
-DROP TABLE IF EXISTS public.room_messages CASCADE;
-DROP TABLE IF EXISTS public.live_sessions CASCADE;
-DROP TABLE IF EXISTS public.room_members CASCADE;
-DROP TABLE IF EXISTS public.class_rooms CASCADE;
-DROP TABLE IF EXISTS public.teacher_communities CASCADE;
-DROP TABLE IF EXISTS public.profiles CASCADE;
-
--- Enable UUID extension
+-- 0. Extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- 1. Profiles Table
-CREATE TABLE public.profiles (
+-- 1. Profiles Table (Main User Data)
+-- We include all common column names for compatibility
+CREATE TABLE IF NOT EXISTS public.profiles (
   id uuid REFERENCES auth.users NOT NULL PRIMARY KEY,
-  fullname text NOT NULL,
+  fullname text,
+  name text,
   email text NOT NULL,
-  username text UNIQUE NOT NULL,
+  username text UNIQUE,
+  phone text,
   avatar_url text,
-  role text CHECK (role IN ('admin', 'teacher', 'student')) NOT NULL DEFAULT 'student',
-  created_at timestamp with time zone DEFAULT now()
+  role text CHECK (role IN ('admin', 'teacher', 'student', 'ADMIN', 'TEACHER', 'STUDENT', 'GUEST')) NOT NULL DEFAULT 'GUEST',
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now()
 );
 
--- 2. Teacher Communities
-CREATE TABLE public.teacher_communities (
+-- 2. Educational Structure (Legacy/Reference)
+CREATE TABLE IF NOT EXISTS levels (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name TEXT NOT NULL UNIQUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS years (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    level_id UUID REFERENCES levels(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    UNIQUE(level_id, name),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS subjects (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name TEXT NOT NULL UNIQUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS year_subjects (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    year_id UUID REFERENCES years(id) ON DELETE CASCADE,
+    subject_id UUID REFERENCES subjects(id) ON DELETE CASCADE,
+    UNIQUE(year_id, subject_id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 3. Registration System
+CREATE TABLE IF NOT EXISTS registration_requests (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    full_name TEXT NOT NULL,
+    email TEXT UNIQUE NOT NULL,
+    phone TEXT,
+    parent_phone TEXT,
+    role TEXT CHECK (role IN ('STUDENT', 'TEACHER', 'ADMIN')),
+    level_id UUID REFERENCES levels(id),
+    year_id UUID REFERENCES years(id),
+    subject_name TEXT,
+    status TEXT DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 4. Modular School System (The Core Engine)
+CREATE TABLE IF NOT EXISTS public.teacher_communities (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   teacher_id uuid REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
   community_name text NOT NULL,
@@ -43,8 +76,7 @@ CREATE TABLE public.teacher_communities (
   created_at timestamp with time zone DEFAULT now()
 );
 
--- 3. Class Rooms
-CREATE TABLE public.class_rooms (
+CREATE TABLE IF NOT EXISTS public.class_rooms (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   community_id uuid REFERENCES public.teacher_communities(id) ON DELETE CASCADE NOT NULL,
   room_name text NOT NULL,
@@ -52,8 +84,7 @@ CREATE TABLE public.class_rooms (
   created_at timestamp with time zone DEFAULT now()
 );
 
--- 4. Room Members
-CREATE TABLE public.room_members (
+CREATE TABLE IF NOT EXISTS public.room_members (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   room_id uuid REFERENCES public.class_rooms(id) ON DELETE CASCADE NOT NULL,
   user_id uuid REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
@@ -61,31 +92,28 @@ CREATE TABLE public.room_members (
   UNIQUE(room_id, user_id)
 );
 
--- 5. Live Sessions
-CREATE TABLE public.live_sessions (
+CREATE TABLE IF NOT EXISTS public.live_sessions (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   room_id uuid REFERENCES public.class_rooms(id) ON DELETE CASCADE NOT NULL,
   title text NOT NULL,
   live_password text,
-  status text CHECK (status IN ('live', 'ended', 'scheduled')) NOT NULL DEFAULT 'scheduled',
+  status text CHECK (status IN ('live', 'ended', 'scheduled', 'LIVE', 'ENDED', 'SCHEDULED')) NOT NULL DEFAULT 'scheduled',
   started_at timestamp with time zone,
   ended_at timestamp with time zone,
   created_at timestamp with time zone DEFAULT now()
 );
 
--- 6. Room Messages (Chat)
-CREATE TABLE public.room_messages (
+CREATE TABLE IF NOT EXISTS public.room_messages (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   room_id uuid REFERENCES public.class_rooms(id) ON DELETE CASCADE NOT NULL,
   user_id uuid REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
   message_text text NOT NULL,
-  user_name text, -- Denormalized for quick access
-  user_avatar text, -- Denormalized for quick access
+  user_name text,
+  user_avatar text,
   created_at timestamp with time zone DEFAULT now()
 );
 
--- 7. Recordings (Replay System)
-CREATE TABLE public.recordings (
+CREATE TABLE IF NOT EXISTS public.recordings (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   live_session_id uuid REFERENCES public.live_sessions(id) ON DELETE CASCADE NOT NULL,
   video_url text NOT NULL,
@@ -100,85 +128,56 @@ ALTER TABLE public.room_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.live_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.room_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.recordings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE levels ENABLE ROW LEVEL SECURITY;
+ALTER TABLE years ENABLE ROW LEVEL SECURITY;
+ALTER TABLE registration_requests ENABLE ROW LEVEL SECURITY;
 
--- Basic RLS Policies (Adjust as needed)
+-- DROP AND RECREATE POLICIES
+DROP POLICY IF EXISTS "Profiles are viewable by everyone" ON public.profiles;
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
 
--- Profiles: Users can read all, update own
-CREATE POLICY "Public profiles are viewable by everyone" ON public.profiles FOR SELECT USING (true);
+CREATE POLICY "Profiles are viewable by everyone" ON public.profiles FOR SELECT USING (true);
 CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
 
--- Communities: Viewable by all (for discovery), teachers can manage own
-CREATE POLICY "Communities are viewable by all" ON public.teacher_communities FOR SELECT USING (true);
-CREATE POLICY "Teachers can insert communities" ON public.teacher_communities FOR INSERT WITH CHECK (auth.uid() = teacher_id);
-CREATE POLICY "Teachers can update own communities" ON public.teacher_communities FOR UPDATE USING (auth.uid() = teacher_id);
-CREATE POLICY "Teachers can delete own communities" ON public.teacher_communities FOR DELETE USING (auth.uid() = teacher_id);
+-- Modular system policies
+CREATE POLICY "Communities viewable by all" ON public.teacher_communities FOR SELECT USING (true);
+CREATE POLICY "Teachers manage communities" ON public.teacher_communities FOR ALL USING (auth.uid() = teacher_id);
 
--- Rooms: Viewable by all, teachers can manage
-CREATE POLICY "Rooms are viewable by all" ON public.class_rooms FOR SELECT USING (true);
-CREATE POLICY "Teachers can manage rooms in their communities" ON public.class_rooms 
-  FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM public.teacher_communities 
-      WHERE id = community_id AND teacher_id = auth.uid()
-    )
+CREATE POLICY "Rooms viewable by all" ON public.class_rooms FOR SELECT USING (true);
+CREATE POLICY "Teachers manage rooms" ON public.class_rooms FOR ALL USING (EXISTS (SELECT 1 FROM public.teacher_communities WHERE id = community_id AND teacher_id = auth.uid()));
+
+CREATE POLICY "Members view memberships" ON public.room_members FOR SELECT USING (auth.uid() = user_id OR EXISTS (SELECT 1 FROM public.class_rooms r JOIN public.teacher_communities c ON r.community_id = c.id WHERE r.id = room_id AND c.teacher_id = auth.uid()));
+CREATE POLICY "Users join rooms" ON public.room_members FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Messages viewable" ON public.room_messages FOR SELECT USING (EXISTS (SELECT 1 FROM public.room_members WHERE room_id = room_messages.room_id AND user_id = auth.uid()) OR EXISTS (SELECT 1 FROM public.class_rooms r JOIN public.teacher_communities c ON r.community_id = c.id WHERE r.id = room_id AND c.teacher_id = auth.uid()));
+CREATE POLICY "Post messages" ON public.room_messages FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- SEED DATA
+INSERT INTO levels (id, name) VALUES 
+('a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d', 'ابتدائي (Primaire)'),
+('b2c3d4e5-f6a7-4b6c-9d0e-1f2a3b4c5d6e', 'متوسط (Moyen)'),
+('c3d4e5f6-a7b8-4c7d-0e1f-2a3b4c5d6e7f', 'ثانوي (Secondaire)'),
+('d4e5f6a7-b8c9-4d8e-1f2a-3b4c5d6e7f8a', 'تكوين (Formation)')
+ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name;
+
+-- TRIGGER FOR PROFILES
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger AS $$
+BEGIN
+  INSERT INTO public.profiles (id, email, name, fullname, username, role)
+  VALUES (
+    new.id, 
+    new.email, 
+    COALESCE(new.raw_user_meta_data->>'full_name', new.email),
+    COALESCE(new.raw_user_meta_data->>'full_name', new.email),
+    LOWER(REGEXP_REPLACE(SPLIT_PART(new.email, '@', 1), '[^a-zA-Z0-9]', '', 'g')),
+    'GUEST'
   );
+  RETURN new;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Room Members: Students can view their rooms, and join
-CREATE POLICY "Users can see their room memberships" ON public.room_members FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Teachers can see members of their rooms" ON public.room_members FOR SELECT USING (
-  EXISTS (
-    SELECT 1 FROM public.class_rooms r 
-    JOIN public.teacher_communities c ON r.community_id = c.id
-    WHERE r.id = room_id AND c.teacher_id = auth.uid()
-  )
-);
-CREATE POLICY "Users can join rooms" ON public.room_members FOR INSERT WITH CHECK (auth.uid() = user_id);
-
--- Live Sessions: All can see, teachers manage
-CREATE POLICY "Sessions are viewable by all" ON public.live_sessions FOR SELECT USING (true);
-CREATE POLICY "Teachers can manage sessions" ON public.live_sessions FOR ALL USING (
-  EXISTS (
-    SELECT 1 FROM public.class_rooms r 
-    JOIN public.teacher_communities c ON r.community_id = c.id
-    WHERE r.id = room_id AND c.teacher_id = auth.uid()
-  )
-);
-
--- Messages: Read if a member, insert if a member
-CREATE POLICY "Messages are viewable by room members" ON public.room_messages FOR SELECT USING (
-  EXISTS (
-    SELECT 1 FROM public.room_members 
-    WHERE room_id = room_messages.room_id AND user_id = auth.uid()
-  ) OR EXISTS (
-     SELECT 1 FROM public.class_rooms r 
-     JOIN public.teacher_communities c ON r.community_id = c.id
-     WHERE r.id = room_id AND c.teacher_id = auth.uid()
-  )
-);
-CREATE POLICY "Members can post messages" ON public.room_messages FOR INSERT WITH CHECK (
-  auth.uid() = user_id AND (
-    EXISTS (SELECT 1 FROM public.room_members WHERE room_id = room_messages.room_id AND user_id = auth.uid()) OR
-    EXISTS (
-       SELECT 1 FROM public.class_rooms r 
-       JOIN public.teacher_communities c ON r.community_id = c.id
-       WHERE r.id = room_id AND c.teacher_id = auth.uid()
-    )
-  )
-);
-
--- Recordings: Viewable by all
-CREATE POLICY "Recordings are viewable by all" ON public.recordings FOR SELECT USING (true);
-CREATE POLICY "Teachers can insert recordings" ON public.recordings FOR INSERT WITH CHECK (
-  EXISTS (
-    SELECT 1 FROM public.live_sessions s
-    JOIN public.class_rooms r ON s.room_id = r.id
-    JOIN public.teacher_communities c ON r.community_id = c.id
-    WHERE s.id = live_session_id AND c.teacher_id = auth.uid()
-  )
-);
-
--- Enable Realtime
-ALTER PUBLICATION supabase_realtime ADD TABLE public.room_messages;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.live_sessions;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.teacher_communities;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.class_rooms;
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();

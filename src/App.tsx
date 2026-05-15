@@ -32,32 +32,76 @@ export default function App() {
         .eq("id", userId)
         .maybeSingle();
 
-      if (error) throw error;
+      if (error) {
+        console.error("Profile fetch error:", error);
+        // Fallback for different schema if maybeSingle fails due to missing columns
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from("profiles")
+          .select("id, role") // Select only common fields
+          .eq("id", userId)
+          .maybeSingle();
+        
+        if (!fallbackError && fallbackData) {
+          data = fallbackData;
+        } else {
+          throw error;
+        }
+      }
 
       // Auto-create profile if missing and we have an email
       if (!data && userEmail) {
         const username = userEmail.split('@')[0].replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-        const { data: created, error: createError } = await supabase
-          .from("profiles")
-          .insert({
-            id: userId,
-            email: userEmail,
-            fullname: userEmail.split('@')[0],
-            username: username,
-            role: 'teacher'
-          })
-          .select()
-          .maybeSingle();
         
-        if (createError) {
-          console.error("Auto-profile creation failed:", createError);
-        } else if (created) {
-          data = created;
+        // Try multiple field names for compatibility
+        const profileData: any = {
+          id: userId,
+          email: userEmail,
+          role: 'teacher'
+        };
+
+        // Add fields based on what columns likely exist or just try-catch the insert
+        try {
+          const { data: created, error: createError } = await supabase
+            .from("profiles")
+            .insert({
+              ...profileData,
+              fullname: userEmail.split('@')[0],
+              name: userEmail.split('@')[0],
+              username: username
+            })
+            .select()
+            .maybeSingle();
+          
+          if (createError) {
+            // Second attempt with minimal fields if first fails
+            const { data: created2, error: createError2 } = await supabase
+              .from("profiles")
+              .insert(profileData)
+              .select()
+              .maybeSingle();
+            
+            if (createError2) {
+              console.error("Auto-profile creation failed:", createError2);
+            } else if (created2) {
+              data = created2;
+            }
+          } else if (created) {
+            data = created;
+          }
+        } catch (e) {
+          console.error("Critical error in profile creation:", e);
         }
       }
 
       if (data) {
-        setProfile(data as UserProfile);
+        // Ensure role is normalized for our app
+        const normalizedRole = (data.role || "student").toString().toLowerCase() as UserRole;
+        setProfile({
+          ...data,
+          role: normalizedRole,
+          fullname: data.fullname || data.name || data.email.split('@')[0],
+          username: data.username || data.email.split('@')[0]
+        } as UserProfile);
       } else {
         setFetchError("NOT_REGISTERED");
       }
@@ -276,8 +320,9 @@ export default function App() {
                   </div>
                   <p className="text-[9px] text-slate-500">To allow yourself as a <span className="text-slate-900 font-bold">Teacher</span>, run this in Supabase SQL Editor:</p>
                   <pre className="text-[9px] text-emerald-600 font-mono overflow-x-auto whitespace-pre p-2 bg-white rounded-lg border border-slate-200">
-{`INSERT INTO public.profiles (id, email, fullname, username, role)
-VALUES ('${user?.id}', '${user?.email}', '${user?.email?.split('@')[0]}', '${user?.email?.split('@')[0]}', 'teacher');`}
+{`INSERT INTO public.profiles (id, email, fullname, name, username, role)
+VALUES ('${user?.id}', '${user?.email}', '${user?.email?.split('@')[0]}', '${user?.email?.split('@')[0]}', '${user?.email?.split('@')[0].replace(/[^a-zA-Z0-9]/g, '').toLowerCase()}', 'teacher')
+ON CONFLICT (id) DO UPDATE SET role = 'teacher';`}
                   </pre>
                 </div>
 
@@ -290,21 +335,30 @@ VALUES ('${user?.id}', '${user?.email}', '${user?.email?.split('@')[0]}', '${use
                     <p className="text-[9px] text-slate-500 font-medium">Classroom video engine is online and configured.</p>
                   </div>
                 </div>
-
-                <div className="bg-brand-blue/5 p-4 rounded-xl border border-brand-blue/10 flex flex-col gap-2">
-                  <div className="flex items-center gap-2">
-                    <Video className="h-3 w-3 text-brand-blue" />
-                    <p className="text-[10px] text-brand-blue font-black uppercase tracking-widest">Camera Permissions Tip</p>
-                  </div>
-                  <p className="text-[9px] text-slate-500 font-medium leading-relaxed">
-                    If camera access fails, click the <strong>"Open in New Tab"</strong> button in the stream player or your browser's address bar to enable permissions.
-                  </p>
-                </div>
               </div>
 
               <p className="text-[10px] text-slate-400 italic text-center pt-2">
                 After running the SQL, click "Retry Access" below.
               </p>
+            </div>
+          ) : profile?.role?.toString().toLowerCase() === 'guest' ? (
+            <div className="space-y-6 text-center">
+               <div className="flex justify-center">
+                  <div className="h-12 w-12 bg-amber-50 rounded-xl flex items-center justify-center border border-amber-200">
+                    <Loader2 className="h-6 w-6 text-amber-500 animate-spin" />
+                  </div>
+               </div>
+               <div className="space-y-2">
+                 <p className="text-slate-900 font-black uppercase italic tracking-tighter text-xl">Approval Pending</p>
+                 <p className="text-slate-500 text-xs font-medium px-4">
+                   Your account is active, but a <span className="text-brand-blue font-bold">Manager</span> must approve your access before you can join classes.
+                 </p>
+               </div>
+               <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-left">
+                  <p className="text-[9px] text-slate-400 uppercase font-black tracking-widest mb-2">Request Info</p>
+                  <p className="text-[10px] text-slate-600">ID: <span className="font-mono">{user?.id}</span></p>
+                  <p className="text-[10px] text-slate-600">Email: {user?.email}</p>
+               </div>
             </div>
           ) : fetchError === 'TABLES_MISSING' ? (
             <div className="space-y-6 text-left">
@@ -551,7 +605,7 @@ CREATE TABLE public.room_messages (
 
   return (
     <AnimatePresence mode="wait">
-      {profile.role === "teacher" ? (
+      {profile.role?.toString().toLowerCase() === "teacher" ? (
         <TeacherDashboard key="teacher" profile={profile} />
       ) : (
         <StudentDashboard key="student" profile={profile} />
