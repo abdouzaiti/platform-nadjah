@@ -109,6 +109,10 @@ BEGIN
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='room_messages') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='room_messages' AND column_name='message_text') THEN
         ALTER TABLE public.room_messages ADD COLUMN message_text text;
     END IF;
+    -- Ensure user_avatar exists
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='room_messages') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='room_messages' AND column_name='user_avatar') THEN
+        ALTER TABLE public.room_messages ADD COLUMN user_avatar text;
+    END IF;
     -- Ensure live_password is nullable
     IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='live_sessions' AND column_name='live_password' AND is_nullable = 'NO') THEN
         ALTER TABLE public.live_sessions ALTER COLUMN live_password DROP NOT NULL;
@@ -159,10 +163,14 @@ CREATE TABLE IF NOT EXISTS public.room_messages (
   room_id uuid REFERENCES public.class_rooms(id) ON DELETE CASCADE NOT NULL,
   user_id uuid REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
   message_text text NOT NULL,
+  content text,
   user_name text,
   user_avatar text,
   created_at timestamp with time zone DEFAULT now()
 );
+
+-- Force add column
+ALTER TABLE public.room_messages ADD COLUMN IF NOT EXISTS content text;
 
 CREATE TABLE IF NOT EXISTS public.recordings (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
