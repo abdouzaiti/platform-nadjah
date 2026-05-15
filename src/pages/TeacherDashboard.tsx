@@ -153,6 +153,8 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
         .eq("room_id", room.id)
         .eq("status", "live")
         .maybeSingle();
+      
+      if (checkError) throw checkError;
 
       if (existing) {
         setActiveRoom(room);
@@ -176,7 +178,8 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
       setActiveRoom(room);
       setActiveSession(data as LiveSession);
     } catch (err: any) {
-      alert(err.message);
+      console.error("GoLive error:", err);
+      alert(`Failed to start live: ${err.message}`);
     } finally {
       setLoading(false);
     }
