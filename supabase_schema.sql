@@ -105,6 +105,10 @@ BEGIN
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='room_messages') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='room_messages' AND column_name='user_id') THEN
         ALTER TABLE public.room_messages ADD COLUMN user_id uuid REFERENCES public.profiles(id);
     END IF;
+    -- Ensure live_password is nullable
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='live_sessions' AND column_name='live_password' AND is_nullable = 'NO') THEN
+        ALTER TABLE public.live_sessions ALTER COLUMN live_password DROP NOT NULL;
+    END IF;
 END $$;
 
 CREATE TABLE IF NOT EXISTS public.teacher_communities (
@@ -189,6 +193,18 @@ GRANT SELECT ON public.class_rooms TO anon;
 -- DROP AND RECREATE POLICIES
 DROP POLICY IF EXISTS "Profiles are viewable by everyone" ON public.profiles;
 DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Communities viewable by all" ON public.teacher_communities;
+DROP POLICY IF EXISTS "Teachers manage communities" ON public.teacher_communities;
+DROP POLICY IF EXISTS "Rooms viewable by all" ON public.class_rooms;
+DROP POLICY IF EXISTS "Teachers manage rooms" ON public.class_rooms;
+DROP POLICY IF EXISTS "Members view memberships" ON public.room_members;
+DROP POLICY IF EXISTS "Users join rooms" ON public.room_members;
+DROP POLICY IF EXISTS "Messages viewable" ON public.room_messages;
+DROP POLICY IF EXISTS "Post messages" ON public.room_messages;
+DROP POLICY IF EXISTS "Live sessions viewable" ON public.live_sessions;
+DROP POLICY IF EXISTS "Teachers manage live" ON public.live_sessions;
+DROP POLICY IF EXISTS "Recordings viewable" ON public.recordings;
+DROP POLICY IF EXISTS "Teachers manage recordings" ON public.recordings;
 
 CREATE POLICY "Profiles are viewable by everyone" ON public.profiles FOR SELECT USING (true);
 CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
@@ -205,6 +221,12 @@ CREATE POLICY "Users join rooms" ON public.room_members FOR INSERT WITH CHECK (a
 
 CREATE POLICY "Messages viewable" ON public.room_messages FOR SELECT USING (EXISTS (SELECT 1 FROM public.room_members WHERE room_id = room_messages.room_id AND user_id = auth.uid()) OR EXISTS (SELECT 1 FROM public.class_rooms r JOIN public.teacher_communities c ON r.community_id = c.id WHERE r.id = room_id AND c.teacher_id = auth.uid()));
 CREATE POLICY "Post messages" ON public.room_messages FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Live sessions viewable" ON public.live_sessions FOR SELECT USING (EXISTS (SELECT 1 FROM public.room_members WHERE room_id = live_sessions.room_id AND user_id = auth.uid()) OR EXISTS (SELECT 1 FROM public.class_rooms r JOIN public.teacher_communities c ON r.community_id = c.id WHERE r.id = room_id AND c.teacher_id = auth.uid()));
+CREATE POLICY "Teachers manage live" ON public.live_sessions FOR ALL USING (EXISTS (SELECT 1 FROM public.class_rooms r JOIN public.teacher_communities c ON r.community_id = c.id WHERE r.id = room_id AND c.teacher_id = auth.uid())) WITH CHECK (EXISTS (SELECT 1 FROM public.class_rooms r JOIN public.teacher_communities c ON r.community_id = c.id WHERE r.id = room_id AND c.teacher_id = auth.uid()));
+
+CREATE POLICY "Recordings viewable" ON public.recordings FOR SELECT USING (EXISTS (SELECT 1 FROM public.room_members JOIN public.live_sessions ON room_members.room_id = live_sessions.room_id WHERE recordings.live_session_id = live_sessions.id AND user_id = auth.uid()) OR EXISTS (SELECT 1 FROM public.class_rooms r JOIN public.teacher_communities c ON r.community_id = c.id JOIN public.live_sessions l ON r.id = l.room_id WHERE l.id = live_session_id AND c.teacher_id = auth.uid()));
+CREATE POLICY "Teachers manage recordings" ON public.recordings FOR ALL USING (EXISTS (SELECT 1 FROM public.class_rooms r JOIN public.teacher_communities c ON r.community_id = c.id JOIN public.live_sessions l ON r.id = l.room_id WHERE l.id = live_session_id AND c.teacher_id = auth.uid())) WITH CHECK (EXISTS (SELECT 1 FROM public.class_rooms r JOIN public.teacher_communities c ON r.community_id = c.id JOIN public.live_sessions l ON r.id = l.room_id WHERE l.id = live_session_id AND c.teacher_id = auth.uid()));
 
 -- SEED DATA
 INSERT INTO levels (id, name) VALUES 

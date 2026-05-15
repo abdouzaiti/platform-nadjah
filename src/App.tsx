@@ -371,6 +371,19 @@ BEGIN
     UNIQUE(room_id, user_id)
   );
 
+  CREATE TABLE IF NOT EXISTS public.live_sessions (
+    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+    room_id uuid REFERENCES public.class_rooms(id) ON DELETE CASCADE NOT NULL,
+    title text NOT NULL,
+    live_password text,
+    status text CHECK (status IN ('live', 'ended', 'scheduled', 'LIVE', 'ENDED', 'SCHEDULED')) NOT NULL DEFAULT 'scheduled',
+    started_at timestamp with time zone,
+    ended_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now()
+  );
+
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='live_sessions' AND column_name='live_password' AND is_nullable = 'NO') THEN ALTER TABLE public.live_sessions ALTER COLUMN live_password DROP NOT NULL; END IF;
+
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='teacher_communities' AND column_name='community_password') THEN ALTER TABLE public.teacher_communities ADD COLUMN community_password text; END IF;
 
   -- Enable RLS
@@ -390,6 +403,12 @@ BEGIN
   -- 2. Drop any legacy policies
   DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
   DROP POLICY IF EXISTS "Profiles are viewable by everyone" ON public.profiles;
+  DROP POLICY IF EXISTS "Communities viewable by all" ON public.teacher_communities;
+  DROP POLICY IF EXISTS "Teachers manage communities" ON public.teacher_communities;
+  DROP POLICY IF EXISTS "Rooms viewable by all" ON public.class_rooms;
+  DROP POLICY IF EXISTS "Teachers manage rooms" ON public.class_rooms;
+  DROP POLICY IF EXISTS "Members view memberships" ON public.room_members;
+  DROP POLICY IF EXISTS "Users join rooms" ON public.room_members;
 
   -- 3. Lookup user from auth.users
   SELECT id INTO target_user_id FROM auth.users WHERE email = target_email;
