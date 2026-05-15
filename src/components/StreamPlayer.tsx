@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
 import ReactPlayer from "react-player";
 import { UserProfile, ChatMessageData, ClassRoom, TeacherCommunity, LiveSession } from "../types";
-import { Send, Users, Heart, Share2, MoreHorizontal, X, MessageCircle, Play, VideoOff, Save, Check, Maximize2, Minimize2, Eye, EyeOff, RefreshCw, Loader2, LogOut } from "lucide-react";
+import { Send, Users, Heart, Share2, MoreHorizontal, X, MessageCircle, Play, VideoOff, Save, Check, Maximize2, Minimize2, Eye, EyeOff, RefreshCw, Loader2, LogOut, Megaphone, Radio } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { motion, AnimatePresence } from "motion/react";
 import { formatDate, cn } from "../lib/utils";
 import { createAgoraClient, joinChannel, createTracks, leaveChannel, createRTMClient, AgoraRTC } from "../lib/agora";
 import AgoraPlayer from "./AgoraPlayer";
+import RoomSidebar from "./RoomSidebar";
 import { IAgoraRTCClient, ICameraVideoTrack, IMicrophoneAudioTrack, IRemoteVideoTrack } from "agora-rtc-sdk-ng";
 import AgoraRTM from "agora-rtm-sdk";
 import { useTranslation } from "react-i18next";
@@ -30,6 +31,8 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
   const [hideComments, setHideComments] = useState(false);
   const [liveViewers, setLiveViewers] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [sidebarActiveTab, setSidebarActiveTab] = useState("announcements");
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -469,6 +472,12 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                </button>
                <button onClick={toggleFlipCamera} className="h-10 w-10 rounded-full flex items-center justify-center bg-white border border-white shadow-md text-slate-400">
                  <RefreshCw className="h-4 w-4" />
+               </button>
+               <button 
+                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                 className="h-10 w-10 rounded-full flex items-center justify-center bg-white border border-white shadow-md text-slate-800"
+               >
+                 {isSidebarOpen ? <X className="h-4 w-4" /> : <MoreHorizontal className="h-4 w-4" />}
                </button>
                {onClose && (
                  <button onClick={onClose} className="h-10 w-10 rounded-full flex items-center justify-center bg-white border border-white shadow-md text-slate-500">
