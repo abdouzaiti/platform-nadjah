@@ -73,15 +73,39 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
     }
   };
 
+  React.useEffect(() => {
+    if (activeTab === 'discover' && searchResults.length === 0 && !searchQuery) {
+      const fetchTopCommunities = async () => {
+        setLoading(true);
+        try {
+          const { data, error } = await supabase
+            .from("teacher_communities")
+            .select("*")
+            .limit(20)
+            .order('created_at', { ascending: false });
+          if (error) throw error;
+          setSearchResults(data as TeacherCommunity[]);
+        } catch (error) {
+          console.error("Top communities error:", error);
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchTopCommunities();
+    }
+  }, [activeTab]);
+
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!searchQuery.trim()) return;
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("teacher_communities")
-        .select("*")
-        .ilike("community_username", `%${searchQuery}%`);
+      let query = supabase.from("teacher_communities").select("*");
+      if (searchQuery.trim()) {
+        query = query.or(`community_username.ilike.%${searchQuery}%,community_name.ilike.%${searchQuery}%`);
+      } else {
+        query = query.limit(20).order('created_at', { ascending: false });
+      }
+      const { data, error } = await query;
       
       if (error) throw error;
       setSearchResults(data as TeacherCommunity[]);

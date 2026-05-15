@@ -325,6 +325,15 @@ DECLARE
   target_user_id uuid;
   target_email text := '${user?.email || 'test@example.com'}';
 BEGIN 
+  -- 0. Ensure profiles table exists
+  CREATE TABLE IF NOT EXISTS public.profiles (
+    id uuid REFERENCES auth.users NOT NULL PRIMARY KEY,
+    email text NOT NULL,
+    role text CHECK (role IN ('admin', 'teacher', 'student', 'ADMIN', 'TEACHER', 'STUDENT', 'GUEST')) NOT NULL DEFAULT 'GUEST',
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now()
+  );
+
   -- 1. Ensure profile columns exist
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='name') THEN ALTER TABLE public.profiles ADD COLUMN name text; END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='fullname') THEN ALTER TABLE public.profiles ADD COLUMN fullname text; END IF;
@@ -364,6 +373,15 @@ BEGIN
   ALTER TABLE public.class_rooms ENABLE ROW LEVEL SECURITY;
   ALTER TABLE public.room_members ENABLE ROW LEVEL SECURITY;
 
+  -- Ensure Postgres role permissions
+  GRANT ALL ON public.teacher_communities TO authenticated;
+  GRANT ALL ON public.class_rooms TO authenticated;
+  GRANT ALL ON public.room_members TO authenticated;
+  GRANT ALL ON public.profiles TO authenticated;
+  GRANT SELECT ON public.teacher_communities TO anon;
+  GRANT SELECT ON public.class_rooms TO anon;
+  GRANT SELECT ON public.profiles TO anon;
+
   -- 2. Drop any legacy policies
   DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
   DROP POLICY IF EXISTS "Profiles are viewable by everyone" ON public.profiles;
@@ -392,12 +410,12 @@ BEGIN
   DROP POLICY IF EXISTS "Communities viewable by all" ON public.teacher_communities;
   DROP POLICY IF EXISTS "Teachers manage communities" ON public.teacher_communities;
   CREATE POLICY "Communities viewable by all" ON public.teacher_communities FOR SELECT USING (true);
-  CREATE POLICY "Teachers manage communities" ON public.teacher_communities FOR ALL USING (auth.uid() = teacher_id);
+  CREATE POLICY "Teachers manage communities" ON public.teacher_communities FOR ALL USING (auth.uid() = teacher_id) WITH CHECK (auth.uid() = teacher_id);
 
   DROP POLICY IF EXISTS "Rooms viewable by all" ON public.class_rooms;
   DROP POLICY IF EXISTS "Teachers manage rooms" ON public.class_rooms;
   CREATE POLICY "Rooms viewable by all" ON public.class_rooms FOR SELECT USING (true);
-  CREATE POLICY "Teachers manage rooms" ON public.class_rooms FOR ALL USING (EXISTS (SELECT 1 FROM public.teacher_communities WHERE id = community_id AND teacher_id = auth.uid()));
+  CREATE POLICY "Teachers manage rooms" ON public.class_rooms FOR ALL USING (EXISTS (SELECT 1 FROM public.teacher_communities WHERE id = community_id AND teacher_id = auth.uid())) WITH CHECK (EXISTS (SELECT 1 FROM public.teacher_communities WHERE id = community_id AND teacher_id = auth.uid()));
 
   DROP POLICY IF EXISTS "Members view memberships" ON public.room_members;
   DROP POLICY IF EXISTS "Users join rooms" ON public.room_members;

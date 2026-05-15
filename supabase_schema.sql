@@ -173,6 +173,17 @@ ALTER TABLE levels ENABLE ROW LEVEL SECURITY;
 ALTER TABLE years ENABLE ROW LEVEL SECURITY;
 ALTER TABLE registration_requests ENABLE ROW LEVEL SECURITY;
 
+GRANT ALL ON public.profiles TO authenticated;
+GRANT ALL ON public.teacher_communities TO authenticated;
+GRANT ALL ON public.class_rooms TO authenticated;
+GRANT ALL ON public.room_members TO authenticated;
+GRANT ALL ON public.live_sessions TO authenticated;
+GRANT ALL ON public.room_messages TO authenticated;
+GRANT ALL ON public.recordings TO authenticated;
+GRANT SELECT ON public.profiles TO anon;
+GRANT SELECT ON public.teacher_communities TO anon;
+GRANT SELECT ON public.class_rooms TO anon;
+
 -- DROP AND RECREATE POLICIES
 DROP POLICY IF EXISTS "Profiles are viewable by everyone" ON public.profiles;
 DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
@@ -182,10 +193,10 @@ CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING
 
 -- Modular system policies
 CREATE POLICY "Communities viewable by all" ON public.teacher_communities FOR SELECT USING (true);
-CREATE POLICY "Teachers manage communities" ON public.teacher_communities FOR ALL USING (auth.uid() = teacher_id);
+CREATE POLICY "Teachers manage communities" ON public.teacher_communities FOR ALL USING (auth.uid() = teacher_id) WITH CHECK (auth.uid() = teacher_id);
 
 CREATE POLICY "Rooms viewable by all" ON public.class_rooms FOR SELECT USING (true);
-CREATE POLICY "Teachers manage rooms" ON public.class_rooms FOR ALL USING (EXISTS (SELECT 1 FROM public.teacher_communities WHERE id = community_id AND teacher_id = auth.uid()));
+CREATE POLICY "Teachers manage rooms" ON public.class_rooms FOR ALL USING (EXISTS (SELECT 1 FROM public.teacher_communities WHERE id = community_id AND teacher_id = auth.uid())) WITH CHECK (EXISTS (SELECT 1 FROM public.teacher_communities WHERE id = community_id AND teacher_id = auth.uid()));
 
 CREATE POLICY "Members view memberships" ON public.room_members FOR SELECT USING (auth.uid() = user_id OR EXISTS (SELECT 1 FROM public.class_rooms r JOIN public.teacher_communities c ON r.community_id = c.id WHERE r.id = room_id AND c.teacher_id = auth.uid()));
 CREATE POLICY "Users join rooms" ON public.room_members FOR INSERT WITH CHECK (auth.uid() = user_id);
