@@ -61,7 +61,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
         setMessages(data.map(m => ({
           id: m.id,
           room_id: m.room_id,
-          message: m.content || m.message_text,
+          message: m.message,
           sender_id: m.user_id,
           sender_name: m.user_name,
           sender_avatar: m.user_avatar,
@@ -90,7 +90,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
           const newMsg: ChatMessageData = {
             id: payload.new.id,
             room_id: payload.new.room_id,
-            message: payload.new.content || payload.new.message_text,
+            message: payload.new.message,
             sender_id: payload.new.user_id,
             sender_name: payload.new.user_name,
             sender_avatar: payload.new.user_avatar,
@@ -258,7 +258,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
         user_id: profile.id,
         user_name: profile.fullname,
         user_avatar: profile.avatar_url,
-        content: chatMessage
+        message: chatMessage
       };
 
       const { data, error } = await supabase.from("room_messages").insert(msgData).select().single();
@@ -268,7 +268,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
         const payload: ChatMessageData = {
           id: data.id,
           room_id: data.room_id,
-          message: data.content || data.message_text,
+          message: data.message,
           sender_id: data.user_id,
           sender_name: data.user_name,
           sender_avatar: data.user_avatar,

@@ -166,15 +166,12 @@ CREATE TABLE IF NOT EXISTS public.room_messages (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   room_id uuid REFERENCES public.class_rooms(id) ON DELETE CASCADE NOT NULL,
   user_id uuid REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
-  message_text text NOT NULL,
+  message text NOT NULL,
   content text,
   user_name text,
   user_avatar text,
   created_at timestamp with time zone DEFAULT now()
 );
-
--- Force add column
-ALTER TABLE public.room_messages ADD COLUMN IF NOT EXISTS content text;
 
 CREATE TABLE IF NOT EXISTS public.recordings (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -182,6 +179,16 @@ CREATE TABLE IF NOT EXISTS public.recordings (
   video_url text NOT NULL,
   created_at timestamp with time zone DEFAULT now()
 );
+
+-- Migrate legacy message_text if needed
+DO $$ 
+BEGIN 
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='room_messages' AND column_name='message_text') 
+       AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='room_messages' AND column_name='message') THEN
+        ALTER TABLE public.room_messages RENAME COLUMN message_text TO message;
+    END IF;
+END $$;
+
 
 -- Enable RLS
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
