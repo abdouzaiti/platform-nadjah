@@ -105,6 +105,10 @@ BEGIN
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='room_messages') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='room_messages' AND column_name='user_id') THEN
         ALTER TABLE public.room_messages ADD COLUMN user_id uuid REFERENCES public.profiles(id);
     END IF;
+    -- Ensure message_text exists
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='room_messages') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='room_messages' AND column_name='message_text') THEN
+        ALTER TABLE public.room_messages ADD COLUMN message_text text;
+    END IF;
     -- Ensure live_password is nullable
     IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='live_sessions' AND column_name='live_password' AND is_nullable = 'NO') THEN
         ALTER TABLE public.live_sessions ALTER COLUMN live_password DROP NOT NULL;
