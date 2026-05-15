@@ -16,21 +16,45 @@ export default function App() {
   const [profileLoading, setProfileLoading] = React.useState(false);
   const [fetchError, setFetchError] = React.useState<string | null>(null);
   const [authError, setAuthError] = React.useState<string | null>(null);
+  const [authMode, setAuthMode] = React.useState<"signin" | "signup">("signin");
+
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [authLoading, setAuthLoading] = React.useState(false);
 
-  const fetchProfile = React.useCallback(async (userId: string) => {
+  const fetchProfile = React.useCallback(async (userId: string, userEmail?: string) => {
     setProfileLoading(true);
     setFetchError(null);
     try {
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from("profiles")
         .select("*")
         .eq("id", userId)
         .maybeSingle();
 
       if (error) throw error;
+
+      // Auto-create profile if missing and we have an email
+      if (!data && userEmail) {
+        const username = userEmail.split('@')[0].replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+        const { data: created, error: createError } = await supabase
+          .from("profiles")
+          .insert({
+            id: userId,
+            email: userEmail,
+            fullname: userEmail.split('@')[0],
+            username: username,
+            role: 'teacher'
+          })
+          .select()
+          .maybeSingle();
+        
+        if (createError) {
+          console.error("Auto-profile creation failed:", createError);
+        } else if (created) {
+          data = created;
+        }
+      }
 
       if (data) {
         setProfile(data as UserProfile);
@@ -55,7 +79,7 @@ export default function App() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       if (session?.user) {
-        fetchProfile(session.user.id);
+        fetchProfile(session.user.id, session.user.email);
       }
       setLoading(false);
     });
@@ -67,7 +91,7 @@ export default function App() {
       setUser(currentUser);
       
       if (currentUser) {
-        fetchProfile(currentUser.id);
+        fetchProfile(currentUser.id, currentUser.email);
         setFetchError(null);
       } else {
         setProfile(null);
@@ -100,7 +124,7 @@ export default function App() {
     }
   };
 
-  const signInWithEmail = async (e: React.FormEvent) => {
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) return;
     
@@ -108,11 +132,25 @@ export default function App() {
     setAuthError(null);
     
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      if (error) throw error;
+      if (authMode === "signin") {
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              fullname: email.split('@')[0],
+            }
+          }
+        });
+        if (error) throw error;
+        setAuthError("CONFIRM_REQUIRED: Account created! Please check your email for the confirmation link or ask the admin to auto-confirm your account.");
+      }
     } catch (err: any) {
       console.error("Auth error details:", err);
       const msg = err.message || "";
@@ -441,7 +479,7 @@ CREATE TABLE public.room_messages (
               </motion.div>
             )}
 
-            <form onSubmit={signInWithEmail} className="space-y-3">
+            <form onSubmit={handleAuth} className="space-y-3">
               <div className="relative group">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-brand-blue transition-colors" />
                 <input 
@@ -469,14 +507,19 @@ CREATE TABLE public.room_messages (
                 disabled={authLoading}
                 className="w-full bg-brand-blue hover:bg-blue-600 disabled:opacity-50 text-white font-black py-4 rounded-2xl text-xs uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3 shadow-lg shadow-blue-500/20"
               >
-                {authLoading ? t('authenticating') : t('access_dashboard')}
+                {authLoading ? t('authenticating') : (authMode === 'signin' ? t('access_dashboard') : 'Create Account')}
                 {!authLoading && <ArrowRight className={cn("h-4 w-4", i18n.language === 'ar' ? "rotate-180" : "")} />}
               </button>
             </form>
             
-            <p className="text-[10px] text-slate-400 font-medium text-center px-4 leading-relaxed">
-              Don't have an account? Access is granted manually by the <span className="text-slate-500 font-bold">School Administrator</span> after verification.
-            </p>
+            <div className="text-center">
+              <button 
+                onClick={() => setAuthMode(authMode === 'signin' ? 'signup' : 'signin')}
+                className="text-[10px] text-slate-500 font-bold hover:text-brand-blue transition-colors uppercase tracking-widest"
+              >
+                {authMode === 'signin' ? "Don't have an account? Sign Up" : "Already have an account? Sign In"}
+              </button>
+            </div>
 
             <div className="relative flex items-center py-2">
                   <div className="flex-grow border-t border-slate-100"></div>
