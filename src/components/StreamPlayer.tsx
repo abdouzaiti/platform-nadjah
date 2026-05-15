@@ -159,6 +159,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
         }
 
         // RTC Join - Using room.id as channel name
+        const tracksPromise = isTeacherView ? createTracks() : null;
         await joinChannel(client, room.id, profile.id, isTeacherView ? "host" : "audience");
         
         const updateViewers = () => {
@@ -209,9 +210,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
         }
 
         if (isTeacherView) {
-          const timeout = setTimeout(() => setInitTakingLong(true), 8000);
-          const tracks = await createTracks();
-          clearTimeout(timeout);
+          const tracks = await tracksPromise!;
           setLocalTracks(tracks);
           
           const tracksToPublish: any[] = [tracks.audioTrack];
