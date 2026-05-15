@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import ReactPlayer from "react-player";
 import { UserProfile, ChatMessageData, ClassRoom, TeacherCommunity, LiveSession } from "../types";
-import { Send, Users, Heart, Share2, MoreHorizontal, X, MessageCircle, Play, VideoOff, Save, Check, Maximize2, Minimize2, Eye, EyeOff, RefreshCw, Loader2 } from "lucide-react";
+import { Send, Users, Heart, Share2, MoreHorizontal, X, MessageCircle, Play, VideoOff, Save, Check, Maximize2, Minimize2, Eye, EyeOff, RefreshCw, Loader2, LogOut } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { motion, AnimatePresence } from "motion/react";
 import { formatDate, cn } from "../lib/utils";
@@ -470,6 +470,11 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                <button onClick={toggleFlipCamera} className="h-10 w-10 rounded-full flex items-center justify-center bg-white border border-white shadow-md text-slate-400">
                  <RefreshCw className="h-4 w-4" />
                </button>
+               {onClose && (
+                 <button onClick={onClose} className="h-10 w-10 rounded-full flex items-center justify-center bg-white border border-white shadow-md text-slate-500">
+                   <LogOut className="h-4 w-4" />
+                 </button>
+               )}
                <button onClick={() => setIsEnding(true)} className="h-10 w-10 rounded-full flex items-center justify-center bg-red-500 text-white shadow-md hover:bg-red-600">
                  <X className="h-4 w-4" />
                </button>
