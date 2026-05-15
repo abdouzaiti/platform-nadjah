@@ -144,7 +144,7 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
   };
 
   const joinRoom = async (room: ClassRoom) => {
-    if (selectedCommunity?.community_password) {
+    if (selectedCommunity?.community_password || room.room_password) {
       setPasswordModal({ isOpen: true, community: selectedCommunity, action: 'join', room: room });
       return;
     }
@@ -173,14 +173,23 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
 
   const handlePasswordSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (enteredPassword !== passwordModal.community?.community_password) {
+    const { action, community, room } = passwordModal;
+    
+    let expectedPassword = "";
+    if (action === 'view') {
+      expectedPassword = community?.community_password || "";
+    } else if (action === 'join') {
+      expectedPassword = room?.room_password || community?.community_password || "";
+    }
+
+    if (enteredPassword !== expectedPassword) {
       setPasswordError("Incorrect password");
       return;
     }
     setPasswordError("");
-    const { action, community, room } = passwordModal;
     setPasswordModal({ isOpen: false, community: null, action: 'view', room: null });
     setEnteredPassword("");
+    
     if (action === 'view' && community) {
       proceedViewCommunity(community);
     } else if (action === 'join' && room) {
@@ -352,6 +361,7 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
                         <div>
                           <p className="text-[10px] font-black uppercase text-slate-400 leading-none mb-1">{room.room_type}</p>
                           <h4 className="text-sm font-black uppercase text-slate-900">{room.room_name}</h4>
+                          {room.room_username && <p className="text-[9px] font-bold text-brand-blue/70">@{room.room_username}</p>}
                         </div>
                       </div>
                       
@@ -431,7 +441,7 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
             <div className="text-center space-y-2">
               <h3 className="font-display text-2xl font-black uppercase italic text-slate-900">Enter Password</h3>
               <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">
-                {passwordModal.community?.community_name}
+                {passwordModal.action === 'join' && passwordModal.room ? passwordModal.room.room_name : passwordModal.community?.community_name}
               </p>
             </div>
             

@@ -121,6 +121,8 @@ CREATE TABLE IF NOT EXISTS public.class_rooms (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   community_id uuid REFERENCES public.teacher_communities(id) ON DELETE CASCADE NOT NULL,
   room_name text NOT NULL,
+  room_username text,
+  room_password text,
   room_type text CHECK (room_type IN ('chat', 'live', 'announcements', 'files')) NOT NULL DEFAULT 'chat',
   created_at timestamp with time zone DEFAULT now()
 );

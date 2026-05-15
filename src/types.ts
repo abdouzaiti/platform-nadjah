@@ -27,6 +27,8 @@ export interface ClassRoom {
   id: string;
   community_id: string;
   room_name: string;
+  room_username?: string;
+  room_password?: string;
   room_type: RoomType;
   created_at: string;
 }

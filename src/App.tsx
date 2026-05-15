@@ -354,9 +354,14 @@ BEGIN
     id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
     community_id uuid REFERENCES public.teacher_communities(id) ON DELETE CASCADE NOT NULL,
     room_name text NOT NULL,
+    room_username text,
+    room_password text,
     room_type text CHECK (room_type IN ('chat', 'live', 'announcements', 'files')) NOT NULL DEFAULT 'chat',
     created_at timestamp with time zone DEFAULT now()
   );
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='class_rooms' AND column_name='room_username') THEN ALTER TABLE public.class_rooms ADD COLUMN room_username text; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='class_rooms' AND column_name='room_password') THEN ALTER TABLE public.class_rooms ADD COLUMN room_password text; END IF;
 
   CREATE TABLE IF NOT EXISTS public.room_members (
     id uuid DEFAULT gen_random_uuid() PRIMARY KEY,

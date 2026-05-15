@@ -28,6 +28,8 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
 
   // Create Room State
   const [roomName, setRoomName] = React.useState("");
+  const [roomUsername, setRoomUsername] = React.useState("");
+  const [roomPassword, setRoomPassword] = React.useState("");
   const [roomType, setRoomType] = React.useState<RoomType>("live");
 
   // Active Session State
@@ -120,14 +122,22 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
         .insert({
           community_id: community.id,
           room_name: roomName,
+          room_username: roomUsername,
+          room_password: roomPassword,
           room_type: roomType
         });
 
       if (error) throw error;
       setRoomName("");
+      setRoomUsername("");
+      setRoomPassword("");
       setActiveTab("rooms");
     } catch (err: any) {
-      alert(err.message);
+      if (err.message?.includes('room_username')) {
+        alert("This room username is already in use or the column doesn't exist. Please run the Quick Fix SQL from the dashboard.");
+      } else {
+        alert(err.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -330,6 +340,25 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                         className="w-full bg-slate-50 border border-slate-100 p-4 rounded-2xl font-bold outline-none focus:border-brand-blue transition-all"
                       />
                     </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Room Username (Optional)</label>
+                      <input 
+                        value={roomUsername}
+                        onChange={(e) => setRoomUsername(e.target.value.toLowerCase().replace(/\s/g, ''))}
+                        placeholder="live_class_bac"
+                        className="w-full bg-slate-50 border border-slate-100 p-4 rounded-2xl font-mono text-sm outline-none focus:border-brand-blue transition-all"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Room Password (Optional)</label>
+                      <input 
+                        type="password"
+                        value={roomPassword}
+                        onChange={(e) => setRoomPassword(e.target.value)}
+                        placeholder="Leave blank for public room"
+                        className="w-full bg-slate-50 border border-slate-100 p-4 rounded-2xl font-mono text-sm outline-none focus:border-brand-blue transition-all"
+                      />
+                    </div>
                     <div className="grid grid-cols-2 gap-4">
                       {(['live', 'chat', 'announcements', 'files'] as RoomType[]).map((type) => (
                         <button
@@ -394,6 +423,7 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                         <div>
                           <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 leading-none mb-1">{room.room_type}</p>
                           <h4 className="text-sm font-black uppercase text-slate-900 tracking-tight">{room.room_name}</h4>
+                          {room.room_username && <p className="text-[9px] font-bold text-brand-blue/70">@{room.room_username}</p>}
                         </div>
                       </div>
 
