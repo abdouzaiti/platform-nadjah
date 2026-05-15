@@ -76,9 +76,12 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
     };
   }, [profile.id]);
 
+  const [schemaError, setSchemaError] = React.useState<string | null>(null);
+
   const handleCreateCommunity = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setSchemaError(null);
     try {
       const { data, error } = await supabase
         .from("teacher_communities")
@@ -95,7 +98,11 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
       if (error) throw error;
       setCommunity(data as TeacherCommunity);
     } catch (err: any) {
-      alert(err.message);
+      if (err.message?.includes('community_password')) {
+        setSchemaError("ALTER TABLE public.teacher_communities ADD COLUMN community_password text;");
+      } else {
+        alert(err.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -266,6 +273,15 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                   />
                   <p className="text-[10px] text-slate-400 italic">Students will need this password to join your community.</p>
                 </div>
+                {schemaError && (
+                  <div className="bg-red-50 p-4 rounded-xl border border-red-200 space-y-2">
+                    <p className="text-red-600 text-xs font-bold">Database Error:</p>
+                    <p className="text-red-500 text-[10px]">Please run this in your Supabase SQL Editor to add the missing password column:</p>
+                    <pre className="text-[10px] bg-white p-2 rounded border border-red-100 overflow-x-auto text-red-600 font-mono">
+                      {schemaError}
+                    </pre>
+                  </div>
+                )}
                 <button 
                   disabled={loading}
                   type="submit"

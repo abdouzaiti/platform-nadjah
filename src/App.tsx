@@ -330,6 +330,9 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='fullname') THEN ALTER TABLE public.profiles ADD COLUMN fullname text; END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='username') THEN ALTER TABLE public.profiles ADD COLUMN username text; END IF;
   
+  -- 1.5 Ensure community_password exists
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='teacher_communities' AND column_name='community_password') THEN ALTER TABLE public.teacher_communities ADD COLUMN community_password text; END IF;
+
   -- 2. Drop any legacy policies
   DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
   DROP POLICY IF EXISTS "Profiles are viewable by everyone" ON public.profiles;
