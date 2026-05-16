@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import ReactPlayer from "react-player";
 import { UserProfile, ChatMessageData, ClassRoom, TeacherCommunity, LiveSession } from "../types";
-import { Send, Users, Heart, Share2, MoreHorizontal, X, MessageCircle, Play, VideoOff, Save, Check, Maximize2, Minimize2, Eye, EyeOff, RefreshCw, Loader2, LogOut, Megaphone, Radio } from "lucide-react";
+import { Send, Users, Heart, Share2, MoreHorizontal, X, MessageCircle, Play, VideoOff, Save, Check, Maximize2, Minimize2, Eye, EyeOff, RefreshCw, Loader2, LogOut, Megaphone, Radio, Trash2 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { motion, AnimatePresence } from "motion/react";
 import { formatDate, cn } from "../lib/utils";
@@ -226,6 +226,9 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                 if (privateChatScrollRef.current) privateChatScrollRef.current.scrollTop = privateChatScrollRef.current.scrollHeight;
                 if (announcementsScrollRef.current) announcementsScrollRef.current.scrollTop = announcementsScrollRef.current.scrollHeight;
               }, 100);
+            } else if (data.type === "delete_chat") {
+              const deletedMessageId = data.payload.messageId;
+              setMessages(prev => prev.filter(m => m.id !== deletedMessageId));
             }
           } catch (e) {
             console.error("RTM Message Parse Error:", e);
@@ -347,6 +350,24 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
       setRtmClient(null);
     };
   }, [room.id, currentSession.status, isTeacherView, profile.id]);
+
+  const handleDeleteMessage = async (messageId: string) => {
+    try {
+      const { error } = await supabase.from("room_messages").delete().eq("id", messageId);
+      if (error) throw error;
+
+      if (rtmClient) {
+        rtmClient.publish(room.id, JSON.stringify({ 
+          type: "delete_chat", 
+          payload: { messageId } 
+        }));
+      }
+
+      setMessages(prev => prev.filter(m => m.id !== messageId));
+    } catch (err: any) {
+      console.error("Delete error:", err);
+    }
+  };
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -639,11 +660,19 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                               alt="" 
                             />
                             <div className={cn(
-                              "max-w-[75%] px-4 py-3 rounded-[24px] shadow-sm",
+                              "max-w-[75%] px-4 py-3 rounded-[24px] shadow-sm relative group",
                               msg.sender_id === profile.id 
                                 ? "bg-brand-blue text-white rounded-tr-none" 
                                 : "bg-slate-50 text-slate-800 border border-slate-100 rounded-tl-none"
                             )}>
+                              {msg.sender_id === profile.id && (
+                                <button 
+                                  onClick={() => handleDeleteMessage(msg.id)}
+                                  className="absolute -top-2 -right-2 p-1.5 bg-white text-slate-400 hover:text-red-500 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </button>
+                              )}
                               {msg.sender_id !== profile.id && (
                                 <p className="text-[10px] font-black uppercase text-brand-blue mb-1">{msg.sender_name}</p>
                               )}
@@ -724,7 +753,15 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                                  .map((msg) => (
                                    <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={cn("flex items-start gap-3", msg.sender_id === profile.id ? "flex-row-reverse" : "flex-row")}>
                                       <img src={msg.sender_avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(msg.sender_name || 'User')}`} className="w-8 h-8 rounded-xl border-2 border-white shadow-sm" alt="" />
-                                      <div className={cn("max-w-[85%] px-4 py-3 rounded-[24px] shadow-sm", msg.sender_id === profile.id ? "bg-brand-blue text-white rounded-tr-none" : "bg-slate-50 text-slate-800 border border-slate-100 rounded-tl-none")}>
+                                      <div className={cn("max-w-[85%] px-4 py-3 rounded-[24px] shadow-sm relative group", msg.sender_id === profile.id ? "bg-brand-blue text-white rounded-tr-none" : "bg-slate-50 text-slate-800 border border-slate-100 rounded-tl-none")}>
+                                        {msg.sender_id === profile.id && (
+                                          <button 
+                                            onClick={() => handleDeleteMessage(msg.id)}
+                                            className="absolute -top-2 -right-2 p-1.5 bg-white text-slate-400 hover:text-red-500 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                                          >
+                                            <Trash2 className="h-3 w-3" />
+                                          </button>
+                                        )}
                                         <p className="text-sm font-medium leading-relaxed">{msg.message}</p>
                                         <p className={cn("text-[8px] mt-1 font-bold opacity-50", msg.sender_id === profile.id ? "text-right" : "text-left")}>{formatDate(msg.created_at)}</p>
                                       </div>
@@ -748,7 +785,15 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                            .map((msg) => (
                              <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={cn("flex items-start gap-3", msg.sender_id === profile.id ? "flex-row-reverse" : "flex-row")}>
                                 <img src={msg.sender_avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(msg.sender_name || 'User')}`} className="w-10 h-10 rounded-2xl border-2 border-white shadow-sm" alt="" />
-                                <div className={cn("max-w-[75%] px-4 py-3 rounded-[24px] shadow-sm", msg.sender_id === profile.id ? "bg-brand-blue text-white rounded-tr-none" : "bg-slate-50 text-slate-800 border border-slate-100 rounded-tl-none")}>
+                                <div className={cn("max-w-[75%] px-4 py-3 rounded-[24px] shadow-sm relative group", msg.sender_id === profile.id ? "bg-brand-blue text-white rounded-tr-none" : "bg-slate-50 text-slate-800 border border-slate-100 rounded-tl-none")}>
+                                  {msg.sender_id === profile.id && (
+                                    <button 
+                                      onClick={() => handleDeleteMessage(msg.id)}
+                                      className="absolute -top-2 -right-2 p-1.5 bg-white text-slate-400 hover:text-red-500 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </button>
+                                  )}
                                   <p className="text-sm font-medium leading-relaxed">{msg.message}</p>
                                   <p className={cn("text-[9px] mt-1 font-bold opacity-50", msg.sender_id === profile.id ? "text-right" : "text-left")}>{formatDate(msg.created_at)}</p>
                                 </div>
@@ -784,6 +829,14 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                            animate={{ opacity: 1, scale: 1 }} 
                            className="bg-brand-blue/5 border border-brand-blue/10 rounded-3xl p-6 relative overflow-hidden group"
                          >
+                            {msg.sender_id === profile.id && (
+                              <button 
+                                onClick={() => handleDeleteMessage(msg.id)}
+                                className="absolute top-4 right-12 p-2 bg-white text-slate-400 hover:text-red-500 rounded-xl shadow-sm opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            )}
                             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                               <Megaphone className="h-12 w-12 text-brand-blue" />
                             </div>

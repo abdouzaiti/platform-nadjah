@@ -260,6 +260,7 @@ CREATE POLICY "Messages viewable" ON public.room_messages FOR SELECT USING (
   ))
 );
 CREATE POLICY "Post messages" ON public.room_messages FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Delete own messages" ON public.room_messages FOR DELETE USING (auth.uid() = user_id);
 
 CREATE POLICY "Live sessions viewable" ON public.live_sessions FOR SELECT USING (EXISTS (SELECT 1 FROM public.room_members WHERE room_id = live_sessions.room_id AND user_id = auth.uid()) OR EXISTS (SELECT 1 FROM public.class_rooms r JOIN public.teacher_communities c ON r.community_id = c.id WHERE r.id = room_id AND c.teacher_id = auth.uid()));
 CREATE POLICY "Teachers manage live" ON public.live_sessions FOR ALL USING (EXISTS (SELECT 1 FROM public.class_rooms r JOIN public.teacher_communities c ON r.community_id = c.id WHERE r.id = room_id AND c.teacher_id = auth.uid())) WITH CHECK (EXISTS (SELECT 1 FROM public.class_rooms r JOIN public.teacher_communities c ON r.community_id = c.id WHERE r.id = room_id AND c.teacher_id = auth.uid()));
