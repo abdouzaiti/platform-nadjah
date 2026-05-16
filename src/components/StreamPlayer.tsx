@@ -36,7 +36,8 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
   const [sidebarActiveTab, setSidebarActiveTab] = useState("announcements");
   const [hasEntered, setHasEntered] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const groupChatScrollRef = useRef<HTMLDivElement>(null);
+  const liveCommentsScrollRef = useRef<HTMLDivElement>(null);
 
   // Agora State
   const [agoraClient, setAgoraClient] = useState<IAgoraRTCClient | null>(null);
@@ -74,7 +75,8 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
         })) as ChatMessageData[]);
         
         setTimeout(() => {
-          if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+          if (groupChatScrollRef.current) groupChatScrollRef.current.scrollTop = groupChatScrollRef.current.scrollHeight;
+          if (liveCommentsScrollRef.current) liveCommentsScrollRef.current.scrollTop = liveCommentsScrollRef.current.scrollHeight;
         }, 100);
       }
     };
@@ -125,7 +127,8 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
           });
           
           setTimeout(() => {
-            if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+            if (groupChatScrollRef.current) groupChatScrollRef.current.scrollTop = groupChatScrollRef.current.scrollHeight;
+            if (liveCommentsScrollRef.current) liveCommentsScrollRef.current.scrollTop = liveCommentsScrollRef.current.scrollHeight;
           }, 100);
         }
       )
@@ -221,7 +224,8 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                    return [...prev, newMsg];
                 });
                 setTimeout(() => {
-                  if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+                  if (groupChatScrollRef.current) groupChatScrollRef.current.scrollTop = groupChatScrollRef.current.scrollHeight;
+                  if (liveCommentsScrollRef.current) liveCommentsScrollRef.current.scrollTop = liveCommentsScrollRef.current.scrollHeight;
                 }, 100);
               }
             } catch (e) {
@@ -486,21 +490,71 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                     </div>
                  </div>
                )
-             ) : (
-               <div className="absolute inset-0 bg-white p-8 flex flex-col">
-                 <div className="mb-8">
-                   <h2 className="text-3xl font-black uppercase italic tracking-tighter text-slate-900">{sidebarActiveTab.replace('_', ' ')}</h2>
-                   <div className="h-1 w-12 bg-brand-blue rounded-full mt-2"></div>
-                 </div>
-                 
-                 <div className="flex-1 border-2 border-dashed border-slate-100 rounded-[32px] flex flex-col items-center justify-center p-12 text-center">
-                    <Loader2 className="h-12 w-12 text-slate-200 animate-spin mb-4" />
-                    <p className="text-slate-400 text-sm font-bold uppercase tracking-widest leading-loose max-w-xs">
-                      {t('tab_coming_soon', 'This section is currently under construction and will be available soon.')}
-                    </p>
-                 </div>
-               </div>
-             )}
+              ) : sidebarActiveTab === "group_chat" ? (
+                <div className="absolute inset-0 bg-white flex flex-col p-6 mt-16 pb-24 shadow-inner">
+                  <div className="mb-4">
+                    <h2 className="text-3xl font-black uppercase italic tracking-tighter text-slate-900">{t('group_chat', 'Group Chat')}</h2>
+                    <div className="h-1 w-12 bg-brand-blue rounded-full mt-2"></div>
+                  </div>
+                  
+                  <div 
+                    ref={groupChatScrollRef}
+                    className="flex-1 overflow-y-auto no-scrollbar space-y-4 pr-2"
+                  >
+                    <AnimatePresence initial={false}>
+                       {messages.map((msg) => (
+                         <motion.div 
+                           key={msg.id} 
+                           initial={{ opacity: 0, y: 10 }} 
+                           animate={{ opacity: 1, y: 0 }} 
+                           className={cn(
+                             "flex items-start gap-3",
+                             msg.sender_id === profile.id ? "flex-row-reverse" : "flex-row"
+                           )}
+                         >
+                            <img 
+                              src={msg.sender_avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(msg.sender_name || 'User')}`} 
+                              className="w-10 h-10 rounded-2xl border-2 border-white shadow-sm" 
+                              alt="" 
+                            />
+                            <div className={cn(
+                              "max-w-[75%] px-4 py-3 rounded-[24px] shadow-sm",
+                              msg.sender_id === profile.id 
+                                ? "bg-brand-blue text-white rounded-tr-none" 
+                                : "bg-slate-50 text-slate-800 border border-slate-100 rounded-tl-none"
+                            )}>
+                              {msg.sender_id !== profile.id && (
+                                <p className="text-[10px] font-black uppercase text-brand-blue mb-1">{msg.sender_name}</p>
+                              )}
+                              <p className="text-sm font-medium leading-relaxed">{msg.message}</p>
+                              <p className={cn(
+                                "text-[9px] mt-1 font-bold opacity-50",
+                                msg.sender_id === profile.id ? "text-right" : "text-left"
+                              )}>
+                                {formatDate(msg.created_at)}
+                              </p>
+                            </div>
+                         </motion.div>
+                       ))}
+                    </AnimatePresence>
+                  </div>
+                </div>
+              ) : (
+                <div className="absolute inset-0 bg-white p-8 flex flex-col">
+                  <div className="mb-8 mt-16">
+                    <h2 className="text-3xl font-black uppercase italic tracking-tighter text-slate-900">{sidebarActiveTab.replace('_', ' ')}</h2>
+                    <div className="h-1 w-12 bg-brand-blue rounded-full mt-2"></div>
+                  </div>
+                  
+                  <div className="flex-1 border-2 border-dashed border-slate-100 rounded-[32px] flex flex-col items-center justify-center p-12 text-center">
+                     <Loader2 className="h-12 w-12 text-slate-200 animate-spin mb-4" />
+                     <p className="text-slate-400 text-sm font-bold uppercase tracking-widest leading-loose max-w-xs">
+                       {t('tab_coming_soon', 'This section is currently under construction and will be available soon.')}
+                     </p>
+                  </div>
+                </div>
+              )
+            }
 
               {!isTeacherView && !hasAudioStarted && isLive && (
                 <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/60 backdrop-blur-sm">
@@ -512,7 +566,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
 
              {isLive && !hideComments && (
                <div className="absolute inset-0 z-30 pointer-events-none flex flex-col justify-end pb-24 md:pb-32 px-4 md:px-8">
-                  <div className="max-h-[40vh] overflow-y-auto no-scrollbar space-y-2 max-w-[400px]" ref={scrollRef}>
+                  <div className="max-h-[40vh] overflow-y-auto no-scrollbar space-y-2 max-w-[400px]" ref={liveCommentsScrollRef}>
                      <AnimatePresence>
                         {messages.map((msg) => (
                           <motion.div key={msg.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="flex items-start gap-2 py-1">
