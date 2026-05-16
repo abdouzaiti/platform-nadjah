@@ -1,7 +1,7 @@
 import React from "react";
 import { cn } from "../lib/utils";
 import { motion } from "motion/react";
-import { Megaphone, Users, MessageCircle, Radio, LogOut, X, ChevronLeft, ChevronRight, Menu } from "lucide-react";
+import { Megaphone, Users, MessageCircle, Radio, LogOut, X, ChevronLeft, ChevronRight, Menu, Save } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 interface RoomSidebarProps {

@@ -376,7 +376,7 @@ BEGIN
     room_id uuid REFERENCES public.class_rooms(id) ON DELETE CASCADE NOT NULL,
     title text NOT NULL,
     live_password text,
-    status text CHECK (status IN ('live', 'ended', 'scheduled', 'LIVE', 'ENDED', 'SCHEDULED')) NOT NULL DEFAULT 'scheduled',
+    status text CHECK (status IN ('live', 'ended', 'scheduled')),
     started_at timestamp with time zone,
     ended_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT now()

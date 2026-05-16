@@ -527,7 +527,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
       const { error } = await supabase
         .from("live_sessions")
         .update({
-          status: "finished",
+          status: "ended",
           ended_at: new Date().toISOString()
         })
         .eq("id", currentSession.id);
