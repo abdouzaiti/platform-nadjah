@@ -18,7 +18,7 @@ export default function RoomSidebar({ isOpen, activeTab, setActiveTab, onClose, 
 
   return (
     <div className={cn(
-      "absolute z-50 bg-white/90 backdrop-blur-xl rounded-2xl p-3 shadow-lg border border-white flex flex-col gap-2 transition-all",
+      "absolute z-50 bg-white/90 backdrop-blur-xl rounded-2xl p-3 shadow-lg border border-white flex flex-col gap-2 transition-all pointer-events-auto",
       "top-20 left-4 right-4 sm:top-24 sm:w-48 sm:left-20 sm:right-auto",
       lang === 'ar' && "sm:right-20 sm:left-auto"
     )}>
