@@ -381,15 +381,13 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
 
   return (
     <div ref={containerRef} className="flex h-screen w-full bg-white text-slate-900 overflow-hidden relative">
-      {isTeacherView && (
-        <RoomSidebar 
-          isOpen={isSidebarOpen} 
-          activeTab={sidebarActiveTab} 
-          setActiveTab={setSidebarActiveTab} 
-          onClose={() => { if(onClose) onClose(); }}
-          lang={i18n.language}
-        />
-      )}
+      <RoomSidebar 
+        isOpen={isSidebarOpen} 
+        activeTab={sidebarActiveTab} 
+        setActiveTab={setSidebarActiveTab} 
+        onClose={() => { if(onClose) onClose(); }}
+        lang={i18n.language}
+      />
       <div className="flex-1 flex flex-col relative w-full h-full overflow-hidden">
         <div className="flex-1 bg-white relative group">
           <div className="h-full w-full flex items-center justify-center relative overflow-hidden">
@@ -490,14 +488,12 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
 
           <div className="absolute inset-x-0 top-0 p-6 flex items-start justify-between z-40 pointer-events-none">
             <div className="bg-white/80 backdrop-blur-xl px-4 py-2 rounded-2xl border border-white shadow-sm pointer-events-auto flex items-center gap-3">
-              {isTeacherView && (
-                <button 
-                  onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                  className="p-1 rounded-lg hover:bg-slate-100 transition-colors"
-                >
-                  <MoreHorizontal className={cn("h-4 w-4 text-slate-400 transition-transform", isSidebarOpen && "rotate-90")} />
-                </button>
-              )}
+              <button 
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                className="p-1 rounded-lg hover:bg-slate-100 transition-colors"
+              >
+                <MoreHorizontal className={cn("h-4 w-4 text-slate-400 transition-transform", isSidebarOpen && "rotate-90")} />
+              </button>
               <div>
                 <p className="text-[8px] font-black uppercase tracking-widest text-slate-400 mb-0.5 leading-none">{room.room_name}</p>
                 <div className="flex items-center gap-2">
