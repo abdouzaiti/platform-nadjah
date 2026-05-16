@@ -460,7 +460,7 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                               : "bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
                           )}
                         >
-                          {room.room_type === 'live' ? t('go_live', 'Go Live') : t('open', 'Open')}
+                          {room.room_type === 'live' ? t('enter', 'Enter') : t('open', 'Open')}
                         </button>
                       </div>
                     </div>
