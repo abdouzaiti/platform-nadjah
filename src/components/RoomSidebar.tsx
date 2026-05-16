@@ -1,42 +1,74 @@
 import React from "react";
 import { cn } from "../lib/utils";
-import { Megaphone, Users, MessageCircle, Radio, LogOut, X } from "lucide-react";
+import { Megaphone, Users, MessageCircle, Radio, LogOut, X, ChevronLeft, ChevronRight, Menu } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 interface RoomSidebarProps {
   isOpen: boolean;
+  onToggle?: () => void;
   activeTab: string;
   setActiveTab: (tab: string) => void;
   onClose: () => void;
   lang: string;
 }
 
-export default function RoomSidebar({ isOpen, activeTab, setActiveTab, onClose, lang }: RoomSidebarProps) {
+export default function RoomSidebar({ isOpen, onToggle, activeTab, setActiveTab, onClose, lang }: RoomSidebarProps) {
   const { t } = useTranslation();
+
+  const isRTL = lang === 'ar';
 
   return (
     <>
       {/* Semi-transparent backdrop for mobile when sidebar is open */}
       <div 
+        onClick={onToggle}
         className={cn(
-          "fixed inset-0 bg-slate-900/20 backdrop-blur-sm z-[55] transition-opacity duration-300 sm:hidden",
+          "fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[55] transition-opacity duration-300 sm:hidden",
           isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
         )}
       />
 
       <div className={cn(
         "fixed inset-y-0 z-[60] flex flex-col bg-white border-slate-100 transition-all duration-300 ease-in-out sm:relative sm:z-50 sm:translate-x-0",
-        lang === 'ar' ? "right-0 border-l" : "left-0 border-r",
+        isRTL ? "right-0 border-l" : "left-0 border-r",
         isOpen 
           ? "translate-x-0 w-64 shadow-2xl sm:shadow-none" 
-          : (lang === 'ar' ? "translate-x-full w-0 sm:w-20 sm:translate-x-0" : "-translate-x-full w-0 sm:w-20 sm:translate-x-0"),
+          : (isRTL ? "translate-x-full w-0 sm:w-20 sm:translate-x-0" : "-translate-x-full w-0 sm:w-20 sm:translate-x-0"),
         "sm:w-64"
       )}>
         <div className={cn(
-          "p-4 border-b border-slate-100 transition-opacity duration-200",
-          !isOpen && "sm:opacity-0"
+          "p-4 border-b border-slate-100 flex items-center justify-between gap-4 h-16",
+          !isOpen && "sm:justify-center"
         )}>
-          <h2 className="text-sm font-black uppercase tracking-widest text-slate-900 truncate">{t('room_menu', 'Room Menu')}</h2>
+          {isOpen ? (
+            <>
+              <h2 className="text-sm font-black uppercase tracking-widest text-slate-900 truncate">{t('room_menu', 'Room Menu')}</h2>
+              {onToggle && (
+                <button 
+                  onClick={onToggle}
+                  className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors text-slate-400 sm:block hidden"
+                >
+                  {isRTL ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+                </button>
+              )}
+              {/* Close button for mobile */}
+              <button 
+                onClick={onToggle}
+                className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors text-slate-400 sm:hidden"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </>
+          ) : (
+            onToggle && (
+              <button 
+                onClick={onToggle}
+                className="p-2 rounded-lg hover:bg-slate-100 transition-colors text-slate-400 hidden sm:block"
+              >
+                <Menu className="h-5 w-5" />
+              </button>
+            )
+          )}
         </div>
 
         <div className="flex-1 p-2 flex flex-col gap-1 overflow-y-auto">

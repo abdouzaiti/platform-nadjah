@@ -383,6 +383,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
     <div ref={containerRef} className="flex h-screen w-full bg-white text-slate-900 overflow-hidden relative">
       <RoomSidebar 
         isOpen={isSidebarOpen} 
+        onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
         activeTab={sidebarActiveTab} 
         setActiveTab={setSidebarActiveTab} 
         onClose={() => { if(onClose) onClose(); }}
