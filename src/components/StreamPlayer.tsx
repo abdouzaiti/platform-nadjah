@@ -593,7 +593,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                     className="flex-1 overflow-y-auto no-scrollbar space-y-4 pr-2"
                   >
                     <AnimatePresence initial={false}>
-                       {messages.filter(m => m.content !== 'live' && m.content !== 'private').map((msg) => (
+                       {messages.filter(m => (!m.content || m.content === 'group')).map((msg) => (
                          <motion.div 
                            key={msg.id} 
                            initial={{ opacity: 0, y: 10 }} 
