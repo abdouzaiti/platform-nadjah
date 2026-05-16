@@ -607,17 +607,17 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                ) : (
                  <div className="flex flex-col items-center justify-center h-full text-slate-500 bg-white">
                     <div className="max-w-md w-full px-8 text-center space-y-6">
-                      <div className="mx-auto w-24 h-24 bg-brand-blue/10 rounded-[32px] flex items-center justify-center rotate-6">
-                        <Radio className="h-10 w-10 text-brand-blue" />
+                      <div className="mx-auto w-24 h-24 bg-brand-blue/10 rounded-[32px] flex items-center justify-center rotate-6 shadow-inner ring-4 ring-white">
+                        <Radio className="h-10 w-10 text-brand-blue animate-pulse" />
                       </div>
                       <div className="space-y-3">
-                        <h3 className="text-2xl font-display font-black uppercase italic tracking-tighter text-slate-900">
+                        <h3 className="text-3xl font-display font-black uppercase italic tracking-tighter text-slate-900 leading-none">
                           {isTeacherView ? t('ready_to_start', 'Ready to Start') : t('live_not_started', 'Waiting for Teacher')}
                         </h3>
-                        <p className="text-sm font-medium text-slate-400 font-sans leading-relaxed">
+                        <p className="text-sm font-medium text-slate-400 font-sans leading-relaxed max-w-[280px] mx-auto">
                           {isTeacherView 
-                            ? t('start_live_hint', 'Click below to start the live stream for your students.') 
-                            : t('live_hint_student', 'The session will start automatically once the teacher is live.')}
+                            ? t('start_live_hint', 'Your students are waiting. Click below to start the high-definition live stream.') 
+                            : t('live_hint_student', 'The session will light up automatically once your teacher goes live. Grab a snack!')}
                         </p>
                       </div>
                       {isTeacherView && (
@@ -634,9 +634,15 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                )
               ) : sidebarActiveTab === "group_chat" ? (
                 <div className="absolute inset-0 bg-white flex flex-col p-6 mt-16 pb-24 shadow-inner">
-                  <div className="mb-4">
-                    <h2 className="text-3xl font-black uppercase italic tracking-tighter text-slate-900">{t('group_chat', 'Group Chat')}</h2>
-                    <div className="h-1 w-12 bg-brand-blue rounded-full mt-2"></div>
+                  <div className="mb-6 flex items-end justify-between">
+                    <div>
+                      <h2 className="text-4xl font-display font-black uppercase italic tracking-tighter text-slate-900 leading-none">{t('group_chat', 'Group Chat')}</h2>
+                      <div className="h-1.5 w-16 bg-brand-blue rounded-full mt-3"></div>
+                    </div>
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-full border border-slate-100">
+                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t('live_now', 'Live Now')}</span>
+                    </div>
                   </div>
                   
                   <div 
@@ -660,30 +666,35 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                               alt="" 
                             />
                             <div className={cn(
-                              "max-w-[75%] px-4 py-3 rounded-2xl shadow-[0_2px_12px_rgba(37,99,235,0.03)] relative group transition-all duration-300",
-                              msg.sender_id === profile.id 
-                                ? "bg-brand-blue text-white rounded-tr-none" 
-                                : "bg-white text-slate-800 border border-slate-100 rounded-tl-none"
-                            )}>
-                              {msg.sender_id === profile.id && (
-                                <button 
-                                  onClick={() => handleDeleteMessage(msg.id)}
-                                  className="absolute -top-2 -right-2 p-1.5 bg-white text-slate-400 hover:text-red-500 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </button>
-                              )}
-                              {msg.sender_id !== profile.id && (
-                                <p className="text-[10px] font-black uppercase text-brand-blue mb-1">{msg.sender_name}</p>
-                              )}
-                              <p className="text-sm font-medium leading-relaxed">{msg.message}</p>
-                              <p className={cn(
-                                "text-[9px] mt-1 font-bold opacity-50",
-                                msg.sender_id === profile.id ? "text-right" : "text-left"
-                              )}>
-                                {formatDate(msg.created_at)}
-                              </p>
-                            </div>
+                               "max-w-[80%] px-5 py-3.5 rounded-2xl shadow-[0_4px_16px_rgba(0,0,0,0.03)] relative group transition-all duration-500",
+                               msg.sender_id === profile.id 
+                                 ? "bg-brand-blue text-white rounded-tr-none shadow-[0_8px_20px_-4px_rgba(37,99,235,0.4)]" 
+                                 : "bg-white text-slate-800 border border-slate-100 shadow-sm rounded-tl-none"
+                             )}>
+                               {msg.sender_id === profile.id && (
+                                 <button 
+                                   onClick={() => handleDeleteMessage(msg.id)}
+                                   className="absolute -top-2.5 -right-2.5 p-2 bg-white text-slate-400 hover:text-red-500 rounded-xl shadow-xl opacity-0 group-hover:opacity-100 transition-all z-10 scale-90 group-hover:scale-100 border border-slate-100"
+                                 >
+                                   <Trash2 className="h-3.5 w-3.5" />
+                                 </button>
+                               )}
+                               {msg.sender_id !== profile.id && (
+                                 <p className="text-[10px] font-black uppercase tracking-widest text-brand-blue mb-1.5 flex items-center gap-2">
+                                   {msg.sender_name}
+                                   {isTeacherView && msg.sender_id !== teacherId && (
+                                     <span className="text-[8px] bg-brand-blue/10 text-brand-blue px-1.5 py-0.5 rounded-md">Student</span>
+                                   )}
+                                 </p>
+                               )}
+                               <p className="text-[15px] font-medium leading-relaxed tracking-tight">{msg.message}</p>
+                               <div className={cn(
+                                 "flex items-center gap-1.5 mt-2 opacity-40 font-mono text-[9px] font-semibold tracking-tighter",
+                                 msg.sender_id === profile.id ? "justify-end text-white" : "justify-start text-slate-400"
+                               )}>
+                                 {formatDate(msg.created_at)}
+                               </div>
+                             </div>
                          </motion.div>
                        ))}
                     </AnimatePresence>
@@ -691,9 +702,9 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                 </div>
               ) : sidebarActiveTab === "private_chat" ? (
                 <div className="absolute inset-0 bg-white flex flex-col p-6 mt-16 pb-24 shadow-inner">
-                  <div className="mb-4">
-                    <h2 className="text-3xl font-black uppercase italic tracking-tighter text-slate-900">{t('private_chat', 'Private Chat')}</h2>
-                    <div className="h-1 w-12 bg-brand-blue rounded-full mt-2"></div>
+                  <div className="mb-6">
+                    <h2 className="text-4xl font-display font-black uppercase italic tracking-tighter text-slate-900 leading-none">{t('private_chat', 'Private Chat')}</h2>
+                    <div className="h-1.5 w-16 bg-brand-blue rounded-full mt-3"></div>
                   </div>
                   
                   {isTeacherView ? (
@@ -812,9 +823,9 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                 </div>
               ) : sidebarActiveTab === "announcements" ? (
                 <div className="absolute inset-0 bg-white flex flex-col p-6 mt-16 pb-24 shadow-inner">
-                  <div className="mb-4">
-                    <h2 className="text-3xl font-black uppercase italic tracking-tighter text-slate-900">{t('announcements', 'Announcements')}</h2>
-                    <div className="h-1 w-12 bg-brand-blue rounded-full mt-2"></div>
+                  <div className="mb-6">
+                    <h2 className="text-4xl font-display font-black uppercase italic tracking-tighter text-slate-900 leading-none">{t('announcements', 'Announcements')}</h2>
+                    <div className="h-1.5 w-16 bg-brand-blue rounded-full mt-3"></div>
                   </div>
                   
                   <div 

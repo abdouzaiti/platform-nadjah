@@ -7,10 +7,12 @@ export function cn(...inputs: ClassValue[]) {
 
 export function formatDate(date: any) {
   if (!date) return "";
-  const d = date.toDate ? date.toDate() : new Date(date);
-  return new Intl.DateTimeFormat("en-US", {
-    hour: "numeric",
-    minute: "numeric",
-    hour12: true,
-  }).format(d);
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return "";
+  
+  return d.toLocaleTimeString([], { 
+    hour: '2-digit', 
+    minute: '2-digit', 
+    hour12: false 
+  });
 }
