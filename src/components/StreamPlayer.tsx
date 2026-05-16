@@ -24,6 +24,7 @@ interface StreamPlayerProps {
 
 export default function StreamPlayer({ room, session, profile, onClose, isTeacherView }: StreamPlayerProps) {
   const { t, i18n } = useTranslation();
+  const [currentSession, setCurrentSession] = useState<LiveSession>(session);
   const [chatMessage, setChatMessage] = useState("");
   const [messages, setMessages] = useState<ChatMessageData[]>([]);
   const [isEnding, setIsEnding] = useState(false);
@@ -79,6 +80,23 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
 
     fetchMessages();
 
+    // Subscribe to session changes
+    const sessionChannel = supabase
+      .channel(`session-${session.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'live_sessions',
+          filter: `id=eq.${session.id}`
+        },
+        (payload) => {
+          setCurrentSession(payload.new as LiveSession);
+        }
+      )
+      .subscribe();
+
     const channel = supabase
       .channel(`chat-${room.id}`)
       .on(
@@ -114,12 +132,13 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
 
     return () => {
       supabase.removeChannel(channel);
+      supabase.removeChannel(sessionChannel);
     };
-  }, [room.id]);
+  }, [room.id, session.id]);
 
   // Agora Lifecycle (RTC + RTM)
   useEffect(() => {
-    if (session.status !== "live") return;
+    if (currentSession.status !== "live") return;
 
     const client = createAgoraClient();
     const rtm = createRTMClient(profile.id);
@@ -247,8 +266,11 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
       if (rtm) {
         rtm.logout();
       }
+      // Reset video states when leaving live
+      setTeacherVideo(null);
+      setLocalTracks(null);
     };
-  }, [room.id, session.status, isTeacherView, profile.id]);
+  }, [room.id, currentSession.status, isTeacherView, profile.id]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -294,7 +316,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
           status: "live",
           started_at: new Date().toISOString()
         })
-        .eq("id", session.id);
+        .eq("id", currentSession.id);
 
       if (error) throw error;
     } catch (err: any) {
@@ -307,10 +329,10 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
       const { error } = await supabase
         .from("live_sessions")
         .update({
-          status: "ended",
+          status: "finished",
           ended_at: new Date().toISOString()
         })
-        .eq("id", session.id);
+        .eq("id", currentSession.id);
 
       if (error) throw error;
       
@@ -318,11 +340,12 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
         await supabase.from("recordings").insert({
           room_id: room.id,
           video_url: recordingUrlInput,
-          session_id: session.id
+          session_id: currentSession.id
         });
       }
 
-      if (onClose) onClose();
+      setIsEnding(false);
+      setRecordingUrlInput("");
     } catch (err: any) {
       alert(err.message || "Failed to end session");
     }
@@ -377,7 +400,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
     }
   };
 
-  const isLive = session.status === "live";
+  const isLive = currentSession.status === "live";
 
   return (
     <div ref={containerRef} className="flex h-screen w-full bg-white text-slate-900 overflow-hidden relative">
