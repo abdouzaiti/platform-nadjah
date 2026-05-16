@@ -152,7 +152,7 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
         .select("*")
         .eq("room_id", room.id)
         .in("status", ["live", "scheduled"])
-        .order('created_at', { ascending: false })
+        .order('started_at', { ascending: false })
         .limit(1)
         .maybeSingle();
       

@@ -507,6 +507,12 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
         .eq("id", currentSession.id);
 
       if (error) throw error;
+      
+      setCurrentSession({
+        ...currentSession,
+        status: 'live',
+        started_at: new Date().toISOString()
+      });
     } catch (err: any) {
       alert(err.message || "Failed to start session");
     }
