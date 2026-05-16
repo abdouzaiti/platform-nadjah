@@ -225,7 +225,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
       supabase.removeChannel(channel);
       supabase.removeChannel(sessionChannel);
     };
-  }, [room.id, session.id]);
+  }, [room.id, session?.id]);
 
   // Agora Lifecycle (RTC + RTM)
   useEffect(() => {
