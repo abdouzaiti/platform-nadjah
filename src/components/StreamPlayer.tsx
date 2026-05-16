@@ -34,6 +34,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [sidebarActiveTab, setSidebarActiveTab] = useState("announcements");
+  const [hasEntered, setHasEntered] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -416,7 +417,25 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
         <div className="flex-1 bg-white relative group">
           <div className="h-full w-full flex items-center justify-center relative overflow-hidden">
              {sidebarActiveTab === "live" ? (
-               isLive ? (
+               (!hasEntered && !isTeacherView) ? (
+                 <div className="flex flex-col items-center justify-center h-full text-slate-500 bg-white">
+                    <div className="max-w-md w-full px-8 text-center space-y-6">
+                      <div className="mx-auto w-24 h-24 bg-brand-blue/10 rounded-[32px] flex items-center justify-center rotate-6">
+                        <Radio className="h-10 w-10 text-brand-blue" />
+                      </div>
+                      <div className="space-y-2">
+                        <h3 className="text-2xl font-black uppercase italic tracking-tighter text-slate-900">{t('room_ready', 'Room Ready')}</h3>
+                        <p className="text-sm font-medium text-slate-400">{t('click_to_enter', 'Click below to enter the classroom.')}</p>
+                      </div>
+                      <button 
+                        onClick={() => setHasEntered(true)}
+                        className="w-full bg-brand-blue text-white py-4 rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-brand-blue/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                      >
+                        {t('enter_room', 'Enter to the Room')}
+                      </button>
+                    </div>
+                 </div>
+               ) : isLive ? (
                  <div className="absolute inset-0 bg-slate-900 overflow-hidden rounded-2xl md:m-4 shadow-2xl">
                  {isTeacherView ? (
                    localTracks ? (
@@ -453,15 +472,15 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                         <Radio className="h-10 w-10 text-brand-blue" />
                       </div>
                       <div className="space-y-2">
-                        <h3 className="text-2xl font-black uppercase italic tracking-tighter text-slate-900">{t('live_not_started', 'Live Ready')}</h3>
-                        <p className="text-sm font-medium text-slate-400">{t('live_hint', 'Students will be notified once you go live.')}</p>
+                        <h3 className="text-2xl font-black uppercase italic tracking-tighter text-slate-900">{t('live_not_started', 'Waiting for Teacher')}</h3>
+                        <p className="text-sm font-medium text-slate-400">{t('live_hint_student', 'The session will start automatically once the teacher is live.')}</p>
                       </div>
                       {isTeacherView && (
                         <button 
                           onClick={handleStartStream}
                           className="w-full bg-brand-blue text-white py-4 rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-brand-blue/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
                         >
-                          {t('go_live', 'Start Live Session')}
+                          {t('enter_room', 'Enter to the Room')}
                         </button>
                       )}
                     </div>
