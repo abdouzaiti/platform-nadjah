@@ -244,6 +244,12 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
       <main className="flex-1 overflow-y-auto p-4 md:p-8 no-scrollbar bg-slate-50/50">
         {!community ? (
           <div className="mx-auto max-w-2xl mt-10">
+            <button 
+              onClick={() => setIsSidebarOpen(true)}
+              className="lg:hidden mb-6 p-2 bg-brand-blue/5 rounded-xl text-brand-blue border border-brand-blue/10 active:scale-95 transition-all"
+            >
+              <Menu className="h-6 w-6" />
+            </button>
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -310,9 +316,17 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
         ) : (
           <div className="space-y-8">
             <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-8 border-b border-slate-100">
-                <div className="space-y-1">
-                    <h2 className="font-display text-2xl sm:text-4xl font-black text-slate-900 uppercase italic tracking-tighter">{community.community_name}</h2>
-                    <p className="text-slate-400 font-bold tracking-widest text-[10px] uppercase">@{community.community_username} • {rooms.length} {t('rooms', 'Rooms')}</p>
+                <div className="flex items-center gap-4">
+                  <button 
+                    onClick={() => setIsSidebarOpen(true)}
+                    className="lg:hidden p-2 bg-brand-blue/5 rounded-xl text-brand-blue border border-brand-blue/10 active:scale-95 transition-all"
+                  >
+                    <Menu className="h-6 w-6" />
+                  </button>
+                  <div className="space-y-1">
+                      <h2 className="font-display text-xl sm:text-4xl font-black text-slate-900 uppercase italic tracking-tighter truncate max-w-[200px] sm:max-w-none">{community.community_name}</h2>
+                      <p className="text-slate-400 font-bold tracking-widest text-[8px] sm:text-[10px] uppercase">@{community.community_username} • {rooms.length} {t('rooms', 'Rooms')}</p>
+                  </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <button 

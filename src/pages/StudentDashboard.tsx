@@ -252,21 +252,21 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
         onClose={() => setIsSidebarOpen(false)}
       />
       
-      <main className="flex-1 overflow-y-auto no-scrollbar bg-slate-50/50 relative p-4 md:p-8">
+      <main className="flex-1 overflow-y-auto no-scrollbar bg-slate-50/50 relative p-4 md:p-8 shrink-0">
         {/* Top Header */}
         <header className="flex items-center justify-between gap-6 pb-8 border-b border-slate-100 mb-8">
             <div className="flex items-center gap-4">
               <button 
                 onClick={() => setIsSidebarOpen(true)}
-                className="lg:hidden p-2 bg-brand-blue/5 rounded-xl text-brand-blue border border-brand-blue/10"
+                className="lg:hidden p-2 bg-brand-blue/5 rounded-xl text-brand-blue border border-brand-blue/10 active:scale-95 transition-all"
               >
                 <Menu className="h-6 w-6" />
               </button>
               <div className="space-y-1">
-                  <h2 className="font-display text-2xl font-black text-slate-900 uppercase italic tracking-tighter">
+                  <h2 className="font-display text-lg sm:text-2xl font-black text-slate-900 uppercase italic tracking-tighter truncate max-w-[150px] sm:max-w-none">
                     {activeTab === 'joined' ? t('joined', "My Classrooms") : (activeTab === 'discover' ? t('discover', "Discover Communities") : selectedCommunity?.community_name)}
                   </h2>
-                  <p className="text-slate-400 font-bold tracking-widest text-[10px] uppercase">
+                  <p className="text-slate-400 font-bold tracking-widest text-[8px] sm:text-[10px] uppercase">
                     Welcome back, {profile.fullname.split(" ")[0]}
                   </p>
               </div>
