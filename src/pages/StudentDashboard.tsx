@@ -205,7 +205,7 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
         .from("live_sessions")
         .select("*")
         .eq("room_id", room.id)
-        .in("status", ["live", "waiting"])
+        .in("status", ["live", "scheduled"])
         .maybeSingle();
 
       if (error) throw error;

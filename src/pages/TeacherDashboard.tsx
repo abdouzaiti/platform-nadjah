@@ -151,7 +151,7 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
         .from("live_sessions")
         .select("*")
         .eq("room_id", room.id)
-        .in("status", ["live", "waiting"])
+        .in("status", ["live", "scheduled"])
         .maybeSingle();
       
       if (checkError) throw checkError;
@@ -167,7 +167,7 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
         .from("live_sessions")
         .insert({
           room_id: room.id,
-          status: "waiting",
+          status: "scheduled",
           started_at: new Date().toISOString(),
           title: `${room.room_name} Live`
         })
