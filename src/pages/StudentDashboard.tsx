@@ -206,6 +206,8 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
         .select("*")
         .eq("room_id", room.id)
         .in("status", ["live", "scheduled"])
+        .order('created_at', { ascending: false })
+        .limit(1)
         .maybeSingle();
 
       if (error) throw error;
