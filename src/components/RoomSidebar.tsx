@@ -17,7 +17,11 @@ export default function RoomSidebar({ isOpen, activeTab, setActiveTab, onClose, 
   if (!isOpen) return null;
 
   return (
-    <div className={`absolute top-24 ${lang === 'ar' ? 'right-20' : 'left-20'} z-50 w-48 bg-white/90 backdrop-blur-xl rounded-2xl p-3 shadow-lg border border-white flex flex-col gap-2`}>
+    <div className={cn(
+      "absolute z-50 bg-white/90 backdrop-blur-xl rounded-2xl p-3 shadow-lg border border-white flex flex-col gap-2 transition-all",
+      "top-20 left-4 right-4 sm:top-24 sm:w-48 sm:left-20 sm:right-auto",
+      lang === 'ar' && "sm:right-20 sm:left-auto"
+    )}>
       <div className="flex flex-col gap-1">
         {[
           { id: "announcements", icon: Megaphone, label: "Announcements" },
