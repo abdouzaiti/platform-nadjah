@@ -42,6 +42,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
   const groupChatScrollRef = useRef<HTMLDivElement>(null);
   const privateChatScrollRef = useRef<HTMLDivElement>(null);
   const liveCommentsScrollRef = useRef<HTMLDivElement>(null);
+  const announcementsScrollRef = useRef<HTMLDivElement>(null);
 
   // Agora State
   const [agoraClient, setAgoraClient] = useState<IAgoraRTCClient | null>(null);
@@ -93,6 +94,9 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
     // Scroll to bottom when tab changes or messages updated for private chat
     if (sidebarActiveTab === "private_chat" && privateChatScrollRef.current) {
       privateChatScrollRef.current.scrollTop = privateChatScrollRef.current.scrollHeight;
+    }
+    if (sidebarActiveTab === "announcements" && announcementsScrollRef.current) {
+      announcementsScrollRef.current.scrollTop = announcementsScrollRef.current.scrollHeight;
     }
   }, [sidebarActiveTab, messages, selectedStudentId]);
 
@@ -176,6 +180,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
             if (groupChatScrollRef.current) groupChatScrollRef.current.scrollTop = groupChatScrollRef.current.scrollHeight;
             if (liveCommentsScrollRef.current) liveCommentsScrollRef.current.scrollTop = liveCommentsScrollRef.current.scrollHeight;
             if (privateChatScrollRef.current) privateChatScrollRef.current.scrollTop = privateChatScrollRef.current.scrollHeight;
+            if (announcementsScrollRef.current) announcementsScrollRef.current.scrollTop = announcementsScrollRef.current.scrollHeight;
           }, 100);
         }
       )
@@ -219,6 +224,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                 if (groupChatScrollRef.current) groupChatScrollRef.current.scrollTop = groupChatScrollRef.current.scrollHeight;
                 if (liveCommentsScrollRef.current) liveCommentsScrollRef.current.scrollTop = liveCommentsScrollRef.current.scrollHeight;
                 if (privateChatScrollRef.current) privateChatScrollRef.current.scrollTop = privateChatScrollRef.current.scrollHeight;
+                if (announcementsScrollRef.current) announcementsScrollRef.current.scrollTop = announcementsScrollRef.current.scrollHeight;
               }, 100);
             }
           } catch (e) {
@@ -349,6 +355,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
     try {
       const isLiveTab = sidebarActiveTab === "live" && isLive;
       const isPrivateTab = sidebarActiveTab === "private_chat";
+      const isAnnouncementTab = sidebarActiveTab === "announcements";
       
       let recipientId = null;
       let contentType = "group";
@@ -366,6 +373,9 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
         } else {
           recipientId = teacherId;
         }
+      } else if (isAnnouncementTab) {
+        if (!isTeacherView) return;
+        contentType = "announcement";
       }
 
       const msgData = {
@@ -410,6 +420,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
         if (groupChatScrollRef.current) groupChatScrollRef.current.scrollTop = groupChatScrollRef.current.scrollHeight;
         if (privateChatScrollRef.current) privateChatScrollRef.current.scrollTop = privateChatScrollRef.current.scrollHeight;
         if (liveCommentsScrollRef.current) liveCommentsScrollRef.current.scrollTop = liveCommentsScrollRef.current.scrollHeight;
+        if (announcementsScrollRef.current) announcementsScrollRef.current.scrollTop = announcementsScrollRef.current.scrollHeight;
       }, 100);
     } catch (err: any) {
       console.error("Chat error:", err);
@@ -612,7 +623,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                     className="flex-1 overflow-y-auto no-scrollbar space-y-4 pr-2"
                   >
                     <AnimatePresence initial={false}>
-                       {messages.filter(m => m.content !== 'private' && m.content !== 'live').map((msg) => (
+                       {messages.filter(m => m.content !== 'private' && m.content !== 'live' && m.content !== 'announcement').map((msg) => (
                          <motion.div 
                            key={msg.id} 
                            initial={{ opacity: 0, y: 10 }} 
@@ -754,6 +765,54 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                     </div>
                   )}
                 </div>
+              ) : sidebarActiveTab === "announcements" ? (
+                <div className="absolute inset-0 bg-white flex flex-col p-6 mt-16 pb-24 shadow-inner">
+                  <div className="mb-4">
+                    <h2 className="text-3xl font-black uppercase italic tracking-tighter text-slate-900">{t('announcements', 'Announcements')}</h2>
+                    <div className="h-1 w-12 bg-brand-blue rounded-full mt-2"></div>
+                  </div>
+                  
+                  <div 
+                    ref={announcementsScrollRef}
+                    className="flex-1 overflow-y-auto no-scrollbar space-y-4 pr-2"
+                  >
+                    <AnimatePresence initial={false}>
+                       {messages.filter(m => m.content === 'announcement').map((msg) => (
+                         <motion.div 
+                           key={msg.id} 
+                           initial={{ opacity: 0, scale: 0.95 }} 
+                           animate={{ opacity: 1, scale: 1 }} 
+                           className="bg-brand-blue/5 border border-brand-blue/10 rounded-3xl p-6 relative overflow-hidden group"
+                         >
+                            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                              <Megaphone className="h-12 w-12 text-brand-blue" />
+                            </div>
+                            <div className="flex items-center gap-3 mb-4">
+                               <img 
+                                 src={msg.sender_avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(msg.sender_name || 'Teacher')}`} 
+                                 className="w-10 h-10 rounded-2xl border-2 border-white shadow-sm" 
+                                 alt="" 
+                               />
+                               <div>
+                                 <p className="text-xs font-black uppercase tracking-widest text-slate-900">{msg.sender_name}</p>
+                                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{formatDate(msg.created_at)}</p>
+                               </div>
+                            </div>
+                            <div className="prose prose-sm max-w-none">
+                              <p className="text-slate-700 font-medium leading-relaxed whitespace-pre-wrap">{msg.message}</p>
+                            </div>
+                         </motion.div>
+                       ))}
+                       {messages.filter(m => m.content === 'announcement').length === 0 && (
+                         <div className="h-full flex flex-col items-center justify-center text-center p-12">
+                            <Megaphone className="h-16 w-16 text-slate-100 mb-6" />
+                            <h3 className="text-xl font-black uppercase text-slate-900 italic tracking-tighter mb-2">{t('no_announcements_title', 'Silence is Golden')}</h3>
+                            <p className="text-sm font-medium text-slate-400 max-w-xs">{t('no_announcements_desc', 'Stay tuned! Your teacher hasn\'t posted any important announcements yet.')}</p>
+                         </div>
+                       )}
+                    </AnimatePresence>
+                  </div>
+                </div>
               ) : (
                 <div className="absolute inset-0 bg-white p-8 flex flex-col">
                   <div className="mb-8 mt-16">
@@ -768,8 +827,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                      </p>
                   </div>
                 </div>
-              )
-            }
+              )}
 
               {!isTeacherView && !hasAudioStarted && isLive && (
                 <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/60 backdrop-blur-sm">
@@ -837,7 +895,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                  {hideComments ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}
                </button>
              )}
-             {(isLive || sidebarActiveTab === "group_chat" || sidebarActiveTab === "private_chat") && (
+             {(isLive || sidebarActiveTab === "group_chat" || sidebarActiveTab === "private_chat" || (sidebarActiveTab === "announcements" && isTeacherView)) && (
                <form onSubmit={handleSendMessage} className="flex-1 flex bg-white/80 backdrop-blur-xl rounded-2xl border border-white px-4 h-12 shadow-sm focus-within:bg-white transition-all pointer-events-auto">
                  <input 
                    value={chatMessage} 
