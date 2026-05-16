@@ -146,12 +146,12 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
   const handleGoLive = async (room: ClassRoom) => {
     try {
       setLoading(true);
-      // Check for existing live session
+      // Check for existing session (live or waiting)
       const { data: existing, error: checkError } = await supabase
         .from("live_sessions")
         .select("*")
         .eq("room_id", room.id)
-        .eq("status", "live")
+        .in("status", ["live", "waiting"])
         .maybeSingle();
       
       if (checkError) throw checkError;
@@ -167,7 +167,7 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
         .from("live_sessions")
         .insert({
           room_id: room.id,
-          status: "live",
+          status: "waiting",
           started_at: new Date().toISOString(),
           title: `${room.room_name} Live`
         })

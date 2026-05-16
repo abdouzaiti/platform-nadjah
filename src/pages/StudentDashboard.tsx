@@ -200,12 +200,12 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
   const handleEnterRoom = async (room: ClassRoom) => {
     try {
       setLoading(true);
-      // Fetch current live session for this room
+      // Fetch current session for this room (live or waiting)
       const { data, error } = await supabase
         .from("live_sessions")
         .select("*")
         .eq("room_id", room.id)
-        .eq("status", "live")
+        .in("status", ["live", "waiting"])
         .maybeSingle();
 
       if (error) throw error;
