@@ -143,10 +143,10 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
     }
   };
 
-  const handleGoLive = async (room: ClassRoom) => {
+  const handleEnterRoom = async (room: ClassRoom) => {
     try {
       setLoading(true);
-      // Check for existing session (live or waiting)
+      // Check for existing session (live or scheduled)
       const { data: existing, error: checkError } = await supabase
         .from("live_sessions")
         .select("*")
@@ -158,30 +158,11 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
       
       if (checkError) throw checkError;
 
-      if (existing) {
-        setActiveRoom(room);
-        setActiveSession(existing as LiveSession);
-        return;
-      }
-
-      // Create new session
-      const { data, error } = await supabase
-        .from("live_sessions")
-        .insert({
-          room_id: room.id,
-          status: "scheduled",
-          started_at: new Date().toISOString(),
-          title: `${room.room_name} Live`
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
       setActiveRoom(room);
-      setActiveSession(data as LiveSession);
+      setActiveSession(existing as LiveSession | null);
     } catch (err: any) {
-      console.error("GoLive error:", err);
-      alert(`Failed to start live: ${err.message}`);
+      console.error("EnterRoom error:", err);
+      alert(`Failed to enter room: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -207,7 +188,7 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
     }
   };
 
-  if (activeRoom && activeSession) {
+  if (activeRoom) {
     return (
       <StreamPlayer 
         room={activeRoom} 
@@ -454,7 +435,7 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                         </div>
                         
                         <button 
-                          onClick={() => handleGoLive(room)}
+                          onClick={() => handleEnterRoom(room)}
                           className={cn(
                             "px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-md transition-all",
                             room.room_type === 'live' 

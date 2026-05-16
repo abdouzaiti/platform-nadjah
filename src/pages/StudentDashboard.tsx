@@ -200,7 +200,7 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
   const handleEnterRoom = async (room: ClassRoom) => {
     try {
       setLoading(true);
-      // Fetch current session for this room (live or waiting)
+      // Fetch current session for this room (live or scheduled)
       const { data, error } = await supabase
         .from("live_sessions")
         .select("*")
@@ -212,21 +212,16 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
 
       if (error) throw error;
       
-      if (!data) {
-        alert("No live session active for this room yet.");
-        return;
-      }
-
       setActiveRoom(room);
-      setActiveSession(data as LiveSession);
+      setActiveSession(data as LiveSession || null);
     } catch (err: any) {
-      alert(err.message || "Failed to join session");
+      alert(err.message || "Failed to join room");
     } finally {
       setLoading(false);
     }
   };
 
-  if (activeRoom && activeSession) {
+  if (activeRoom) {
     return (
       <StreamPlayer 
         room={activeRoom} 
@@ -410,7 +405,7 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
                     <span className="text-[10px] font-black uppercase text-slate-400">{room.room_type === 'live' ? "Live" : "Room"}</span>
                   </div>
                   <button className="bg-brand-blue text-white px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-md shadow-blue-500/10">
-                    Enter
+                    {t('enter', 'Enter')}
                   </button>
                 </div>
               </motion.div>

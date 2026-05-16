@@ -16,7 +16,7 @@ const Player = ReactPlayer as any;
 
 interface StreamPlayerProps {
   room: ClassRoom;
-  session: LiveSession;
+  session: LiveSession | null;
   profile: UserProfile;
   onClose?: () => void;
   isTeacherView?: boolean;
@@ -25,7 +25,7 @@ interface StreamPlayerProps {
 
 export default function StreamPlayer({ room, session, profile, onClose, isTeacherView, teacherId: teacherIdProp }: StreamPlayerProps) {
   const { t, i18n } = useTranslation();
-  const [currentSession, setCurrentSession] = useState<LiveSession>(session);
+  const [currentSession, setCurrentSession] = useState<LiveSession | null>(session);
   const [chatMessage, setChatMessage] = useState("");
   const [messages, setMessages] = useState<ChatMessageData[]>([]);
   const [recordings, setRecordings] = useState<any[]>([]);
@@ -161,19 +161,24 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
 
     fetchMessages();
 
-    // Subscribe to session changes
+    // Subscribe to session changes for this room
     const sessionChannel = supabase
-      .channel(`session-${session.id}`)
+      .channel(`room-sessions-${room.id}`)
       .on(
         'postgres_changes',
         {
-          event: 'UPDATE',
+          event: '*',
           schema: 'public',
           table: 'live_sessions',
-          filter: `id=eq.${session.id}`
+          filter: `room_id=eq.${room.id}`
         },
         (payload) => {
-          setCurrentSession(payload.new as LiveSession);
+          const newSession = payload.new as LiveSession;
+          if (newSession.status === 'live' || newSession.status === 'scheduled') {
+            setCurrentSession(newSession);
+          } else if (newSession.status === 'ended' && currentSession?.id === newSession.id) {
+            setCurrentSession(newSession);
+          }
         }
       )
       .subscribe();
@@ -274,7 +279,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
 
     // Setup RTC only if live
     let client: IAgoraRTCClient | null = null;
-    if (currentSession.status === "live") {
+    if (currentSession?.status === "live") {
       client = createAgoraClient();
       setAgoraClient(client);
 
@@ -397,7 +402,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
       setAgoraClient(null);
       setRtmClient(null);
     };
-  }, [room.id, currentSession.status, isTeacherView, profile.id]);
+  }, [room.id, currentSession?.status, isTeacherView, profile.id]);
 
   const handleDeleteMessage = async (messageId: string) => {
     try {
@@ -498,27 +503,44 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
 
   const handleStartStream = async () => {
     try {
-      const { error } = await supabase
-        .from("live_sessions")
-        .update({
-          status: "live",
-          started_at: new Date().toISOString()
-        })
-        .eq("id", currentSession.id);
+      if (currentSession) {
+        const { error } = await supabase
+          .from("live_sessions")
+          .update({
+            status: "live",
+            started_at: new Date().toISOString()
+          })
+          .eq("id", currentSession.id);
 
-      if (error) throw error;
-      
-      setCurrentSession({
-        ...currentSession,
-        status: 'live',
-        started_at: new Date().toISOString()
-      });
+        if (error) throw error;
+        
+        setCurrentSession({
+          ...currentSession,
+          status: 'live',
+          started_at: new Date().toISOString()
+        });
+      } else {
+        const { data, error } = await supabase
+          .from("live_sessions")
+          .insert({
+            room_id: room.id,
+            status: "live",
+            started_at: new Date().toISOString(),
+            title: `${room.room_name} Live`
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+        setCurrentSession(data as LiveSession);
+      }
     } catch (err: any) {
       alert(err.message || "Failed to start session");
     }
   };
 
   const handleEndStream = async () => {
+    if (!currentSession) return;
     setIsUploading(true);
     try {
       // 1. Stop recording if active
@@ -575,7 +597,9 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
       setIsUploading(false);
     } catch (err: any) {
       console.error("End stream error:", err);
-      alert(err.message || "Failed to end session");
+      if (currentSession) {
+        alert(err.message || "Failed to end session");
+      }
       setIsUploading(false);
     }
   };
@@ -629,7 +653,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
     }
   };
 
-  const isLive = currentSession.status === "live";
+  const isLive = currentSession?.status === "live";
 
   return (
     <div ref={containerRef} className="flex h-screen w-full bg-white text-slate-900 overflow-hidden relative">
@@ -1002,7 +1026,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                             </div>
                             <div>
                               <h4 className="text-md font-black uppercase italic tracking-tight text-slate-900 mb-1">{recording.live_session?.title || t('untitled_recording', 'Untitled Recording')}</h4>
-                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest font-mono">{formatDate(recording.created_at)}</p>
+                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest font-mono">{(recording.live_session && recording.live_session.started_at) ? formatDate(recording.live_session.started_at) : formatDate(recording.created_at)}</p>
                             </div>
                           </motion.div>
                         ))}
