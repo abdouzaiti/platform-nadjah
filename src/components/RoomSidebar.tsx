@@ -77,6 +77,7 @@ export default function RoomSidebar({ isOpen, onToggle, activeTab, setActiveTab,
             { id: "announcements", icon: Megaphone, label: "Announcements" },
             { id: "group_chat", icon: Users, label: "Group Chat" },
             { id: "private_chat", icon: MessageCircle, label: "Private Chat" },
+            { id: "recordings", icon: Save, label: "Recordings" },
             { id: "live", icon: Radio, label: "Live" }
           ].map(item => (
             <button 

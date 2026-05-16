@@ -28,7 +28,10 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
   const [currentSession, setCurrentSession] = useState<LiveSession>(session);
   const [chatMessage, setChatMessage] = useState("");
   const [messages, setMessages] = useState<ChatMessageData[]>([]);
+  const [recordings, setRecordings] = useState<any[]>([]);
   const [isEnding, setIsEnding] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [recordingUrlInput, setRecordingUrlInput] = useState("");
   const [hideComments, setHideComments] = useState(false);
   const [liveViewers, setLiveViewers] = useState(0);
@@ -58,6 +61,10 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
   const [agoraError, setAgoraError] = useState<string | null>(null);
   const [isInitializingTracks, setIsInitializingTracks] = useState(false);
   const [initTakingLong, setInitTakingLong] = useState(false);
+
+  // Recording State
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordedChunksRef = useRef<Blob[]>([]);
 
   useEffect(() => {
     const fetchTeacher = async () => {
@@ -99,6 +106,29 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
       announcementsScrollRef.current.scrollTop = announcementsScrollRef.current.scrollHeight;
     }
   }, [sidebarActiveTab, messages, selectedStudentId]);
+
+  useEffect(() => {
+    const fetchRecordings = async () => {
+      const { data, error } = await supabase
+        .from('recordings')
+        .select(`
+          *,
+          live_session:live_sessions (
+            title,
+            started_at
+          )
+        `)
+        .order('created_at', { ascending: false });
+      
+      if (!error && data) {
+        setRecordings(data);
+      }
+    };
+
+    if (sidebarActiveTab === "recordings") {
+      fetchRecordings();
+    }
+  }, [sidebarActiveTab, room.id]);
 
   useEffect(() => {
     const fetchMessages = async () => {
@@ -316,6 +346,24 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
             
             await client!.publish(tracksToPublish);
 
+            // browser-based recording for teacher
+            try {
+              const stream = new MediaStream();
+              if (tracks.videoTrack) stream.addTrack(tracks.videoTrack.getMediaStreamTrack());
+              stream.addTrack(tracks.audioTrack.getMediaStreamTrack());
+              
+              const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+              recordedChunksRef.current = [];
+              recorder.ondataavailable = (e) => {
+                if (e.data.size > 0) recordedChunksRef.current.push(e.data);
+              };
+              recorder.start(1000); // 1s slice
+              mediaRecorderRef.current = recorder;
+              console.log("Teacher browser recording started");
+            } catch (recErr) {
+              console.error("Recording start error:", recErr);
+            }
+
             const interval = setInterval(() => {
               if (tracks.audioTrack) {
                 setMicVolume(tracks.audioTrack.getVolumeLevel() * 100);
@@ -465,7 +513,17 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
   };
 
   const handleEndStream = async () => {
+    setIsUploading(true);
     try {
+      // 1. Stop recording if active
+      let recordingBlob: Blob | null = null;
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop();
+        // Small delay to ensure all chunks are captured
+        await new Promise(resolve => setTimeout(resolve, 500));
+        recordingBlob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
+      }
+
       const { error } = await supabase
         .from("live_sessions")
         .update({
@@ -476,18 +534,43 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
 
       if (error) throw error;
       
-      if (recordingUrlInput) {
+      let finalRecordingUrl = recordingUrlInput;
+
+      // 2. Upload recording if we have a blob
+      if (recordingBlob && recordingBlob.size > 0) {
+        const fileName = `recording-${currentSession.id}-${Date.now()}.webm`;
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('recordings')
+          .upload(fileName, recordingBlob, {
+            contentType: 'video/webm',
+            upsert: true
+          });
+
+        if (uploadError) {
+          console.error("Storage upload error:", uploadError);
+          // If bucket doesn't exist, we might get an error here. 
+          // One could try to create bucket via RPC if enabled, but usually it's manual.
+        } else {
+          const { data: { publicUrl } } = supabase.storage.from('recordings').getPublicUrl(fileName);
+          finalRecordingUrl = publicUrl;
+        }
+      }
+
+      // 3. Save recording link to DB
+      if (finalRecordingUrl) {
         await supabase.from("recordings").insert({
-          room_id: room.id,
-          video_url: recordingUrlInput,
-          session_id: currentSession.id
+          live_session_id: currentSession.id,
+          video_url: finalRecordingUrl
         });
       }
 
       setIsEnding(false);
       setRecordingUrlInput("");
+      setIsUploading(false);
     } catch (err: any) {
+      console.error("End stream error:", err);
       alert(err.message || "Failed to end session");
+      setIsUploading(false);
     }
   };
 
@@ -877,6 +960,58 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                     </AnimatePresence>
                   </div>
                 </div>
+              ) : sidebarActiveTab === "recordings" ? (
+                <div className="absolute inset-0 bg-white flex flex-col p-6 mt-16 pb-24 shadow-inner overflow-hidden">
+                  <div className="mb-6">
+                    <h2 className="text-4xl font-display font-black uppercase italic tracking-tighter text-slate-900 leading-none">{t('recordings', 'Recordings')}</h2>
+                    <div className="h-1.5 w-16 bg-brand-blue rounded-full mt-3"></div>
+                  </div>
+                  
+                  <div className="flex-1 overflow-y-auto no-scrollbar space-y-4 pr-2">
+                    {recordings.length > 0 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {recordings.map((recording) => (
+                          <motion.div 
+                            key={recording.id}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="bg-white border border-slate-100 rounded-3xl p-6 shadow-[0_4px_20px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_32px_rgba(0,0,0,0.06)] transition-all group"
+                          >
+                            <div className="aspect-video bg-slate-900 rounded-2xl mb-4 relative overflow-hidden flex items-center justify-center">
+                              <video 
+                                src={recording.video_url} 
+                                className="w-full h-full object-cover"
+                                controls={false}
+                              />
+                              <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                <a 
+                                  href={recording.video_url} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="h-12 w-12 bg-white rounded-full flex items-center justify-center text-brand-blue shadow-xl scale-90 group-hover:scale-100 transition-transform"
+                                >
+                                  <Play className="h-6 w-6 fill-current" />
+                                </a>
+                              </div>
+                            </div>
+                            <div>
+                              <h4 className="text-md font-black uppercase italic tracking-tight text-slate-900 mb-1">{recording.live_session?.title || t('untitled_recording', 'Untitled Recording')}</h4>
+                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest font-mono">{formatDate(recording.created_at)}</p>
+                            </div>
+                          </motion.div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="h-full flex flex-col items-center justify-center text-center p-12">
+                         <div className="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center mb-6">
+                           <Save className="h-10 w-10 text-slate-200" />
+                         </div>
+                         <h3 className="text-xl font-black uppercase text-slate-900 italic tracking-tighter mb-2">{t('no_recordings_title', 'Vault is Empty')}</h3>
+                         <p className="text-sm font-medium text-slate-400 max-w-xs">{t('no_recordings_desc', 'Previous live sessions will automatically appear here once the teacher finishes them.')}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
               ) : (
                 <div className="absolute inset-0 bg-white p-8 flex flex-col">
                   <div className="mb-8 mt-16">
@@ -989,14 +1124,55 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
           <AnimatePresence>
             {isEnding && (
               <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-lg p-6">
-                 <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white p-8 rounded-[40px] w-full max-w-sm text-center space-y-6">
-                    <h4 className="text-2xl font-black uppercase text-slate-900 italic tracking-tighter">{t('end_session', 'End Session?')}</h4>
-                    <p className="text-xs text-slate-400 font-medium">{t('end_session_hint', 'This will disconnect all students. You can optionally provide a recording URL.')}</p>
-                    <input value={recordingUrlInput} onChange={(e) => setRecordingUrlInput(e.target.value)} placeholder="YouTube/Google Drive Link" className="w-full bg-slate-50 border border-slate-100 p-4 rounded-2xl text-xs outline-none focus:border-brand-blue transition-all" />
-                    <div className="flex flex-col gap-3">
-                      <button onClick={handleEndStream} className="w-full py-4 bg-brand-blue text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl shadow-blue-500/20">{t('finish_publish', 'Finish & Publish')}</button>
-                      <button onClick={() => setIsEnding(false)} className="w-full py-4 bg-slate-100 text-slate-400 rounded-2xl font-black uppercase tracking-widest text-[10px]">{t('cancel', 'Cancel')}</button>
-                    </div>
+                 <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white p-8 rounded-[40px] w-full max-w-sm text-center space-y-6 shadow-2xl">
+                    {isUploading ? (
+                      <div className="py-8 space-y-4">
+                        <Loader2 className="h-12 w-12 text-brand-blue animate-spin mx-auto" />
+                        <h4 className="text-xl font-display font-black uppercase italic tracking-tighter text-slate-900 leading-none">{t('uploading_recording', 'Saving Your Class')}</h4>
+                        <p className="text-xs text-slate-400 font-medium font-sans px-4">
+                          {t('uploading_desc', 'Please wait while we securely upload your live recording to the cloud.')}
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="mx-auto w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center">
+                          <Radio className="h-8 w-8 text-red-500" />
+                        </div>
+                        <div className="space-y-2">
+                          <h4 className="text-2xl font-display font-black uppercase text-slate-900 italic tracking-tighter leading-none">{t('end_session', 'End Session?')}</h4>
+                          <p className="text-xs text-slate-400 font-medium font-sans">
+                            {t('end_session_hint_pro', 'We are recording your session automatically. You can also provide an external link below.')}
+                          </p>
+                        </div>
+                        <div className="space-y-4">
+                          <div className="relative group">
+                            <input 
+                              value={recordingUrlInput} 
+                              onChange={(e) => setRecordingUrlInput(e.target.value)} 
+                              placeholder="YouTube/Google Drive Link (Optional)" 
+                              className="w-full bg-slate-50 border border-slate-100 p-4 rounded-2xl text-[13px] font-medium outline-none focus:border-brand-blue transition-all" 
+                            />
+                            <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none opacity-20">
+                              <Share2 className="h-4 w-4" />
+                            </div>
+                          </div>
+                          <div className="flex flex-col gap-3 pt-2">
+                            <button 
+                              onClick={handleEndStream} 
+                              className="w-full py-4 bg-red-500 text-white rounded-2xl font-black uppercase tracking-widest text-[11px] shadow-xl shadow-red-500/20 hover:bg-red-600 hover:scale-[1.02] transition-all"
+                            >
+                              {t('finish_publish', 'Finish & Close Stream')}
+                            </button>
+                            <button 
+                              onClick={() => setIsEnding(false)} 
+                              className="w-full py-4 bg-slate-100 text-slate-400 rounded-2xl font-black uppercase tracking-widest text-[11px] hover:bg-slate-200 transition-all"
+                            >
+                              {t('cancel', 'Back to Class')}
+                            </button>
+                          </div>
+                        </div>
+                      </>
+                    )}
                  </motion.div>
               </div>
             )}
