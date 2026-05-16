@@ -286,6 +286,22 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
     }
   };
 
+  const handleStartStream = async () => {
+    try {
+      const { error } = await supabase
+        .from("live_sessions")
+        .update({
+          status: "live",
+          started_at: new Date().toISOString()
+        })
+        .eq("id", session.id);
+
+      if (error) throw error;
+    } catch (err: any) {
+      alert(err.message || "Failed to start session");
+    }
+  };
+
   const handleEndStream = async () => {
     try {
       const { error } = await supabase
@@ -364,22 +380,22 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
   const isLive = session.status === "live";
 
   return (
-    <div ref={containerRef} className="flex h-screen w-full bg-slate-50 text-slate-900 overflow-hidden relative">
-      <div className="flex-1 flex flex-col relative w-full h-full">
-        {isTeacherView && (
-          <RoomSidebar 
-            isOpen={isSidebarOpen} 
-            activeTab={sidebarActiveTab} 
-            setActiveTab={setSidebarActiveTab} 
-            onClose={() => { if(onClose) onClose(); }}
-            lang={i18n.language}
-          />
-        )}
+    <div ref={containerRef} className="flex h-screen w-full bg-white text-slate-900 overflow-hidden relative">
+      {isTeacherView && (
+        <RoomSidebar 
+          isOpen={isSidebarOpen} 
+          activeTab={sidebarActiveTab} 
+          setActiveTab={setSidebarActiveTab} 
+          onClose={() => { if(onClose) onClose(); }}
+          lang={i18n.language}
+        />
+      )}
+      <div className="flex-1 flex flex-col relative w-full h-full overflow-hidden">
         <div className="flex-1 bg-white relative group">
           <div className="h-full w-full flex items-center justify-center relative overflow-hidden">
              {sidebarActiveTab === "live" ? (
                isLive ? (
-                 <div className="absolute inset-0 bg-slate-900 overflow-hidden">
+                 <div className="absolute inset-0 bg-slate-900 overflow-hidden rounded-2xl md:m-4 shadow-2xl">
                  {isTeacherView ? (
                    localTracks ? (
                      localTracks.videoTrack ? (
@@ -409,15 +425,39 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                  )}
                  </div>
                ) : (
-                 <div className="flex flex-col items-center justify-center h-full text-slate-500">
-                    <Radio className="h-16 w-16 mb-4 opacity-50" />
-                    <p className="text-lg font-black uppercase tracking-widest">{t('live_not_started', 'Live session not started')}</p>
+                 <div className="flex flex-col items-center justify-center h-full text-slate-500 bg-white">
+                    <div className="max-w-md w-full px-8 text-center space-y-6">
+                      <div className="mx-auto w-24 h-24 bg-brand-blue/10 rounded-[32px] flex items-center justify-center rotate-6">
+                        <Radio className="h-10 w-10 text-brand-blue" />
+                      </div>
+                      <div className="space-y-2">
+                        <h3 className="text-2xl font-black uppercase italic tracking-tighter text-slate-900">{t('live_not_started', 'Live Ready')}</h3>
+                        <p className="text-sm font-medium text-slate-400">{t('live_hint', 'Students will be notified once you go live.')}</p>
+                      </div>
+                      {isTeacherView && (
+                        <button 
+                          onClick={handleStartStream}
+                          className="w-full bg-brand-blue text-white py-4 rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-brand-blue/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                        >
+                          {t('go_live', 'Start Live Session')}
+                        </button>
+                      )}
+                    </div>
                  </div>
                )
              ) : (
-               <div className="absolute inset-0 bg-slate-50 p-6 flex flex-col items-center justify-center">
-                 <h2 className="text-4xl font-black uppercase tracking-tighter text-slate-900 mb-4">{sidebarActiveTab.replace('_', ' ')}</h2>
-                 <p className="text-slate-500 text-sm">{t('coming_soon', 'Coming Soon')}</p>
+               <div className="absolute inset-0 bg-white p-8 flex flex-col">
+                 <div className="mb-8">
+                   <h2 className="text-3xl font-black uppercase italic tracking-tighter text-slate-900">{sidebarActiveTab.replace('_', ' ')}</h2>
+                   <div className="h-1 w-12 bg-brand-blue rounded-full mt-2"></div>
+                 </div>
+                 
+                 <div className="flex-1 border-2 border-dashed border-slate-100 rounded-[32px] flex flex-col items-center justify-center p-12 text-center">
+                    <Loader2 className="h-12 w-12 text-slate-200 animate-spin mb-4" />
+                    <p className="text-slate-400 text-sm font-bold uppercase tracking-widest leading-loose max-w-xs">
+                      {t('tab_coming_soon', 'This section is currently under construction and will be available soon.')}
+                    </p>
+                 </div>
                </div>
              )}
 
@@ -449,21 +489,33 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
           </div>
 
           <div className="absolute inset-x-0 top-0 p-6 flex items-start justify-between z-40 pointer-events-none">
-            <div className="bg-white/80 backdrop-blur-xl px-4 py-2 rounded-2xl border border-white shadow-sm pointer-events-auto">
-              <p className="text-[8px] font-black uppercase tracking-widest text-slate-400 mb-1">{room.room_name}</p>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
-                <p className="text-xs font-black uppercase text-slate-900 italic tracking-tighter">{t('live_session', 'Live Session')}</p>
+            <div className="bg-white/80 backdrop-blur-xl px-4 py-2 rounded-2xl border border-white shadow-sm pointer-events-auto flex items-center gap-3">
+              {isTeacherView && (
+                <button 
+                  onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                  className="p-1 rounded-lg hover:bg-slate-100 transition-colors"
+                >
+                  <MoreHorizontal className={cn("h-4 w-4 text-slate-400 transition-transform", isSidebarOpen && "rotate-90")} />
+                </button>
+              )}
+              <div>
+                <p className="text-[8px] font-black uppercase tracking-widest text-slate-400 mb-0.5 leading-none">{room.room_name}</p>
+                <div className="flex items-center gap-2">
+                  <div className={cn("w-2 h-2 rounded-full", isLive ? "bg-red-500 animate-pulse" : "bg-slate-300")}></div>
+                  <p className="text-xs font-black uppercase text-slate-900 italic tracking-tighter">{isLive ? t('live_session', 'Live Session') : sidebarActiveTab.replace('_', ' ')}</p>
+                </div>
               </div>
             </div>
             <div className="flex gap-2 pointer-events-auto">
-                <button 
-                  onClick={toggleFullscreen} 
-                  className="bg-white/80 backdrop-blur-xl p-3 rounded-full text-slate-600 border border-white shadow-sm hover:bg-white transition-colors"
-                >
-                  {isFullscreen ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}
-                </button>
-                {onClose && (
+                {isLive && (
+                  <button 
+                    onClick={toggleFullscreen} 
+                    className="bg-white/80 backdrop-blur-xl p-3 rounded-full text-slate-600 border border-white shadow-sm hover:bg-white transition-colors"
+                  >
+                    {isFullscreen ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}
+                  </button>
+                )}
+                {onClose && !isTeacherView && (
                    <button onClick={onClose} className="bg-white/80 backdrop-blur-xl p-3 rounded-full text-slate-600 border border-white shadow-sm pointer-events-auto hover:bg-white transition-colors">
                      <X className="h-5 w-5" />
                    </button>
@@ -472,21 +524,25 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
           </div>
 
           <div className="absolute bottom-6 inset-x-0 px-6 z-40 flex items-center gap-4">
-             <button onClick={() => setHideComments(!hideComments)} className="h-12 w-12 rounded-full bg-white/80 backdrop-blur-xl border border-white flex items-center justify-center text-slate-600 shadow-sm transition-all hover:bg-white">
-               {hideComments ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}
-             </button>
-             <form onSubmit={handleSendMessage} className="flex-1 flex bg-white/80 backdrop-blur-xl rounded-2xl border border-white px-4 h-12 shadow-sm focus-within:bg-white transition-all">
-               <input 
-                 value={chatMessage} 
-                 onChange={(e) => setChatMessage(e.target.value)} 
-                 placeholder={t('type_message', 'Type a message...')} 
-                 className={cn("flex-1 bg-transparent border-none outline-none text-sm font-medium", i18n.language === 'ar' ? "text-right" : "text-left")}
-               />
-               <button type="submit" className="p-2 text-brand-blue disabled:opacity-20"><Send className="h-5 w-5" /></button>
-             </form>
+             {isLive && (
+               <button onClick={() => setHideComments(!hideComments)} className="h-12 w-12 rounded-full bg-white/80 backdrop-blur-xl border border-white flex items-center justify-center text-slate-600 shadow-sm transition-all hover:bg-white pointer-events-auto">
+                 {hideComments ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}
+               </button>
+             )}
+             {(isLive || sidebarActiveTab === "group_chat") && (
+               <form onSubmit={handleSendMessage} className="flex-1 flex bg-white/80 backdrop-blur-xl rounded-2xl border border-white px-4 h-12 shadow-sm focus-within:bg-white transition-all pointer-events-auto">
+                 <input 
+                   value={chatMessage} 
+                   onChange={(e) => setChatMessage(e.target.value)} 
+                   placeholder={t('type_message', 'Type a message...')} 
+                   className={cn("flex-1 bg-transparent border-none outline-none text-sm font-medium", i18n.language === 'ar' ? "text-right" : "text-left")}
+                 />
+                 <button type="submit" className="p-2 text-brand-blue disabled:opacity-20"><Send className="h-5 w-5" /></button>
+               </form>
+             )}
           </div>
 
-          {isTeacherView && (
+          {isTeacherView && isLive && sidebarActiveTab === "live" && (
             <div className={`absolute top-24 ${i18n.language === 'ar' ? 'left-6' : 'right-6'} flex flex-col gap-3 z-40`}>
                <button onClick={toggleMute} className={cn("h-10 w-10 rounded-full flex items-center justify-center transition-all bg-white border border-white shadow-md", isMuted ? "text-red-500" : "text-emerald-500")}>
                  {isMuted ? <VideoOff className="h-4 w-4" /> : <Users className="h-4 w-4" />}
@@ -494,17 +550,6 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                <button onClick={toggleFlipCamera} className="h-10 w-10 rounded-full flex items-center justify-center bg-white border border-white shadow-md text-slate-400">
                  <RefreshCw className="h-4 w-4" />
                </button>
-               <button 
-                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                 className="h-10 w-10 rounded-full flex items-center justify-center bg-white border border-white shadow-md text-slate-800"
-               >
-                 {isSidebarOpen ? <X className="h-4 w-4" /> : <MoreHorizontal className="h-4 w-4" />}
-               </button>
-               {onClose && (
-                 <button onClick={onClose} className="h-10 w-10 rounded-full flex items-center justify-center bg-white border border-white shadow-md text-slate-500">
-                   <LogOut className="h-4 w-4" />
-                 </button>
-               )}
                <button onClick={() => setIsEnding(true)} className="h-10 w-10 rounded-full flex items-center justify-center bg-red-500 text-white shadow-md hover:bg-red-600">
                  <X className="h-4 w-4" />
                </button>

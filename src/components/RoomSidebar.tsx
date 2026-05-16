@@ -18,11 +18,15 @@ export default function RoomSidebar({ isOpen, activeTab, setActiveTab, onClose, 
 
   return (
     <div className={cn(
-      "absolute z-50 bg-white/90 backdrop-blur-xl rounded-2xl p-3 shadow-lg border border-white flex flex-col gap-2 transition-all pointer-events-auto",
-      "top-20 left-4 right-4 sm:top-24 sm:w-48 sm:left-20 sm:right-auto",
-      lang === 'ar' && "sm:right-20 sm:left-auto"
+      "h-full bg-white border-r border-slate-100 flex flex-col z-50 transition-all",
+      "w-16 sm:w-64", // Adaptive width
+      lang === 'ar' && "border-r-0 border-l"
     )}>
-      <div className="flex flex-col gap-1">
+      <div className="p-4 border-b border-slate-100 hidden sm:block">
+        <h2 className="text-sm font-black uppercase tracking-widest text-slate-900">{t('room_menu', 'Room Menu')}</h2>
+      </div>
+
+      <div className="flex-1 p-2 flex flex-col gap-1">
         {[
           { id: "announcements", icon: Megaphone, label: "Announcements" },
           { id: "group_chat", icon: Users, label: "Group Chat" },
@@ -32,21 +36,26 @@ export default function RoomSidebar({ isOpen, activeTab, setActiveTab, onClose, 
           <button 
             key={item.id}
             onClick={() => setActiveTab(item.id)}
-            className={cn("flex items-center gap-2 p-2 rounded-lg text-xs font-bold transition-all", activeTab === item.id ? "bg-brand-blue text-white" : "hover:bg-slate-100 text-slate-600")}
+            className={cn(
+              "flex items-center gap-3 p-3 rounded-xl transition-all group overflow-hidden",
+              activeTab === item.id 
+                ? "bg-brand-blue text-white shadow-md shadow-brand-blue/20" 
+                : "hover:bg-slate-50 text-slate-500 hover:text-slate-900"
+            )}
           >
-            <item.icon className="h-4 w-4" />
-            {item.label}
+            <item.icon className="h-5 w-5 shrink-0" />
+            <span className="text-sm font-bold whitespace-nowrap hidden sm:block">{item.label}</span>
           </button>
         ))}
       </div>
       
-      <div className="border-t border-slate-100 pt-2 mt-2">
+      <div className="p-2 border-t border-slate-100">
         <button 
           onClick={onClose}
-          className="w-full flex items-center gap-2 p-2 rounded-lg text-xs font-bold text-red-500 hover:bg-red-50"
+          className="w-full flex items-center gap-3 p-3 rounded-xl text-red-500 hover:bg-red-50 transition-colors group overflow-hidden"
         >
-          <LogOut className="h-4 w-4" />
-          {t('leave_room', 'Leave Room')}
+          <LogOut className="h-5 w-5 shrink-0" />
+          <span className="text-sm font-bold whitespace-nowrap hidden sm:block">{t('leave_room', 'Leave Room')}</span>
         </button>
       </div>
     </div>
