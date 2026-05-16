@@ -365,18 +365,21 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
       const { data, error } = await supabase.from("room_messages").insert(msgData).select().single();
       if (error) throw error;
 
+      console.log("Message sent to Supabase, response:", data);
+
       if (rtmClient) {
         const payload: ChatMessageData = {
           id: data.id,
           room_id: data.room_id,
           message: data.message,
-          content: data.content,
+          content: contentType,
           sender_id: data.user_id,
           sender_name: data.user_name,
           sender_avatar: data.user_avatar,
           recipient_id: data.recipient_id,
           created_at: data.created_at
         };
+        console.log("Publishing RTM payload:", payload);
         rtmClient.publish(room.id, JSON.stringify({ type: "chat", payload }));
 
         setMessages((prev) => {
@@ -593,7 +596,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                     className="flex-1 overflow-y-auto no-scrollbar space-y-4 pr-2"
                   >
                     <AnimatePresence initial={false}>
-                       {messages.filter(m => (!m.content || m.content === 'group')).map((msg) => (
+                       {messages.filter(m => m.content !== 'private' && m.content !== 'live').map((msg) => (
                          <motion.div 
                            key={msg.id} 
                            initial={{ opacity: 0, y: 10 }} 
