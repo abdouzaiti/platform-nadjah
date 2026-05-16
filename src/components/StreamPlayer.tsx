@@ -102,6 +102,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
           sender_id: m.user_id,
           sender_name: m.user_name,
           sender_avatar: m.user_avatar,
+          recipient_id: m.recipient_id,
           created_at: m.created_at
         })) as ChatMessageData[]);
         
@@ -150,6 +151,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
             sender_id: payload.new.user_id,
             sender_name: payload.new.user_name,
             sender_avatar: payload.new.user_avatar,
+            recipient_id: payload.new.recipient_id,
             created_at: payload.new.created_at
           };
           
@@ -576,7 +578,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                     className="flex-1 overflow-y-auto no-scrollbar space-y-4 pr-2"
                   >
                     <AnimatePresence initial={false}>
-                       {messages.filter(m => m.content !== 'live').map((msg) => (
+                       {messages.filter(m => m.content !== 'live' && m.content !== 'private').map((msg) => (
                          <motion.div 
                            key={msg.id} 
                            initial={{ opacity: 0, y: 10 }} 
@@ -626,7 +628,12 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                       <div className="w-1/3 border-r border-slate-100 pr-2 overflow-y-auto no-scrollbar">
                         <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4">{t('students', 'Students')}</p>
                         <div className="space-y-1">
-                          {Array.from(new Set(messages.filter(m => m.content === 'private' && (m.sender_id !== profile.id || m.recipient_id !== null)).map(m => m.sender_id === profile.id ? m.recipient_id : m.sender_id))).map(studentId => {
+                          {Array.from(new Set(
+                            messages
+                              .filter(m => m.content === 'private')
+                              .map(m => m.sender_id === profile.id ? m.recipient_id : m.sender_id)
+                              .filter((id): id is string => id !== null && id !== undefined && id !== profile.id)
+                          )).map(studentId => {
                             const messagesWithStudent = messages.filter(m => (m.sender_id === studentId || m.recipient_id === studentId) && m.content === 'private');
                             const studentMsg = messagesWithStudent.find(m => m.sender_id === studentId) || messagesWithStudent[0];
                             const lastMsg = messagesWithStudent[messagesWithStudent.length - 1];

@@ -172,6 +172,7 @@ CREATE TABLE IF NOT EXISTS public.room_messages (
   user_id uuid REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
   message text NOT NULL,
   content text,
+  recipient_id uuid REFERENCES public.profiles(id),
   user_name text,
   user_avatar text,
   created_at timestamp with time zone DEFAULT now()
@@ -246,7 +247,18 @@ CREATE POLICY "Teachers manage rooms" ON public.class_rooms FOR ALL USING (EXIST
 CREATE POLICY "Members view memberships" ON public.room_members FOR SELECT USING (auth.uid() = user_id OR EXISTS (SELECT 1 FROM public.class_rooms r JOIN public.teacher_communities c ON r.community_id = c.id WHERE r.id = room_id AND c.teacher_id = auth.uid()));
 CREATE POLICY "Users join rooms" ON public.room_members FOR INSERT WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "Messages viewable" ON public.room_messages FOR SELECT USING (EXISTS (SELECT 1 FROM public.room_members WHERE room_id = room_messages.room_id AND user_id = auth.uid()) OR EXISTS (SELECT 1 FROM public.class_rooms r JOIN public.teacher_communities c ON r.community_id = c.id WHERE r.id = room_id AND c.teacher_id = auth.uid()));
+CREATE POLICY "Messages viewable" ON public.room_messages FOR SELECT USING (
+  (content IS NULL OR content != 'private') AND (
+    EXISTS (SELECT 1 FROM public.room_members WHERE room_id = room_messages.room_id AND user_id = auth.uid()) 
+    OR EXISTS (SELECT 1 FROM public.class_rooms r JOIN public.teacher_communities c ON r.community_id = c.id WHERE r.id = room_id AND c.teacher_id = auth.uid())
+  )
+  OR
+  (content = 'private' AND (
+    user_id = auth.uid() 
+    OR recipient_id = auth.uid() 
+    OR EXISTS (SELECT 1 FROM public.class_rooms r JOIN public.teacher_communities c ON r.community_id = c.id WHERE r.id = room_id AND c.teacher_id = auth.uid())
+  ))
+);
 CREATE POLICY "Post messages" ON public.room_messages FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 CREATE POLICY "Live sessions viewable" ON public.live_sessions FOR SELECT USING (EXISTS (SELECT 1 FROM public.room_members WHERE room_id = live_sessions.room_id AND user_id = auth.uid()) OR EXISTS (SELECT 1 FROM public.class_rooms r JOIN public.teacher_communities c ON r.community_id = c.id WHERE r.id = room_id AND c.teacher_id = auth.uid()));
