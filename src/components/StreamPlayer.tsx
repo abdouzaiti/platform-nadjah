@@ -189,126 +189,140 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
 
   // Agora Lifecycle (RTC + RTM)
   useEffect(() => {
-    if (currentSession.status !== "live") return;
-
-    const client = createAgoraClient();
+    // Setup RTM regardless of live status for reliable chat
     const rtm = createRTMClient(profile.id);
-    
-    setAgoraClient(client);
     setRtmClient(rtm);
 
-    const setupStream = async () => {
+    const setupRtm = async () => {
       try {
-        setAgoraError(null);
-        setInitTakingLong(false);
-        setIsInitializingTracks(true);
+        await rtm.login();
+        await rtm.subscribe(room.id);
         
-        if (!isTeacherView) {
-          client.on("user-published", async (user, mediaType) => {
-            try {
-              await client.subscribe(user, mediaType);
-              if (mediaType === "video") {
-                setTeacherVideo(user.videoTrack || null);
+        rtm.addEventListener("message", (event) => {
+          try {
+            const data = JSON.parse(event.message as string);
+            if (data.type === "chat") {
+              const newMsg = data.payload as ChatMessageData;
+              
+              // For private messages, check if we are the intended recipient or sender
+              if (newMsg.content === 'private') {
+                const isRelevant = newMsg.sender_id === profile.id || newMsg.recipient_id === profile.id || isTeacherView;
+                if (!isRelevant) return;
               }
-              if (mediaType === "audio") {
-                try {
-                  user.audioTrack?.play();
-                } catch (err: any) {
-                  if (err.name === "NotAllowedError") {
-                    setHasAudioStarted(false);
-                  }
-                }
-              }
-            } catch (err) {
-              console.error("Subscription error:", err);
-            }
-          });
 
-          client.on("user-unpublished", (user, mediaType) => {
-            if (mediaType === "video") {
-              setTeacherVideo(null);
+              setMessages(prev => {
+                 if (prev.some(m => m.id === newMsg.id)) return prev;
+                 return [...prev, newMsg];
+              });
+              
+              setTimeout(() => {
+                if (groupChatScrollRef.current) groupChatScrollRef.current.scrollTop = groupChatScrollRef.current.scrollHeight;
+                if (liveCommentsScrollRef.current) liveCommentsScrollRef.current.scrollTop = liveCommentsScrollRef.current.scrollHeight;
+                if (privateChatScrollRef.current) privateChatScrollRef.current.scrollTop = privateChatScrollRef.current.scrollHeight;
+              }, 100);
             }
-          });
-        }
-
-        // RTC Join - Using room.id as channel name
-        const tracksPromise = isTeacherView ? createTracks() : null;
-        await joinChannel(client, room.id, profile.id, isTeacherView ? "host" : "audience");
-        
-        const updateViewers = () => {
-          setLiveViewers(client.remoteUsers.length + 1);
-        };
-
-        client.on("user-joined", updateViewers);
-        client.on("user-left", updateViewers);
-        updateViewers();
-        
-        if (!isTeacherView) {
-          for (const user of client.remoteUsers) {
-            if (user.hasVideo) {
-              await client.subscribe(user, "video");
-              setTeacherVideo(user.videoTrack || null);
-            }
-            if (user.hasAudio) {
-              await client.subscribe(user, "audio");
-              user.audioTrack?.play();
-            }
+          } catch (e) {
+            console.error("RTM Message Parse Error:", e);
           }
-        }
-        
-        // RTM Join
-        try {
-          await rtm.login();
-          await rtm.subscribe(room.id);
-          
-          rtm.addEventListener("message", (event) => {
-            try {
-              const data = JSON.parse(event.message as string);
-              if (data.type === "chat") {
-                const newMsg = data.payload as ChatMessageData;
-                console.log("Chat message received via RTM:", newMsg);
-                setMessages(prev => {
-                   if (prev.some(m => m.id === newMsg.id)) return prev;
-                   return [...prev, newMsg];
-                });
-                setTimeout(() => {
-                  if (groupChatScrollRef.current) groupChatScrollRef.current.scrollTop = groupChatScrollRef.current.scrollHeight;
-                  if (liveCommentsScrollRef.current) liveCommentsScrollRef.current.scrollTop = liveCommentsScrollRef.current.scrollHeight;
-                  if (privateChatScrollRef.current) privateChatScrollRef.current.scrollTop = privateChatScrollRef.current.scrollHeight;
-                }, 100);
-              }
-            } catch (e) {
-              console.error("RTM Message Parse Error:", e);
-            }
-          });
-        } catch (rtmErr) {
-          console.error("RTM Setup Error:", rtmErr);
-        }
-
-        if (isTeacherView) {
-          const tracks = await tracksPromise!;
-          setLocalTracks(tracks);
-          
-          const tracksToPublish: any[] = [tracks.audioTrack];
-          if (tracks.videoTrack) tracksToPublish.push(tracks.videoTrack);
-          
-          await client.publish(tracksToPublish);
-
-          const interval = setInterval(() => {
-            if (tracks.audioTrack) {
-              setMicVolume(tracks.audioTrack.getVolumeLevel() * 100);
-            }
-          }, 100);
-        }
-
-        setIsInitializingTracks(false);
-      } catch (err: any) {
-        setAgoraError(err.message || "Failed to establish live connection");
-        setIsInitializingTracks(false);
+        });
+        console.log("Agora RTM Connected for real-time chat");
+      } catch (err) {
+        console.error("RTM Setup Error:", err);
       }
     };
 
-    setupStream();
+    setupRtm();
+
+    // Setup RTC only if live
+    let client: IAgoraRTCClient | null = null;
+    if (currentSession.status === "live") {
+      client = createAgoraClient();
+      setAgoraClient(client);
+
+      const setupStream = async () => {
+        try {
+          setAgoraError(null);
+          setInitTakingLong(false);
+          setIsInitializingTracks(true);
+          
+          if (!isTeacherView) {
+            client!.on("user-published", async (user, mediaType) => {
+              try {
+                await client!.subscribe(user, mediaType);
+                if (mediaType === "video") {
+                  setTeacherVideo(user.videoTrack || null);
+                }
+                if (mediaType === "audio") {
+                  try {
+                    user.audioTrack?.play();
+                  } catch (err: any) {
+                    if (err.name === "NotAllowedError") {
+                      setHasAudioStarted(false);
+                    }
+                  }
+                }
+              } catch (err) {
+                console.error("Subscription error:", err);
+              }
+            });
+
+            client!.on("user-unpublished", (user, mediaType) => {
+              if (mediaType === "video") {
+                setTeacherVideo(null);
+              }
+            });
+          }
+
+          // RTC Join - Using room.id as channel name
+          const tracksPromise = isTeacherView ? createTracks() : null;
+          await joinChannel(client!, room.id, profile.id, isTeacherView ? "host" : "audience");
+          
+          const updateViewers = () => {
+            setLiveViewers(client!.remoteUsers.length + 1);
+          };
+
+          client!.on("user-joined", updateViewers);
+          client!.on("user-left", updateViewers);
+          updateViewers();
+          
+          if (!isTeacherView) {
+            for (const user of client!.remoteUsers) {
+              if (user.hasVideo) {
+                await client!.subscribe(user, "video");
+                setTeacherVideo(user.videoTrack || null);
+              }
+              if (user.hasAudio) {
+                await client!.subscribe(user, "audio");
+                user.audioTrack?.play();
+              }
+            }
+          }
+          
+          if (isTeacherView) {
+            const tracks = await tracksPromise!;
+            setLocalTracks(tracks);
+            
+            const tracksToPublish: any[] = [tracks.audioTrack];
+            if (tracks.videoTrack) tracksToPublish.push(tracks.videoTrack);
+            
+            await client!.publish(tracksToPublish);
+
+            const interval = setInterval(() => {
+              if (tracks.audioTrack) {
+                setMicVolume(tracks.audioTrack.getVolumeLevel() * 100);
+              }
+            }, 100);
+          }
+
+          setIsInitializingTracks(false);
+        } catch (err: any) {
+          setAgoraError(err.message || "Failed to establish live connection");
+          setIsInitializingTracks(false);
+        }
+      };
+
+      setupStream();
+    }
 
     return () => {
       if (client) {
@@ -323,6 +337,8 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
       // Reset video states when leaving live
       setTeacherVideo(null);
       setLocalTracks(null);
+      setAgoraClient(null);
+      setRtmClient(null);
     };
   }, [room.id, currentSession.status, isTeacherView, profile.id]);
 

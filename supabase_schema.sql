@@ -267,7 +267,9 @@ CREATE POLICY "Teachers manage live" ON public.live_sessions FOR ALL USING (EXIS
 CREATE POLICY "Recordings viewable" ON public.recordings FOR SELECT USING (EXISTS (SELECT 1 FROM public.room_members JOIN public.live_sessions ON room_members.room_id = live_sessions.room_id WHERE recordings.live_session_id = live_sessions.id AND user_id = auth.uid()) OR EXISTS (SELECT 1 FROM public.class_rooms r JOIN public.teacher_communities c ON r.community_id = c.id JOIN public.live_sessions l ON r.id = l.room_id WHERE l.id = live_session_id AND c.teacher_id = auth.uid()));
 CREATE POLICY "Teachers manage recordings" ON public.recordings FOR ALL USING (EXISTS (SELECT 1 FROM public.class_rooms r JOIN public.teacher_communities c ON r.community_id = c.id JOIN public.live_sessions l ON r.id = l.room_id WHERE l.id = live_session_id AND c.teacher_id = auth.uid())) WITH CHECK (EXISTS (SELECT 1 FROM public.class_rooms r JOIN public.teacher_communities c ON r.community_id = c.id JOIN public.live_sessions l ON r.id = l.room_id WHERE l.id = live_session_id AND c.teacher_id = auth.uid()));
 
--- SEED DATA
+-- Enable Realtime
+ALTER PUBLICATION supabase_realtime ADD TABLE public.room_messages;
+ALTER TABLE public.room_messages REPLICA IDENTITY FULL;
 INSERT INTO levels (id, name) VALUES 
 ('a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d', 'ابتدائي (Primaire)'),
 ('b2c3d4e5-f6a7-4b6c-9d0e-1f2a3b4c5d6e', 'متوسط (Moyen)'),
