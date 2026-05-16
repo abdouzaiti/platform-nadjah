@@ -269,7 +269,17 @@ CREATE POLICY "Recordings viewable" ON public.recordings FOR SELECT USING (EXIST
 CREATE POLICY "Teachers manage recordings" ON public.recordings FOR ALL USING (EXISTS (SELECT 1 FROM public.class_rooms r JOIN public.teacher_communities c ON r.community_id = c.id JOIN public.live_sessions l ON r.id = l.room_id WHERE l.id = live_session_id AND c.teacher_id = auth.uid())) WITH CHECK (EXISTS (SELECT 1 FROM public.class_rooms r JOIN public.teacher_communities c ON r.community_id = c.id JOIN public.live_sessions l ON r.id = l.room_id WHERE l.id = live_session_id AND c.teacher_id = auth.uid()));
 
 -- Enable Realtime
-ALTER PUBLICATION supabase_realtime ADD TABLE public.room_messages;
+DO $$ 
+BEGIN 
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' 
+        AND schemaname = 'public' 
+        AND tablename = 'room_messages'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.room_messages;
+    END IF;
+END $$;
 ALTER TABLE public.room_messages REPLICA IDENTITY FULL;
 INSERT INTO levels (id, name) VALUES 
 ('a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d', 'ابتدائي (Primaire)'),
