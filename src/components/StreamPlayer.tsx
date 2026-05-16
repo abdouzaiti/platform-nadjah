@@ -68,6 +68,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
           id: m.id,
           room_id: m.room_id,
           message: m.message,
+          content: m.content,
           sender_id: m.user_id,
           sender_name: m.user_name,
           sender_avatar: m.user_avatar,
@@ -115,6 +116,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
             id: payload.new.id,
             room_id: payload.new.room_id,
             message: payload.new.message,
+            content: payload.new.content,
             sender_id: payload.new.user_id,
             sender_name: payload.new.user_name,
             sender_avatar: payload.new.user_avatar,
@@ -282,12 +284,14 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
     if (!chatMessage.trim()) return;
 
     try {
+      const isLiveTab = sidebarActiveTab === "live" && isLive;
       const msgData = {
         room_id: room.id,
         user_id: profile.id,
         user_name: profile.fullname,
         user_avatar: profile.avatar_url,
-        message: chatMessage
+        message: chatMessage,
+        content: isLiveTab ? "live" : "group"
       };
 
       const { data, error } = await supabase.from("room_messages").insert(msgData).select().single();
@@ -298,6 +302,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
           id: data.id,
           room_id: data.room_id,
           message: data.message,
+          content: data.content,
           sender_id: data.user_id,
           sender_name: data.user_name,
           sender_avatar: data.user_avatar,
@@ -421,7 +426,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
         <div className="flex-1 bg-white relative group">
           <div className="h-full w-full flex items-center justify-center relative overflow-hidden">
              {sidebarActiveTab === "live" ? (
-               (!hasEntered && !isTeacherView) ? (
+               !hasEntered ? (
                  <div className="flex flex-col items-center justify-center h-full text-slate-500 bg-white">
                     <div className="max-w-md w-full px-8 text-center space-y-6">
                       <div className="mx-auto w-24 h-24 bg-brand-blue/10 rounded-[32px] flex items-center justify-center rotate-6">
@@ -476,19 +481,26 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                         <Radio className="h-10 w-10 text-brand-blue" />
                       </div>
                       <div className="space-y-2">
-                        <h3 className="text-2xl font-black uppercase italic tracking-tighter text-slate-900">{t('live_not_started', 'Waiting for Teacher')}</h3>
-                        <p className="text-sm font-medium text-slate-400">{t('live_hint_student', 'The session will start automatically once the teacher is live.')}</p>
+                        <h3 className="text-2xl font-black uppercase italic tracking-tighter text-slate-900">
+                          {isTeacherView ? t('ready_to_start', 'Ready to Start') : t('live_not_started', 'Waiting for Teacher')}
+                        </h3>
+                        <p className="text-sm font-medium text-slate-400">
+                          {isTeacherView 
+                            ? t('start_live_hint', 'Click below to start the live stream for your students.') 
+                            : t('live_hint_student', 'The session will start automatically once the teacher is live.')}
+                        </p>
                       </div>
                       {isTeacherView && (
                         <button 
                           onClick={handleStartStream}
-                          className="w-full bg-brand-blue text-white py-4 rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-brand-blue/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                          className="w-full bg-red-500 text-white py-4 rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-red-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                         >
-                          {t('enter_room', 'Enter to the Room')}
+                          <Radio className="h-5 w-5" />
+                          {t('go_live', 'Go Live Now')}
                         </button>
                       )}
                     </div>
-                 </div>
+                </div>
                )
               ) : sidebarActiveTab === "group_chat" ? (
                 <div className="absolute inset-0 bg-white flex flex-col p-6 mt-16 pb-24 shadow-inner">
@@ -502,7 +514,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                     className="flex-1 overflow-y-auto no-scrollbar space-y-4 pr-2"
                   >
                     <AnimatePresence initial={false}>
-                       {messages.map((msg) => (
+                       {messages.filter(m => m.content !== 'live').map((msg) => (
                          <motion.div 
                            key={msg.id} 
                            initial={{ opacity: 0, y: 10 }} 
@@ -568,7 +580,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                <div className="absolute inset-0 z-30 pointer-events-none flex flex-col justify-end pb-24 md:pb-32 px-4 md:px-8">
                   <div className="max-h-[40vh] overflow-y-auto no-scrollbar space-y-2 max-w-[400px]" ref={liveCommentsScrollRef}>
                      <AnimatePresence>
-                        {messages.map((msg) => (
+                        {messages.filter(m => m.content === 'live').map((msg) => (
                           <motion.div key={msg.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="flex items-start gap-2 py-1">
                              <img src={msg.sender_avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(msg.sender_name || 'User')}`} className="w-8 h-8 rounded-full border border-white/20" alt="" />
                              <div className="bg-white/90 backdrop-blur-md px-3 py-2 rounded-2xl border border-white shadow-sm pointer-events-auto">

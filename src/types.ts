@@ -50,6 +50,7 @@ export interface ChatMessageData {
   sender_name?: string;
   sender_avatar?: string;
   message: string;
+  content?: string;
   created_at: string;
 }
 
