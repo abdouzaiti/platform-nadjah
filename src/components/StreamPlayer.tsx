@@ -35,8 +35,11 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [sidebarActiveTab, setSidebarActiveTab] = useState("announcements");
   const [hasEntered, setHasEntered] = useState(false);
+  const [teacherId, setTeacherId] = useState<string | null>(null);
+  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const groupChatScrollRef = useRef<HTMLDivElement>(null);
+  const privateChatScrollRef = useRef<HTMLDivElement>(null);
   const liveCommentsScrollRef = useRef<HTMLDivElement>(null);
 
   // Agora State
@@ -53,6 +56,33 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
   const [agoraError, setAgoraError] = useState<string | null>(null);
   const [isInitializingTracks, setIsInitializingTracks] = useState(false);
   const [initTakingLong, setInitTakingLong] = useState(false);
+
+  useEffect(() => {
+    const fetchTeacher = async () => {
+      const { data, error } = await supabase
+        .from('class_rooms')
+        .select(`
+          teacher_communities (
+            teacher_id
+          )
+        `)
+        .eq('id', room.id)
+        .single();
+      
+      if (data && data.teacher_communities) {
+        // @ts-ignore
+        setTeacherId(data.teacher_communities.teacher_id);
+      }
+    };
+    fetchTeacher();
+  }, [room.id]);
+
+  useEffect(() => {
+    // Scroll to bottom when tab changes or messages updated for private chat
+    if (sidebarActiveTab === "private_chat" && privateChatScrollRef.current) {
+      privateChatScrollRef.current.scrollTop = privateChatScrollRef.current.scrollHeight;
+    }
+  }, [sidebarActiveTab, messages, selectedStudentId]);
 
   useEffect(() => {
     const fetchMessages = async () => {
@@ -285,13 +315,34 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
 
     try {
       const isLiveTab = sidebarActiveTab === "live" && isLive;
+      const isPrivateTab = sidebarActiveTab === "private_chat";
+      
+      let recipientId = null;
+      let contentType = "group";
+      
+      if (isLiveTab) {
+        contentType = "live";
+      } else if (isPrivateTab) {
+        contentType = "private";
+        if (isTeacherView) {
+          if (!selectedStudentId) {
+            console.error("No student selected for private chat");
+            return;
+          }
+          recipientId = selectedStudentId;
+        } else {
+          recipientId = teacherId;
+        }
+      }
+
       const msgData = {
         room_id: room.id,
         user_id: profile.id,
         user_name: profile.fullname,
         user_avatar: profile.avatar_url,
         message: chatMessage,
-        content: isLiveTab ? "live" : "group"
+        content: contentType,
+        recipient_id: recipientId
       };
 
       const { data, error } = await supabase.from("room_messages").insert(msgData).select().single();
@@ -306,15 +357,26 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
           sender_id: data.user_id,
           sender_name: data.user_name,
           sender_avatar: data.user_avatar,
+          recipient_id: data.recipient_id,
           created_at: data.created_at
         };
         rtmClient.publish(room.id, JSON.stringify({ type: "chat", payload }));
+
+        setMessages((prev) => {
+          if (prev.some(m => m.id === payload.id)) return prev;
+          return [...prev, payload];
+        });
       }
       
       setChatMessage("");
+      
+      setTimeout(() => {
+        if (groupChatScrollRef.current) groupChatScrollRef.current.scrollTop = groupChatScrollRef.current.scrollHeight;
+        if (privateChatScrollRef.current) privateChatScrollRef.current.scrollTop = privateChatScrollRef.current.scrollHeight;
+        if (liveCommentsScrollRef.current) liveCommentsScrollRef.current.scrollTop = liveCommentsScrollRef.current.scrollHeight;
+      }, 100);
     } catch (err: any) {
       console.error("Chat error:", err);
-      alert("Failed to send message: " + (err.message || "Unknown error"));
     }
   };
 
@@ -551,6 +613,102 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                     </AnimatePresence>
                   </div>
                 </div>
+              ) : sidebarActiveTab === "private_chat" ? (
+                <div className="absolute inset-0 bg-white flex flex-col p-6 mt-16 pb-24 shadow-inner">
+                  <div className="mb-4">
+                    <h2 className="text-3xl font-black uppercase italic tracking-tighter text-slate-900">{t('private_chat', 'Private Chat')}</h2>
+                    <div className="h-1 w-12 bg-brand-blue rounded-full mt-2"></div>
+                  </div>
+                  
+                  {isTeacherView ? (
+                    <div className="flex-1 flex gap-4 overflow-hidden">
+                      {/* Students list for teacher */}
+                      <div className="w-1/3 border-r border-slate-100 pr-2 overflow-y-auto no-scrollbar">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4">{t('students', 'Students')}</p>
+                        <div className="space-y-1">
+                          {Array.from(new Set(messages.filter(m => m.content === 'private' && (m.sender_id !== profile.id || m.recipient_id !== null)).map(m => m.sender_id === profile.id ? m.recipient_id : m.sender_id))).map(studentId => {
+                            const messagesWithStudent = messages.filter(m => (m.sender_id === studentId || m.recipient_id === studentId) && m.content === 'private');
+                            const studentMsg = messagesWithStudent.find(m => m.sender_id === studentId) || messagesWithStudent[0];
+                            const lastMsg = messagesWithStudent[messagesWithStudent.length - 1];
+                            
+                            return (
+                              <button 
+                                key={studentId}
+                                onClick={() => setSelectedStudentId(studentId!)}
+                                className={cn(
+                                  "w-full flex items-center gap-3 p-3 rounded-2xl transition-all",
+                                  selectedStudentId === studentId ? "bg-brand-blue text-white shadow-lg shadow-brand-blue/20" : "hover:bg-slate-50 text-slate-600"
+                                )}
+                              >
+                                <img src={studentMsg?.sender_avatar || `https://ui-avatars.com/api/?name=${studentId}`} className="w-8 h-8 rounded-xl border border-white/20" alt="" />
+                                <div className="text-left overflow-hidden">
+                                  <p className="text-xs font-black truncate">{studentMsg?.sender_id === studentId ? studentMsg.sender_name : (studentMsg?.recipient_id === studentId ? 'Student' : 'User')}</p>
+                                  <p className={cn("text-[9px] truncate opacity-60", selectedStudentId === studentId ? "text-white" : "text-slate-400")}>
+                                    {lastMsg?.message || t('no_messages', 'No messages')}
+                                  </p>
+                                </div>
+                              </button>
+                            );
+                          })}
+                          {messages.filter(m => m.content === 'private').length === 0 && (
+                            <div className="py-8 text-center bg-slate-50/50 rounded-3xl border border-dashed border-slate-100">
+                               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('no_students', 'No students yet')}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Active Chat */}
+                      <div className="flex-1 flex flex-col overflow-hidden">
+                        {selectedStudentId ? (
+                          <div ref={privateChatScrollRef} className="flex-1 overflow-y-auto no-scrollbar space-y-4 pr-2">
+                             <AnimatePresence initial={false}>
+                               {messages
+                                 .filter(m => m.content === 'private' && ((m.sender_id === profile.id && m.recipient_id === selectedStudentId) || (m.sender_id === selectedStudentId && m.recipient_id === profile.id)))
+                                 .map((msg) => (
+                                   <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={cn("flex items-start gap-3", msg.sender_id === profile.id ? "flex-row-reverse" : "flex-row")}>
+                                      <img src={msg.sender_avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(msg.sender_name || 'User')}`} className="w-8 h-8 rounded-xl border-2 border-white shadow-sm" alt="" />
+                                      <div className={cn("max-w-[85%] px-4 py-3 rounded-[24px] shadow-sm", msg.sender_id === profile.id ? "bg-brand-blue text-white rounded-tr-none" : "bg-slate-50 text-slate-800 border border-slate-100 rounded-tl-none")}>
+                                        <p className="text-sm font-medium leading-relaxed">{msg.message}</p>
+                                        <p className={cn("text-[8px] mt-1 font-bold opacity-50", msg.sender_id === profile.id ? "text-right" : "text-left")}>{formatDate(msg.created_at)}</p>
+                                      </div>
+                                   </motion.div>
+                                 ))}
+                             </AnimatePresence>
+                          </div>
+                        ) : (
+                          <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-slate-50/50 rounded-[32px] border border-dashed border-slate-100">
+                             <MessageCircle className="h-10 w-10 text-slate-200 mb-4" />
+                             <p className="text-xs font-black uppercase tracking-widest text-slate-400 italic">{t('select_student', 'Select a student to chat')}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div ref={privateChatScrollRef} className="flex-1 overflow-y-auto no-scrollbar space-y-4 pr-2">
+                       <AnimatePresence initial={false}>
+                         {messages
+                           .filter(m => m.content === 'private' && (m.sender_id === profile.id || m.recipient_id === profile.id))
+                           .map((msg) => (
+                             <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={cn("flex items-start gap-3", msg.sender_id === profile.id ? "flex-row-reverse" : "flex-row")}>
+                                <img src={msg.sender_avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(msg.sender_name || 'User')}`} className="w-10 h-10 rounded-2xl border-2 border-white shadow-sm" alt="" />
+                                <div className={cn("max-w-[75%] px-4 py-3 rounded-[24px] shadow-sm", msg.sender_id === profile.id ? "bg-brand-blue text-white rounded-tr-none" : "bg-slate-50 text-slate-800 border border-slate-100 rounded-tl-none")}>
+                                  <p className="text-sm font-medium leading-relaxed">{msg.message}</p>
+                                  <p className={cn("text-[9px] mt-1 font-bold opacity-50", msg.sender_id === profile.id ? "text-right" : "text-left")}>{formatDate(msg.created_at)}</p>
+                                </div>
+                             </motion.div>
+                           ))}
+                           {messages.filter(m => m.content === 'private' && (m.sender_id === profile.id || m.recipient_id === profile.id)).length === 0 && (
+                             <div className="h-full flex flex-col items-center justify-center text-center p-12">
+                                <MessageCircle className="h-16 w-16 text-slate-100 mb-6" />
+                                <h3 className="text-xl font-black uppercase text-slate-900 italic tracking-tighter mb-2">{t('private_placeholder_title', 'Private Question?')}</h3>
+                                <p className="text-sm font-medium text-slate-400 max-w-xs">{t('private_placeholder_desc', 'Send a private message to your teacher. Only you and the teacher can see this.')}</p>
+                             </div>
+                           )}
+                       </AnimatePresence>
+                    </div>
+                  )}
+                </div>
               ) : (
                 <div className="absolute inset-0 bg-white p-8 flex flex-col">
                   <div className="mb-8 mt-16">
@@ -634,7 +792,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                  {hideComments ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}
                </button>
              )}
-             {(isLive || sidebarActiveTab === "group_chat") && (
+             {(isLive || sidebarActiveTab === "group_chat" || sidebarActiveTab === "private_chat") && (
                <form onSubmit={handleSendMessage} className="flex-1 flex bg-white/80 backdrop-blur-xl rounded-2xl border border-white px-4 h-12 shadow-sm focus-within:bg-white transition-all pointer-events-auto">
                  <input 
                    value={chatMessage} 

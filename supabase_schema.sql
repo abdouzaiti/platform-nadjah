@@ -114,8 +114,12 @@ BEGIN
         ALTER TABLE public.room_messages ADD COLUMN user_avatar text;
     END IF;
     -- Ensure user_name exists
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='room_messages') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='room_messages' AND column_name='user_name') THEN
-        ALTER TABLE public.room_messages ADD COLUMN user_name text;
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='room_messages') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='room_messages' AND column_name='recipient_id') THEN
+        ALTER TABLE public.room_messages ADD COLUMN recipient_id uuid REFERENCES public.profiles(id);
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='room_messages') AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='room_messages' AND column_name='content') THEN
+        ALTER TABLE public.room_messages ADD COLUMN content text;
     END IF;
     -- Ensure live_password is nullable
     IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='live_sessions' AND column_name='live_password' AND is_nullable = 'NO') THEN

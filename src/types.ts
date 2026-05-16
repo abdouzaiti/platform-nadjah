@@ -49,6 +49,7 @@ export interface ChatMessageData {
   sender_id: string;
   sender_name?: string;
   sender_avatar?: string;
+  recipient_id?: string;
   message: string;
   content?: string;
   created_at: string;
