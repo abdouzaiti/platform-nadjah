@@ -20,9 +20,10 @@ interface StreamPlayerProps {
   profile: UserProfile;
   onClose?: () => void;
   isTeacherView?: boolean;
+  teacherId?: string;
 }
 
-export default function StreamPlayer({ room, session, profile, onClose, isTeacherView }: StreamPlayerProps) {
+export default function StreamPlayer({ room, session, profile, onClose, isTeacherView, teacherId: teacherIdProp }: StreamPlayerProps) {
   const { t, i18n } = useTranslation();
   const [currentSession, setCurrentSession] = useState<LiveSession>(session);
   const [chatMessage, setChatMessage] = useState("");
@@ -35,7 +36,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [sidebarActiveTab, setSidebarActiveTab] = useState("announcements");
   const [hasEntered, setHasEntered] = useState(false);
-  const [teacherId, setTeacherId] = useState<string | null>(null);
+  const [teacherId, setTeacherId] = useState<string | null>(teacherIdProp || null);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const groupChatScrollRef = useRef<HTMLDivElement>(null);
@@ -59,19 +60,30 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
 
   useEffect(() => {
     const fetchTeacher = async () => {
-      const { data, error } = await supabase
-        .from('class_rooms')
-        .select(`
-          teacher_communities (
-            teacher_id
-          )
-        `)
-        .eq('id', room.id)
-        .single();
-      
-      if (data && data.teacher_communities) {
-        // @ts-ignore
-        setTeacherId(data.teacher_communities.teacher_id);
+      try {
+        const { data, error } = await supabase
+          .from('class_rooms')
+          .select(`
+            community:teacher_communities (
+              teacher_id
+            )
+          `)
+          .eq('id', room.id)
+          .maybeSingle();
+        
+        if (data && data.community) {
+          // Handle both object and array return formats from Supabase joins
+          const teacher_id = Array.isArray(data.community) 
+            ? data.community[0]?.teacher_id 
+            : (data.community as any).teacher_id;
+            
+          if (teacher_id) {
+            setTeacherId(teacher_id);
+            console.log("Teacher ID fetched:", teacher_id);
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching teacher:", err);
       }
     };
     fetchTeacher();
@@ -163,6 +175,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
           setTimeout(() => {
             if (groupChatScrollRef.current) groupChatScrollRef.current.scrollTop = groupChatScrollRef.current.scrollHeight;
             if (liveCommentsScrollRef.current) liveCommentsScrollRef.current.scrollTop = liveCommentsScrollRef.current.scrollHeight;
+            if (privateChatScrollRef.current) privateChatScrollRef.current.scrollTop = privateChatScrollRef.current.scrollHeight;
           }, 100);
         }
       )
@@ -253,6 +266,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
               const data = JSON.parse(event.message as string);
               if (data.type === "chat") {
                 const newMsg = data.payload as ChatMessageData;
+                console.log("Chat message received via RTM:", newMsg);
                 setMessages(prev => {
                    if (prev.some(m => m.id === newMsg.id)) return prev;
                    return [...prev, newMsg];
@@ -260,6 +274,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                 setTimeout(() => {
                   if (groupChatScrollRef.current) groupChatScrollRef.current.scrollTop = groupChatScrollRef.current.scrollHeight;
                   if (liveCommentsScrollRef.current) liveCommentsScrollRef.current.scrollTop = liveCommentsScrollRef.current.scrollHeight;
+                  if (privateChatScrollRef.current) privateChatScrollRef.current.scrollTop = privateChatScrollRef.current.scrollHeight;
                 }, 100);
               }
             } catch (e) {
@@ -635,8 +650,12 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                               .filter((id): id is string => id !== null && id !== undefined && id !== profile.id)
                           )).map(studentId => {
                             const messagesWithStudent = messages.filter(m => (m.sender_id === studentId || m.recipient_id === studentId) && m.content === 'private');
-                            const studentMsg = messagesWithStudent.find(m => m.sender_id === studentId) || messagesWithStudent[0];
+                            
+                            // Find the student's name: preferably from a message THEY sent
+                            const studentMsg = messagesWithStudent.find(m => m.sender_id === studentId);
                             const lastMsg = messagesWithStudent[messagesWithStudent.length - 1];
+                            const studentName = studentMsg?.sender_name || t('student', 'Student');
+                            const studentAvatar = studentMsg?.sender_avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(studentName)}`;
                             
                             return (
                               <button 
@@ -647,9 +666,9 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                                   selectedStudentId === studentId ? "bg-brand-blue text-white shadow-lg shadow-brand-blue/20" : "hover:bg-slate-50 text-slate-600"
                                 )}
                               >
-                                <img src={studentMsg?.sender_avatar || `https://ui-avatars.com/api/?name=${studentId}`} className="w-8 h-8 rounded-xl border border-white/20" alt="" />
+                                <img src={studentAvatar} className="w-8 h-8 rounded-xl border border-white/20" alt="" />
                                 <div className="text-left overflow-hidden">
-                                  <p className="text-xs font-black truncate">{studentMsg?.sender_id === studentId ? studentMsg.sender_name : (studentMsg?.recipient_id === studentId ? 'Student' : 'User')}</p>
+                                  <p className="text-xs font-black truncate">{studentName}</p>
                                   <p className={cn("text-[9px] truncate opacity-60", selectedStudentId === studentId ? "text-white" : "text-slate-400")}>
                                     {lastMsg?.message || t('no_messages', 'No messages')}
                                   </p>

@@ -230,6 +230,7 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
         room={activeRoom} 
         session={activeSession} 
         profile={profile} 
+        teacherId={joinedRooms.find(r => r.id === activeRoom.id)?.community.teacher_id}
         onClose={() => {
           setActiveRoom(null);
           setActiveSession(null);

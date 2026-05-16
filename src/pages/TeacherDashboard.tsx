@@ -212,6 +212,7 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
         session={activeSession} 
         profile={profile} 
         isTeacherView 
+        teacherId={profile.id}
         onClose={() => {
           setActiveRoom(null);
           setActiveSession(null);
