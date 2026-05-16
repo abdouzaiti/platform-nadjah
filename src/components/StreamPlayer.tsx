@@ -366,10 +366,20 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
   return (
     <div ref={containerRef} className="flex h-screen w-full bg-slate-50 text-slate-900 overflow-hidden relative">
       <div className="flex-1 flex flex-col relative w-full h-full">
+        {isTeacherView && (
+          <RoomSidebar 
+            isOpen={isSidebarOpen} 
+            activeTab={sidebarActiveTab} 
+            setActiveTab={setSidebarActiveTab} 
+            onClose={() => { if(onClose) onClose(); }}
+            lang={i18n.language}
+          />
+        )}
         <div className="flex-1 bg-white relative group">
           <div className="h-full w-full flex items-center justify-center relative overflow-hidden">
-             {isLive && (
-               <div className="absolute inset-0 bg-slate-900 overflow-hidden">
+             {sidebarActiveTab === "live" ? (
+               isLive ? (
+                 <div className="absolute inset-0 bg-slate-900 overflow-hidden">
                  {isTeacherView ? (
                    localTracks ? (
                      localTracks.videoTrack ? (
@@ -397,6 +407,17 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                      </div>
                    )
                  )}
+                 </div>
+               ) : (
+                 <div className="flex flex-col items-center justify-center h-full text-slate-500">
+                    <Radio className="h-16 w-16 mb-4 opacity-50" />
+                    <p className="text-lg font-black uppercase tracking-widest">{t('live_not_started', 'Live session not started')}</p>
+                 </div>
+               )
+             ) : (
+               <div className="absolute inset-0 bg-slate-50 p-6 flex flex-col items-center justify-center">
+                 <h2 className="text-4xl font-black uppercase tracking-tighter text-slate-900 mb-4">{sidebarActiveTab.replace('_', ' ')}</h2>
+                 <p className="text-slate-500 text-sm">{t('coming_soon', 'Coming Soon')}</p>
                </div>
              )}
 
