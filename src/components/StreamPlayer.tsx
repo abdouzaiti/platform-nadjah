@@ -562,9 +562,9 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                       <div className="mx-auto w-24 h-24 bg-brand-blue/10 rounded-[32px] flex items-center justify-center rotate-6">
                         <Radio className="h-10 w-10 text-brand-blue" />
                       </div>
-                      <div className="space-y-2">
-                        <h3 className="text-2xl font-black uppercase italic tracking-tighter text-slate-900">{t('room_ready', 'Room Ready')}</h3>
-                        <p className="text-sm font-medium text-slate-400">{t('click_to_enter', 'Click below to enter the classroom.')}</p>
+                      <div className="space-y-3">
+                        <h3 className="text-2xl font-display font-black uppercase italic tracking-tighter text-slate-900">{t('room_ready', 'Room Ready')}</h3>
+                        <p className="text-sm font-medium text-slate-400 font-sans leading-relaxed">{t('click_to_enter', 'Click below to enter the classroom.')}</p>
                       </div>
                       <button 
                         onClick={() => setHasEntered(true)}
@@ -610,11 +610,11 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                       <div className="mx-auto w-24 h-24 bg-brand-blue/10 rounded-[32px] flex items-center justify-center rotate-6">
                         <Radio className="h-10 w-10 text-brand-blue" />
                       </div>
-                      <div className="space-y-2">
-                        <h3 className="text-2xl font-black uppercase italic tracking-tighter text-slate-900">
+                      <div className="space-y-3">
+                        <h3 className="text-2xl font-display font-black uppercase italic tracking-tighter text-slate-900">
                           {isTeacherView ? t('ready_to_start', 'Ready to Start') : t('live_not_started', 'Waiting for Teacher')}
                         </h3>
-                        <p className="text-sm font-medium text-slate-400">
+                        <p className="text-sm font-medium text-slate-400 font-sans leading-relaxed">
                           {isTeacherView 
                             ? t('start_live_hint', 'Click below to start the live stream for your students.') 
                             : t('live_hint_student', 'The session will start automatically once the teacher is live.')}
@@ -660,10 +660,10 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                               alt="" 
                             />
                             <div className={cn(
-                              "max-w-[75%] px-4 py-3 rounded-[24px] shadow-sm relative group",
+                              "max-w-[75%] px-4 py-3 rounded-2xl shadow-[0_2px_12px_rgba(37,99,235,0.03)] relative group transition-all duration-300",
                               msg.sender_id === profile.id 
                                 ? "bg-brand-blue text-white rounded-tr-none" 
-                                : "bg-slate-50 text-slate-800 border border-slate-100 rounded-tl-none"
+                                : "bg-white text-slate-800 border border-slate-100 rounded-tl-none"
                             )}>
                               {msg.sender_id === profile.id && (
                                 <button 
@@ -752,18 +752,18 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                                  .filter(m => m.content === 'private' && ((m.sender_id === profile.id && m.recipient_id === selectedStudentId) || (m.sender_id === selectedStudentId && m.recipient_id === profile.id)))
                                  .map((msg) => (
                                    <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={cn("flex items-start gap-3", msg.sender_id === profile.id ? "flex-row-reverse" : "flex-row")}>
-                                      <img src={msg.sender_avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(msg.sender_name || 'User')}`} className="w-8 h-8 rounded-xl border-2 border-white shadow-sm" alt="" />
-                                      <div className={cn("max-w-[85%] px-4 py-3 rounded-[24px] shadow-sm relative group", msg.sender_id === profile.id ? "bg-brand-blue text-white rounded-tr-none" : "bg-slate-50 text-slate-800 border border-slate-100 rounded-tl-none")}>
+                                      <img src={msg.sender_avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(msg.sender_name || 'User')}`} className="w-8 h-8 rounded-xl border-2 border-white shadow-sm ring-1 ring-slate-100/50" alt="" />
+                                      <div className={cn("max-w-[85%] px-4 py-3 rounded-2xl shadow-[0_2px_12px_rgba(37,99,235,0.03)] relative group transition-all duration-300", msg.sender_id === profile.id ? "bg-brand-blue text-white rounded-tr-none" : "bg-white text-slate-800 border border-slate-100 rounded-tl-none")}>
                                         {msg.sender_id === profile.id && (
                                           <button 
                                             onClick={() => handleDeleteMessage(msg.id)}
-                                            className="absolute -top-2 -right-2 p-1.5 bg-white text-slate-400 hover:text-red-500 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                                            className="absolute -top-2 -right-2 p-1.5 bg-white text-slate-400 hover:text-red-500 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all z-10 scale-90 group-hover:scale-100"
                                           >
                                             <Trash2 className="h-3 w-3" />
                                           </button>
                                         )}
-                                        <p className="text-sm font-medium leading-relaxed">{msg.message}</p>
-                                        <p className={cn("text-[8px] mt-1 font-bold opacity-50", msg.sender_id === profile.id ? "text-right" : "text-left")}>{formatDate(msg.created_at)}</p>
+                                        <p className="text-[14px] font-medium leading-relaxed tracking-tight">{msg.message}</p>
+                                        <p className={cn("text-[8px] mt-1.5 font-mono tracking-tighter opacity-40 font-semibold", msg.sender_id === profile.id ? "text-white" : "text-slate-400")}>{formatDate(msg.created_at)}</p>
                                       </div>
                                    </motion.div>
                                  ))}
@@ -789,12 +789,12 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                                   {msg.sender_id === profile.id && (
                                     <button 
                                       onClick={() => handleDeleteMessage(msg.id)}
-                                      className="absolute -top-2 -right-2 p-1.5 bg-white text-slate-400 hover:text-red-500 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                                      className="absolute -top-2 -right-2 p-1.5 bg-white text-slate-400 hover:text-red-500 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all z-10 scale-90 group-hover:scale-100"
                                     >
                                       <Trash2 className="h-3 w-3" />
                                     </button>
                                   )}
-                                  <p className="text-sm font-medium leading-relaxed">{msg.message}</p>
+                                  <p className="text-[15px] font-medium leading-relaxed tracking-tight">{msg.message}</p>
                                   <p className={cn("text-[9px] mt-1 font-bold opacity-50", msg.sender_id === profile.id ? "text-right" : "text-left")}>{formatDate(msg.created_at)}</p>
                                 </div>
                              </motion.div>
@@ -825,34 +825,34 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                        {messages.filter(m => m.content === 'announcement').map((msg) => (
                          <motion.div 
                            key={msg.id} 
-                           initial={{ opacity: 0, scale: 0.95 }} 
-                           animate={{ opacity: 1, scale: 1 }} 
-                           className="bg-brand-blue/5 border border-brand-blue/10 rounded-3xl p-6 relative overflow-hidden group"
+                           initial={{ opacity: 0, y: 20 }} 
+                           animate={{ opacity: 1, y: 0 }} 
+                           className="bg-white border border-slate-100 rounded-3xl p-8 relative overflow-hidden group shadow-[0_4px_20px_rgba(0,0,0,0.03)] hover:shadow-[0_8px_32px_rgba(0,0,0,0.06)] hover:-translate-y-1 transition-all"
                          >
+                            <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity">
+                              <Megaphone className="h-20 w-20 text-brand-blue -rotate-12" />
+                            </div>
                             {msg.sender_id === profile.id && (
                               <button 
                                 onClick={() => handleDeleteMessage(msg.id)}
-                                className="absolute top-4 right-12 p-2 bg-white text-slate-400 hover:text-red-500 rounded-xl shadow-sm opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                                className="absolute top-6 right-6 p-2.5 bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all shadow-sm opacity-0 group-hover:opacity-100 z-10"
                               >
                                 <Trash2 className="h-4 w-4" />
                               </button>
                             )}
-                            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                              <Megaphone className="h-12 w-12 text-brand-blue" />
-                            </div>
-                            <div className="flex items-center gap-3 mb-4">
+                            <div className="flex items-center gap-4 mb-6">
                                <img 
                                  src={msg.sender_avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(msg.sender_name || 'Teacher')}`} 
-                                 className="w-10 h-10 rounded-2xl border-2 border-white shadow-sm" 
+                                 className="w-12 h-12 rounded-2xl border-4 border-slate-50 shadow-sm" 
                                  alt="" 
                                />
                                <div>
-                                 <p className="text-xs font-black uppercase tracking-widest text-slate-900">{msg.sender_name}</p>
-                                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{formatDate(msg.created_at)}</p>
+                                 <p className="text-sm font-black uppercase tracking-wider text-slate-900">{msg.sender_name}</p>
+                                 <p className="text-xs font-bold text-slate-400 uppercase tracking-widest font-mono">{formatDate(msg.created_at)}</p>
                                </div>
                             </div>
-                            <div className="prose prose-sm max-w-none">
-                              <p className="text-slate-700 font-medium leading-relaxed whitespace-pre-wrap">{msg.message}</p>
+                            <div className="prose prose-slate max-w-none">
+                              <p className="text-slate-600 font-medium leading-relaxed whitespace-pre-wrap text-[15px]">{msg.message}</p>
                             </div>
                          </motion.div>
                        ))}

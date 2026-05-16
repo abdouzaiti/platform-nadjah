@@ -3,28 +3,34 @@
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Space Grotesk", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
   
-  --color-brand-blue: #3b82f6;
-  --color-brand-darkest: #020617;
-  --color-brand-surface: #0f172a;
+  --color-brand-blue: #2563eb;
+  --color-brand-darkest: #0f172a;
+  --color-brand-surface: #1e293b;
+  
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
+  --radius-3xl: 2rem;
+  --radius-4xl: 3rem;
 }
 
 @layer base {
   body {
-    @apply bg-slate-50 text-slate-900 font-sans antialiased;
+    @apply bg-slate-50 text-slate-900 font-sans antialiased selection:bg-brand-blue/20;
   }
 }
 
 .glass-panel {
-  @apply bg-white/70 backdrop-blur-xl border border-slate-200/60 shadow-sm;
+  @apply bg-white/80 backdrop-blur-xl border border-white/40 shadow-[0_8px_32px_rgba(0,0,0,0.04)];
 }
 
 .glass-sidebar {
-  @apply bg-white/90 backdrop-blur-md border-r border-slate-200/50 shadow-sm;
+  @apply bg-white/95 backdrop-blur-xl border-r border-slate-200/50 shadow-sm;
 }
 
-.netflix-gradient {
-  background: linear-gradient(to top, rgba(255, 255, 255, 0.95) 0%, transparent 100%);
+.video-glow {
+  box-shadow: 0 0 100px -20px rgba(37, 99, 235, 0.1);
 }
 
 .no-scrollbar::-webkit-scrollbar {

@@ -1,5 +1,6 @@
 import React from "react";
 import { cn } from "../lib/utils";
+import { motion } from "motion/react";
 import { Megaphone, Users, MessageCircle, Radio, LogOut, X, ChevronLeft, ChevronRight, Menu } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -82,17 +83,29 @@ export default function RoomSidebar({ isOpen, onToggle, activeTab, setActiveTab,
               key={item.id}
               onClick={() => setActiveTab(item.id)}
               className={cn(
-                "flex items-center gap-3 p-3 rounded-xl transition-all group relative",
+                "flex items-center gap-3 p-3 rounded-xl transition-all duration-300 group relative",
                 activeTab === item.id 
-                  ? "bg-brand-blue text-white shadow-md shadow-brand-blue/20" 
+                  ? "bg-brand-blue text-white shadow-[0_8px_20px_-4px_rgba(37,99,235,0.4)] scale-[1.02]" 
                   : "hover:bg-slate-50 text-slate-500 hover:text-slate-900"
               )}
             >
-              <item.icon className="h-5 w-5 shrink-0" />
+              <div className={cn(
+                "p-1.5 rounded-lg transition-colors",
+                activeTab === item.id ? "bg-white/20" : "bg-transparent group-hover:bg-slate-100"
+              )}>
+                <item.icon className="h-4 w-4 shrink-0" />
+              </div>
               <span className={cn(
                 "text-sm font-bold whitespace-nowrap transition-all duration-200",
                 !isOpen ? "sm:opacity-0 sm:scale-95" : "opacity-100 scale-100"
               )}>{item.label}</span>
+              
+              {activeTab === item.id && (
+                <motion.div 
+                  layoutId="activeTabGlow"
+                  className="absolute inset-0 rounded-xl ring-2 ring-brand-blue/30 ring-inset pointer-events-none"
+                />
+              )}
               
               {/* Tooltip for mini-bar state on desktop */}
               {!isOpen && (
