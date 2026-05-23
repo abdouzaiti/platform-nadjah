@@ -140,17 +140,32 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
         .limit(50);
       
       if (!error && data) {
-        setMessages(data.map(m => ({
-          id: m.id,
-          room_id: m.room_id,
-          message: m.message,
-          content: m.content,
-          sender_id: m.user_id,
-          sender_name: m.user_name,
-          sender_avatar: m.user_avatar,
-          recipient_id: m.recipient_id,
-          created_at: m.created_at
-        })) as ChatMessageData[]);
+        setMessages(data.map(m => {
+          let msgText = m.message || m.message_text || "";
+          let msgContent = m.content;
+          let msgRecipient = m.recipient_id;
+          
+          try {
+            if (msgText.startsWith('{"msg":')) {
+              const parsed = JSON.parse(msgText);
+              msgText = parsed.msg;
+              msgContent = parsed.c;
+              msgRecipient = parsed.r || undefined;
+            }
+          } catch(e) {}
+
+          return {
+            id: m.id,
+            room_id: m.room_id,
+            message: msgText,
+            content: msgContent,
+            sender_id: m.user_id,
+            sender_name: m.user_name,
+            sender_avatar: m.user_avatar,
+            recipient_id: msgRecipient,
+            created_at: m.created_at
+          };
+        }) as ChatMessageData[]);
         
         setTimeout(() => {
           if (groupChatScrollRef.current) groupChatScrollRef.current.scrollTop = groupChatScrollRef.current.scrollHeight;
@@ -194,15 +209,28 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
           filter: `room_id=eq.${room.id}`
         },
         (payload) => {
+          let msgText = payload.new.message || payload.new.message_text || "";
+          let msgContent = payload.new.content;
+          let msgRecipient = payload.new.recipient_id;
+
+          try {
+            if (msgText.startsWith('{"msg":')) {
+              const parsed = JSON.parse(msgText);
+              msgText = parsed.msg;
+              msgContent = parsed.c;
+              msgRecipient = parsed.r || undefined;
+            }
+          } catch(e) {}
+
           const newMsg: ChatMessageData = {
             id: payload.new.id,
             room_id: payload.new.room_id,
-            message: payload.new.message,
-            content: payload.new.content,
+            message: msgText,
+            content: msgContent,
             sender_id: payload.new.user_id,
             sender_name: payload.new.user_name,
             sender_avatar: payload.new.user_avatar,
-            recipient_id: payload.new.recipient_id,
+            recipient_id: msgRecipient,
             created_at: payload.new.created_at
           };
           
@@ -452,12 +480,18 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
         contentType = "announcement";
       }
 
+      const safeMessageText = JSON.stringify({
+        msg: chatMessage,
+        c: contentType,
+        r: recipientId || ""
+      });
+
       const msgData = {
         room_id: room.id,
         user_id: profile.id,
         user_name: profile.fullname,
         user_avatar: profile.avatar_url,
-        message: chatMessage,
+        message: safeMessageText,
         content: contentType,
         recipient_id: recipientId
       };
@@ -471,12 +505,12 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
         const payload: ChatMessageData = {
           id: data.id,
           room_id: data.room_id,
-          message: data.message,
+          message: chatMessage,
           content: contentType,
           sender_id: data.user_id,
           sender_name: data.user_name,
           sender_avatar: data.user_avatar,
-          recipient_id: data.recipient_id,
+          recipient_id: recipientId || undefined,
           created_at: data.created_at
         };
         console.log("Publishing RTM payload:", payload);
@@ -1066,7 +1100,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                 </div>
              )}
 
-             {isLive && !hideComments && (
+             {isLive && sidebarActiveTab === "live" && !hideComments && (
                <div className="absolute inset-0 z-30 pointer-events-none flex flex-col justify-end pb-24 md:pb-32 px-4 md:px-8">
                   <div className="max-h-[40vh] overflow-y-auto no-scrollbar space-y-2 max-w-[400px]" ref={liveCommentsScrollRef}>
                      <AnimatePresence>
@@ -1119,12 +1153,12 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
           </div>
 
           <div className="absolute bottom-6 inset-x-0 px-6 z-40 flex items-center gap-4">
-             {isLive && (
+             {isLive && sidebarActiveTab === "live" && (
                <button onClick={() => setHideComments(!hideComments)} className="h-12 w-12 rounded-full bg-white/80 backdrop-blur-xl border border-white flex items-center justify-center text-slate-600 shadow-sm transition-all hover:bg-white pointer-events-auto">
                  {hideComments ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}
                </button>
              )}
-             {(isLive || sidebarActiveTab === "group_chat" || sidebarActiveTab === "private_chat" || (sidebarActiveTab === "announcements" && isTeacherView)) && (
+             {((sidebarActiveTab === "live" && isLive) || sidebarActiveTab === "group_chat" || sidebarActiveTab === "private_chat" || (sidebarActiveTab === "announcements" && isTeacherView)) && (
                <form onSubmit={handleSendMessage} className="flex-1 flex bg-white/80 backdrop-blur-xl rounded-2xl border border-white px-4 h-12 shadow-sm focus-within:bg-white transition-all pointer-events-auto">
                  <input 
                    value={chatMessage} 
