@@ -400,7 +400,8 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                 </div>
               </div>
             ) : (
-              <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+              <>
+                <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
                 {rooms.map((room) => (
                   <motion.div 
                     key={room.id}
@@ -468,6 +469,7 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                   </div>
                 )}
               </div>
+              </>
             )}
           </div>
         )}

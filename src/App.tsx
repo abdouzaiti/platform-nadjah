@@ -142,7 +142,18 @@ export default function App() {
       }
     });
 
-    return () => subscription.unsubscribe();
+    const handleDevLogout = () => {
+      setUser(null);
+      setProfile(null);
+      setFetchError(null);
+      setAuthError(null);
+    };
+    window.addEventListener("dev-logout", handleDevLogout);
+
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener("dev-logout", handleDevLogout);
+    };
   }, [fetchProfile]);
 
   const signInWithGoogle = async () => {
@@ -205,6 +216,128 @@ export default function App() {
       } else {
         setAuthError(err.message);
       }
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleDevBypass = async (role: "student" | "teacher", offlineBypass: boolean) => {
+    setAuthLoading(true);
+    setAuthError(null);
+    
+    if (offlineBypass) {
+      const mockId = role === "teacher" ? "00000000-0000-0000-0000-000000000001" : "00000000-0000-0000-0000-000000000002";
+      const mockEmail = `dev-${role}@example.com`;
+      const mockUser = {
+        id: mockId,
+        email: mockEmail,
+        user_metadata: { fullname: `Dev ${role === "teacher" ? "Teacher" : "Student"}` }
+      };
+      const mockProfile: UserProfile = {
+        id: mockId,
+        fullname: role === "teacher" ? "Dev Teacher" : "Dev Student",
+        name: role === "teacher" ? "Dev Teacher" : "Dev Student",
+        email: mockEmail,
+        username: `dev_${role}`,
+        role: role as any,
+        created_at: new Date().toISOString()
+      };
+      
+      setUser(mockUser);
+      setProfile(mockProfile);
+      setFetchError(null);
+      setAuthLoading(false);
+      return;
+    }
+
+    let email = localStorage.getItem(`dev_${role}_verified_email`);
+    const password = "devpassword123";
+
+    if (email) {
+      try {
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        
+        if (!signInError && signInData.user) {
+          // Guarantee correct role upon signIn
+          await supabase
+            .from("profiles")
+            .update({ role: role })
+            .eq("id", signInData.user.id);
+          await fetchProfile(signInData.user.id, email);
+          setAuthLoading(false);
+          return;
+        }
+        localStorage.removeItem(`dev_${role}_verified_email`);
+      } catch (e) {
+        localStorage.removeItem(`dev_${role}_verified_email`);
+      }
+    }
+
+    // Fallback to dynamic, completely unique email/username generation to prevent ANY possible trigger constraint failures on the DB
+    const uniqueId = `${Date.now()}${Math.floor(1000 + Math.random() * 9000)}`;
+    email = `dev-${role}-${uniqueId}@nadjah.com`;
+
+    try {
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: role === "teacher" ? "Dev Teacher (Auth)" : "Dev Student (Auth)",
+          }
+        }
+      });
+
+      if (signUpError) {
+        throw signUpError;
+      }
+
+      if (signUpData.user) {
+        const userId = signUpData.user.id;
+        // Trigger already inserted row in profiles upon auth.users insert, so we update the role to prevent duplicate key error
+        const { error: profileError } = await supabase
+          .from("profiles")
+          .update({
+            fullname: role === "teacher" ? "Dev Teacher (Auth)" : "Dev Student (Auth)",
+            name: role === "teacher" ? "Dev Teacher (Auth)" : "Dev Student (Auth)",
+            role: role
+          })
+          .eq("id", userId);
+        
+        if (profileError) {
+          console.error("Profile update error for dev bypass:", profileError);
+        }
+
+        // Only save newly created email to localStorage if it successfully signed up and registered
+        localStorage.setItem(`dev_${role}_verified_email`, email);
+        await fetchProfile(userId, email);
+      }
+    } catch (err: any) {
+      console.error("Auth Dev Bypass Error:", err);
+      // Fallback to offline state mock so the dev is never locked out
+      setAuthError(`Auth failed (${err.message}). Defaulting offline instead.`);
+      const mockId = role === "teacher" ? "00000000-0000-0000-0000-000000000001" : "00000000-0000-0000-0000-000000000002";
+      const mockEmail = `dev-${role}@example.com`;
+      const mockUser = {
+        id: mockId,
+        email: mockEmail,
+        user_metadata: { fullname: `Dev ${role === "teacher" ? "Teacher" : "Student"}` }
+      };
+      const mockProfile: UserProfile = {
+        id: mockId,
+        fullname: role === "teacher" ? "Dev Teacher" : "Dev Student",
+        name: role === "teacher" ? "Dev Teacher" : "Dev Student",
+        email: mockEmail,
+        username: `dev_${role}`,
+        role: role as any,
+        created_at: new Date().toISOString()
+      };
+      setUser(mockUser);
+      setProfile(mockProfile);
+      setFetchError(null);
     } finally {
       setAuthLoading(false);
     }
@@ -586,7 +719,7 @@ CREATE TABLE public.room_messages (
 
   if (!user) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-slate-50 p-4 overflow-hidden relative">
+      <div className="flex min-h-screen flex-col items-center justify-center bg-slate-50 p-4 overflow-hidden relative pt-12">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,var(--color-blue-100),transparent_50%)] pointer-events-none opacity-50" />
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
@@ -718,7 +851,7 @@ CREATE TABLE public.room_messages (
                   <div className="flex-grow border-t border-slate-100"></div>
                 </div>
 
-                <button
+                 <button
                   onClick={signInWithGoogle}
                   className="group relative flex w-full items-center justify-center space-x-3 rounded-2xl bg-white py-4 text-slate-600 font-bold transition-all hover:bg-slate-50 border border-slate-200 active:scale-[0.98] shadow-sm"
                 >

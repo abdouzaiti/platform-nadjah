@@ -38,6 +38,7 @@ export default function Sidebar({ profile, activeTab, setActiveTab, isOpen = fal
   ];
 
   const handleSignOut = async () => {
+    window.dispatchEvent(new Event("dev-logout"));
     await supabase.auth.signOut();
   };
 
