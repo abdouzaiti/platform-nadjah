@@ -241,7 +241,7 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
             >
               <div className="space-y-4">
                 <h2 className="text-4xl font-black font-display uppercase italic tracking-tight text-slate-900">{t('create_community', 'Create Your Community')}</h2>
-                <p className="text-slate-500 font-medium tracking-wide">Build your server and start inviting students.</p>
+                <p className="text-slate-500 font-medium tracking-wide">{t('create_community_sub', 'Build your server and start inviting students.')}</p>
               </div>
 
               <form onSubmit={handleCreateCommunity} className="bg-white p-10 rounded-[40px] border border-slate-100 shadow-2xl shadow-blue-500/5 space-y-6 text-left">
@@ -251,7 +251,7 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                     required
                     value={commName}
                     onChange={(e) => setCommName(e.target.value)}
-                    placeholder="Prof. Ahmed's Academy"
+                    placeholder={t('community_name_placeholder', "Prof. Ahmed's Academy")}
                     className={cn("w-full bg-slate-50 border border-slate-100 p-4 rounded-2xl font-bold outline-none focus:border-brand-blue transition-all", i18n.language === 'ar' ? 'text-right' : 'text-left')}
                   />
                 </div>
@@ -261,10 +261,10 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                     required
                     value={commUsername}
                     onChange={(e) => setCommUsername(e.target.value.toLowerCase().replace(/\s/g, ''))}
-                    placeholder="ahmed_academy"
+                    placeholder={t('community_username_placeholder', "ahmed_academy")}
                     className={cn("w-full bg-slate-50 border border-slate-100 p-4 rounded-2xl font-mono text-sm outline-none focus:border-brand-blue transition-all", i18n.language === 'ar' ? 'text-right' : 'text-left')}
                   />
-                  <p className="text-[10px] text-slate-400 italic">This will be used for students to find your server.</p>
+                  <p className="text-[10px] text-slate-400 italic">{t('community_username_hint', 'This will be used for students to find your server.')}</p>
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">{t('community_password', 'Community Password')}</label>
@@ -273,10 +273,10 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                     type="password"
                     value={commPassword}
                     onChange={(e) => setCommPassword(e.target.value)}
-                    placeholder="Enter a secure password"
+                    placeholder={t('community_password_placeholder', "Enter a secure password")}
                     className={cn("w-full bg-slate-50 border border-slate-100 p-4 rounded-2xl font-mono text-sm outline-none focus:border-brand-blue transition-all", i18n.language === 'ar' ? 'text-right' : 'text-left')}
                   />
-                  <p className="text-[10px] text-slate-400 italic">Students will need this password to join your community.</p>
+                  <p className="text-[10px] text-slate-400 italic">{t('community_password_hint', 'Students will need this password to join your community.')}</p>
                 </div>
                 {schemaError && (
                   <div className="bg-red-50 p-4 rounded-xl border border-red-200 space-y-2">
@@ -327,36 +327,36 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
               <div className="max-w-xl mx-auto py-10">
                 <div className="space-y-6 bg-white p-8 rounded-[32px] border border-slate-100 shadow-xl shadow-blue-500/5">
                   <div className="text-center space-y-2">
-                    <h3 className="text-2xl font-black font-display uppercase italic text-slate-900">New Room</h3>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Create a channel for your community.</p>
+                    <h3 className="text-2xl font-black font-display uppercase italic text-slate-900">{t('new_room', 'New Room')}</h3>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{t('room_hint', 'Create a channel for your community.')}</p>
                   </div>
                   <form onSubmit={handleCreateRoom} className="space-y-6">
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Room Name</label>
+                      <label className="text-[10px] font-black uppercase text-slate-400 ml-2">{t('room_name', 'Room Name')}</label>
                       <input 
                         required
                         value={roomName}
                         onChange={(e) => setRoomName(e.target.value)}
-                        placeholder="Live Class BAC"
+                        placeholder={t('room_name_placeholder', "Live Class BAC")}
                         className="w-full bg-slate-50 border border-slate-100 p-4 rounded-2xl font-bold outline-none focus:border-brand-blue transition-all"
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Room Username (Optional)</label>
+                      <label className="text-[10px] font-black uppercase text-slate-400 ml-2">{t('room_username_optional', 'Room Username (Optional)')}</label>
                       <input 
                         value={roomUsername}
                         onChange={(e) => setRoomUsername(e.target.value.toLowerCase().replace(/\s/g, ''))}
-                        placeholder="live_class_bac"
+                        placeholder={t('room_username_placeholder_default', "live_class_bac")}
                         className="w-full bg-slate-50 border border-slate-100 p-4 rounded-2xl font-mono text-sm outline-none focus:border-brand-blue transition-all"
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Room Password (Optional)</label>
+                      <label className="text-[10px] font-black uppercase text-slate-400 ml-2">{t('room_password_optional', 'Room Password (Optional)')}</label>
                       <input 
                         type="password"
                         value={roomPassword}
                         onChange={(e) => setRoomPassword(e.target.value)}
-                        placeholder="Leave blank for public room"
+                        placeholder={t('room_password_placeholder', "Leave blank for public room")}
                         className="w-full bg-slate-50 border border-slate-100 p-4 rounded-2xl font-mono text-sm outline-none focus:border-brand-blue transition-all"
                       />
                     </div>
@@ -386,14 +386,14 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                         onClick={() => setActiveTab("rooms")}
                         className="flex-1 py-4 bg-slate-100 text-slate-500 rounded-2xl font-black uppercase tracking-widest text-[10px]"
                       >
-                        Cancel
+                        {t('cancel', 'Cancel')}
                       </button>
                       <button 
                         type="submit"
                         disabled={loading}
                         className="flex-[2] py-4 bg-emerald-500 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-emerald-500/20 hover:bg-emerald-600 transition-all"
                       >
-                        {loading ? <Loader2 className="h-5 w-5 animate-spin mx-auto" /> : "Create Room"}
+                        {loading ? <Loader2 className="h-5 w-5 animate-spin mx-auto" /> : t('create_room', 'Create Room')}
                       </button>
                     </div>
                   </form>
@@ -431,7 +431,7 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                       <div className="pt-4 flex items-center justify-between border-t border-slate-50">
                         <div className="flex items-center gap-2">
                            <Users className="h-3 w-3 text-slate-400" />
-                           <span className="text-[10px] font-bold text-slate-400">Manage Room</span>
+                           <span className="text-[10px] font-bold text-slate-400">{t('manage_room', 'Manage Class')}</span>
                         </div>
                         
                         <button 
@@ -456,14 +456,14 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                       <Hash className="h-8 w-8" />
                     </div>
                     <div className="space-y-1">
-                      <p className="text-xs font-black uppercase tracking-widest text-slate-400">No rooms yet</p>
-                      <p className="text-[10px] font-medium text-slate-400">Create your first room to start interacting.</p>
+                      <p className="text-xs font-black uppercase tracking-widest text-slate-400">{t('no_rooms_yet', 'No rooms yet')}</p>
+                      <p className="text-[10px] font-medium text-slate-400">{t('no_rooms_hint', 'Create your first room to start interacting.')}</p>
                     </div>
                     <button 
                       onClick={() => setActiveTab("create-room")}
                       className="px-6 py-3 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50"
                     >
-                      New Room
+                      {t('new_room', 'New Room')}
                     </button>
                   </div>
                 )}

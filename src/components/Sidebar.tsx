@@ -104,7 +104,7 @@ export default function Sidebar({ profile, activeTab, setActiveTab, isOpen = fal
         </div>
 
         <div>
-          <p className="px-2 mb-4 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Language</p>
+          <p className="px-2 mb-4 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">{t('language', 'Language')}</p>
           <div className="grid grid-cols-3 gap-1 bg-slate-50 p-1 rounded-xl border border-slate-100">
             {['ar', 'fr', 'en'].map((lng) => (
               <button

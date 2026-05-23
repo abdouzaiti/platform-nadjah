@@ -302,7 +302,7 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
                     {activeTab === 'joined' ? t('joined', "My Classrooms") : (activeTab === 'discover' ? t('discover', "Discover Communities") : selectedCommunity?.community_name)}
                   </h2>
                   <p className="text-slate-400 font-bold tracking-widest text-[8px] sm:text-[10px] uppercase">
-                    Welcome back, {profile.fullname.split(" ")[0]}
+                    {t('welcome_back', 'Welcome back, {{name}}', { name: profile.fullname.split(" ")[0] })}
                   </p>
               </div>
             </div>
@@ -362,12 +362,12 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">@{comm.community_username}</p>
                     </div>
                   </div>
-                  <p className="text-xs text-slate-500 mb-6 line-clamp-2 leading-relaxed">{comm.description || "No description provided."}</p>
+                  <p className="text-xs text-slate-500 mb-6 line-clamp-2 leading-relaxed">{comm.description || t('no_description', "No description provided.")}</p>
                   <button 
                     onClick={() => viewCommunity(comm)}
                     className="w-full py-3 bg-slate-50 text-brand-blue font-black uppercase tracking-widest text-[10px] rounded-xl hover:bg-brand-blue hover:text-white transition-all flex items-center justify-center gap-2"
                   >
-                    View Server <ArrowRight className="h-3 w-3" />
+                    {t('view_server', 'View Server')} <ArrowRight className={cn("h-3 w-3", i18n.language === 'ar' ? "rotate-180" : "")} />
                   </button>
                 </motion.div>
               ))}
@@ -377,7 +377,7 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
                   <div className="h-20 w-20 bg-slate-100 rounded-full mx-auto flex items-center justify-center text-slate-300">
                     <Search className="h-10 w-10" />
                   </div>
-                  <p className="font-black text-slate-400 uppercase tracking-widest">No communities found</p>
+                  <p className="font-black text-slate-400 uppercase tracking-widest">{t('no_communities_found', 'No communities found')}</p>
                 </div>
               )}
             </div>
@@ -456,14 +456,14 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
                     <Users className="h-12 w-12" />
                   </div>
                   <div className="space-y-2">
-                    <h3 className="text-xl font-black font-display uppercase italic text-slate-900">Your Classroom is Empty</h3>
-                    <p className="text-xs text-slate-400 max-w-xs mx-auto">Discover teacher communities and join rooms to start learning.</p>
+                    <h3 className="text-xl font-black font-display uppercase italic text-slate-900">{t('classroom_empty', 'Your Classroom is Empty')}</h3>
+                    <p className="text-xs text-slate-400 max-w-xs mx-auto">{t('classroom_empty_hint', 'Discover teacher communities and join rooms to start learning.')}</p>
                   </div>
                   <button 
                     onClick={() => setActiveTab("discover")}
                     className="px-8 py-4 bg-brand-blue text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl shadow-blue-500/20"
                   >
-                    Explore Communities
+                    {t('explore_communities', 'Explore Communities')}
                   </button>
                 </div>
               )}
@@ -530,7 +530,7 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
                   {joinedRooms.filter(room => !mobileSubFilter || room.room_type === mobileSubFilter).length === 0 && (
                     <div className="py-8 text-center bg-slate-50/50 rounded-2xl border border-dashed border-slate-100">
                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center w-full">
-                         {mobileSubFilter === 'chat' ? "لا توجد دردشات بعد" : (mobileSubFilter === 'announcements' ? "لا توجد إعلانات بعد" : "لا توجد صفوف انضممت إليها بعد")}
+                         {mobileSubFilter === 'chat' ? t('no_chats_yet', "لا توجد دردشات بعد") : (mobileSubFilter === 'announcements' ? t('no_announcements_yet', "لا توجد إعلانات بعد") : t('no_joined_classes_yet', "لا توجد صفوف انضممت إليها بعد"))}
                        </p>
                     </div>
                   )}
@@ -541,7 +541,7 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
               {!mobileSubFilter && (
                 <div className="space-y-4 pt-2 text-right rtl:text-right">
                   <div className="px-1 text-right rtl:text-right">
-                    <h3 className="text-lg font-bold text-slate-850">الدروس المباشرة القادمة</h3>
+                    <h3 className="text-lg font-bold text-slate-850">{t('upcoming_lives')}</h3>
                   </div>
 
                   <div className="space-y-3">
@@ -558,7 +558,7 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
                             LIVE <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
                           </div>
                           <h4 className="text-base font-extrabold text-slate-800 leading-tight mt-1">{room.room_name}</h4>
-                          <p className="text-[10px] font-bold text-slate-400">اليوم على 18:00</p>
+                          <p className="text-[10px] font-bold text-slate-400">{t('today_at_18')}</p>
                         </div>
 
                         <div className="relative">
@@ -581,8 +581,8 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
                           <div className="inline-flex items-center gap-1 bg-red-50 border border-red-100 px-2.5 py-0.5 rounded-full text-[9px] font-extrabold text-red-500 tracking-wider">
                             LIVE <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
                           </div>
-                          <h4 className="text-base font-extrabold text-slate-800 leading-tight mt-1">الرياضيات</h4>
-                          <p className="text-[10px] font-bold text-slate-400">اليوم على 18:00</p>
+                          <h4 className="text-base font-extrabold text-slate-800 leading-tight mt-1">{t('math_demo')}</h4>
+                          <p className="text-[10px] font-bold text-slate-400">{t('today_at_18')}</p>
                         </div>
 
                         <div className="relative">
@@ -607,7 +607,7 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl border border-slate-100 space-y-6">
             <div className="text-center space-y-2">
-              <h3 className="font-display text-2xl font-black uppercase italic text-slate-900">Enter Password</h3>
+              <h3 className="font-display text-2xl font-black uppercase italic text-slate-900">{t('enter_password', 'Enter Password')}</h3>
               <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">
                 {passwordModal.action === 'join' && passwordModal.room ? passwordModal.room.room_name : passwordModal.community?.community_name}
               </p>
@@ -620,7 +620,7 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
                   type="password"
                   value={enteredPassword}
                   onChange={(e) => setEnteredPassword(e.target.value)}
-                  placeholder="Password"
+                  placeholder={t('password', 'Password')}
                   className="w-full bg-slate-50 border border-slate-100 p-4 rounded-xl font-mono text-sm outline-none focus:border-brand-blue transition-all text-center"
                 />
                 {passwordError && <p className="text-xs text-red-500 font-bold text-center">{passwordError}</p>}
@@ -635,13 +635,13 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
                   }}
                   className="flex-1 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:bg-slate-50 rounded-xl transition-all"
                 >
-                  Cancel
+                  {t('cancel', 'Cancel')}
                 </button>
                 <button 
                   type="submit"
                   className="flex-1 py-3 text-[10px] font-black uppercase tracking-widest bg-brand-blue text-white rounded-xl shadow-lg shadow-blue-500/10 hover:bg-blue-600 transition-all"
                 >
-                  Submit
+                  {t('submit', 'Submit')}
                 </button>
               </div>
             </form>
@@ -661,7 +661,7 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
           )}
         >
           <PlayCircle className="h-5 w-5" />
-          <span className="text-[10px] font-bold">مباشر</span>
+          <span className="text-[10px] font-bold">{t('live_nav', 'مباشر')}</span>
         </button>
         
         <button 
@@ -675,9 +675,9 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
           )}
         >
           <MessageSquare className="h-5 w-5" />
-          <span className="text-[10px] font-bold">الدردشة</span>
+          <span className="text-[10px] font-bold">{t('chat_nav', 'الدردشة')}</span>
         </button>
-
+ 
         <button 
           onClick={() => {
             setActiveTab("discover");
@@ -689,9 +689,9 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
           )}
         >
           <Users className="h-5 w-5" />
-          <span className="text-[10px] font-bold">الفرق</span>
+          <span className="text-[10px] font-bold">{t('teams_nav', 'الفرق')}</span>
         </button>
-
+ 
         <button 
           onClick={() => {
             setActiveTab("joined");
@@ -703,7 +703,7 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
           )}
         >
           <Bell className="h-5 w-5" />
-          <span className="text-[10px] font-bold flex items-center justify-center">الإعلانات</span>
+          <span className="text-[10px] font-bold flex items-center justify-center">{t('announcements_nav', 'الإعلانات')}</span>
         </button>
       </div>
     </div>
