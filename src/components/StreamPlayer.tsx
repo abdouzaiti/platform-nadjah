@@ -710,14 +710,14 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                         <Radio className="h-10 w-10 text-brand-blue" />
                       </div>
                       <div className="space-y-3">
-                        <h3 className="text-2xl font-display font-black uppercase italic tracking-tighter text-slate-900">{t('room_ready', 'Room Ready')}</h3>
+                        <h3 className="text-2xl font-display font-black uppercase italic tracking-tighter text-slate-900">{t('room_ready', 'Class Ready')}</h3>
                         <p className="text-sm font-medium text-slate-400 font-sans leading-relaxed">{t('click_to_enter', 'Click below to enter the classroom.')}</p>
                       </div>
                       <button 
                         onClick={() => setHasEntered(true)}
                         className="w-full bg-brand-blue text-white py-4 rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-brand-blue/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
                       >
-                        {t('enter_room', 'Enter to the Room')}
+                        {t('enter_room', 'Enter to the Class')}
                       </button>
                     </div>
                  </div>
@@ -1101,7 +1101,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
              )}
 
              {isLive && sidebarActiveTab === "live" && !hideComments && (
-               <div className="absolute inset-0 z-30 pointer-events-none flex flex-col justify-end pb-24 md:pb-32 px-4 md:px-8">
+               <div className="absolute inset-0 z-30 pointer-events-none flex flex-col justify-end pb-44 sm:pb-24 md:pb-32 px-4 md:px-8">
                   <div className="max-h-[40vh] overflow-y-auto no-scrollbar space-y-2 max-w-[400px]" ref={liveCommentsScrollRef}>
                      <AnimatePresence>
                         {messages.filter(m => m.content === 'live').map((msg) => (
@@ -1144,7 +1144,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                     {isFullscreen ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}
                   </button>
                 )}
-                {onClose && !isTeacherView && (
+                {onClose && (
                    <button onClick={onClose} className="bg-white/80 backdrop-blur-xl p-3 rounded-full text-slate-600 border border-white shadow-sm pointer-events-auto hover:bg-white transition-colors">
                      <X className="h-5 w-5" />
                    </button>
@@ -1152,7 +1152,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
             </div>
           </div>
 
-          <div className="absolute bottom-6 inset-x-0 px-6 z-40 flex items-center gap-4">
+          <div className="absolute bottom-28 sm:bottom-6 inset-x-0 px-6 z-40 flex items-center gap-4">
              {isLive && sidebarActiveTab === "live" && (
                <button onClick={() => setHideComments(!hideComments)} className="h-12 w-12 rounded-full bg-white/80 backdrop-blur-xl border border-white flex items-center justify-center text-slate-600 shadow-sm transition-all hover:bg-white pointer-events-auto">
                  {hideComments ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}

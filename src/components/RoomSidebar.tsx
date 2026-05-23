@@ -20,17 +20,8 @@ export default function RoomSidebar({ isOpen, onToggle, activeTab, setActiveTab,
 
   return (
     <>
-      {/* Semi-transparent backdrop for mobile when sidebar is open */}
-      <div 
-        onClick={onToggle}
-        className={cn(
-          "fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[55] transition-opacity duration-300 sm:hidden",
-          isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
-        )}
-      />
-
       <div className={cn(
-        "fixed inset-y-0 z-[60] flex flex-col bg-white border-slate-100 transition-all duration-300 ease-in-out sm:relative sm:z-50 sm:translate-x-0",
+        "hidden sm:flex fixed inset-y-0 z-[60] flex-col bg-white border-slate-100 transition-all duration-300 ease-in-out sm:relative sm:z-50 sm:translate-x-0",
         isRTL ? "right-0 border-l" : "left-0 border-r",
         isOpen 
           ? "translate-x-0 w-64 shadow-2xl sm:shadow-none" 
@@ -52,13 +43,6 @@ export default function RoomSidebar({ isOpen, onToggle, activeTab, setActiveTab,
                   {isRTL ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
                 </button>
               )}
-              {/* Close button for mobile */}
-              <button 
-                onClick={onToggle}
-                className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors text-slate-400 sm:hidden"
-              >
-                <X className="h-5 w-5" />
-              </button>
             </>
           ) : (
             onToggle && (
@@ -136,6 +120,38 @@ export default function RoomSidebar({ isOpen, onToggle, activeTab, setActiveTab,
             )}
           </button>
         </div>
+      </div>
+
+      {/* Mobile Down Bar (Bottom Navigation) */}
+      <div className="sm:hidden fixed bottom-6 left-6 right-6 h-18 bg-white/95 backdrop-blur-xl rounded-2xl border border-slate-100/50 shadow-2xl flex items-center justify-around px-2 z-[99]">
+        {[
+          { id: "live", icon: Radio, label: t('live_nav', 'Live') },
+          { id: "group_chat", icon: Users, label: t('chat_nav', 'Chat') },
+          { id: "private_chat", icon: MessageCircle, label: t('private_chat', 'Ask Teacher') },
+          { id: "announcements", icon: Megaphone, label: t('announcements_nav', 'Announcements') },
+          { id: "recordings", icon: Save, label: t('recordings', 'Recordings') }
+        ].map((item) => {
+          const isActive = activeTab === item.id;
+          return (
+            <button
+              key={item.id}
+              onClick={() => setActiveTab(item.id)}
+              className={cn(
+                "flex flex-col items-center gap-1 py-1 px-1.5 rounded-xl transition-all relative outline-none",
+                isActive ? "text-brand-blue" : "text-slate-400 hover:text-slate-600"
+              )}
+            >
+              <item.icon className={cn("h-4.5 w-4.5 transition-transform duration-300", isActive && "scale-110")} />
+              <span className="text-[8px] font-black tracking-tight">{item.label}</span>
+              {isActive && (
+                <motion.div
+                  layoutId="activeClassMobileTabIndicator"
+                  className="absolute -bottom-1 left-2 right-2 h-0.5 bg-brand-blue rounded-full"
+                />
+              )}
+            </button>
+          );
+        })}
       </div>
     </>
   );

@@ -410,7 +410,7 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
                             : "bg-brand-blue text-white hover:bg-blue-600 shadow-lg shadow-blue-500/10"
                         )}
                       >
-                        {isJoined ? t('member', 'Member') : t('join_room', 'Join Room')}
+                        {isJoined ? t('member', 'Member') : t('join_room', 'Join Class')}
                       </button>
                     </div>
                  );
@@ -457,7 +457,7 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
                   </div>
                   <div className="space-y-2">
                     <h3 className="text-xl font-black font-display uppercase italic text-slate-900">{t('classroom_empty', 'Your Classroom is Empty')}</h3>
-                    <p className="text-xs text-slate-400 max-w-xs mx-auto">{t('classroom_empty_hint', 'Discover teacher communities and join rooms to start learning.')}</p>
+                    <p className="text-xs text-slate-400 max-w-xs mx-auto">{t('classroom_empty_hint', 'Discover teacher communities and join classes to start learning.')}</p>
                   </div>
                   <button 
                     onClick={() => setActiveTab("discover")}
