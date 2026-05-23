@@ -31,9 +31,9 @@ export default function Sidebar({ profile, activeTab, setActiveTab, isOpen = fal
 
   const menuItems = isTeacher ? [
     { id: "rooms", icon: School, label: t('my_community', 'My Community') },
-    { id: "create-room", icon: PlusCircle, label: t('add_room', 'Add Room') },
+    { id: "create-room", icon: PlusCircle, label: t('add_room', 'Add Class') },
   ] : [
-    { id: "joined", icon: Home, label: t('joined', 'Joined Classrooms') },
+    { id: "joined", icon: Home, label: t('joined', 'Joined Classes') },
     { id: "discover", icon: Search, label: t('discover', 'Discover Communities') },
   ];
 
@@ -134,7 +134,7 @@ export default function Sidebar({ profile, activeTab, setActiveTab, isOpen = fal
                 }}
                 className="w-full py-2.5 bg-white text-brand-blue text-[10px] font-black rounded uppercase tracking-wider transition-all hover:bg-slate-50 hover:scale-[1.02] active:scale-[0.98]"
               >
-                {t('manage_rooms', 'Manage Rooms')}
+                {t('manage_rooms', 'Manage Classes')}
               </button>
            </div>
         )}

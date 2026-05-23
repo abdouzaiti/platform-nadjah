@@ -2,7 +2,7 @@ import React from "react";
 import { UserProfile, TeacherCommunity, ClassRoom, RoomType, LiveSession } from "../types";
 import Sidebar from "../components/Sidebar";
 import { supabase } from "../lib/supabase";
-import { Play, Eye, Clock, Search, Bell, Menu, Users, Hash, Plus, Loader2, ArrowRight } from "lucide-react";
+import { Play, Eye, Clock, Search, Bell, Menu, Users, Hash, Plus, Loader2, ArrowRight, BookOpen, MessageSquare, PlayCircle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "../lib/utils";
 import StreamPlayer from "../components/StreamPlayer";
@@ -15,6 +15,7 @@ interface StudentDashboardProps {
 export default function StudentDashboard({ profile }: StudentDashboardProps) {
   const { t, i18n } = useTranslation();
   const [activeTab, setActiveTab] = React.useState("joined");
+  const [mobileSubFilter, setMobileSubFilter] = React.useState<'chat' | 'announcements' | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
 
@@ -23,7 +24,7 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
   const [searchResults, setSearchResults] = React.useState<TeacherCommunity[]>([]);
   
   // Joined rooms
-  const [joinedRooms, setJoinedRooms] = React.useState<(ClassRoom & { community: TeacherCommunity })[]>([]);
+  const [joinedRooms, setJoinedRooms] = React.useState<(ClassRoom & { community: TeacherCommunity, teacherProfile?: any })[]>([]);
   
   // Active Community
   const [selectedCommunity, setSelectedCommunity] = React.useState<TeacherCommunity | null>(null);
@@ -67,7 +68,28 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
         community: item.class_rooms.teacher_communities
       }));
       
-      setJoinedRooms(rooms);
+      const teacherIds = Array.from(new Set(rooms.map(r => r.community?.teacher_id).filter(Boolean)));
+      let teachersMap: Record<string, any> = {};
+      
+      if (teacherIds.length > 0) {
+        const { data: teachersData, error: teachersError } = await supabase
+          .from("profiles")
+          .select("*")
+          .in("id", teacherIds);
+        
+        if (!teachersError && teachersData) {
+          teachersData.forEach((t: any) => {
+            teachersMap[t.id] = t;
+          });
+        }
+      }
+      
+      const roomsWithTeachers = rooms.map((r: any) => ({
+        ...r,
+        teacherProfile: r.community ? teachersMap[r.community.teacher_id] : null
+      }));
+      
+      setJoinedRooms(roomsWithTeachers);
     } catch (err) {
       console.error("Fetch joined rooms error:", err);
     }
@@ -250,9 +272,24 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
         onClose={() => setIsSidebarOpen(false)}
       />
       
-      <main className="flex-1 overflow-y-auto no-scrollbar bg-slate-50/50 relative p-4 md:p-8 shrink-0">
+      <main className="flex-1 overflow-y-auto no-scrollbar bg-slate-50/50 relative p-4 md:p-8 shrink-0 pb-28 md:pb-8">
+        {/* Mobile Header (Menu toggler & Simple title) */}
+        <div className="flex items-center justify-between pb-4 md:hidden">
+          <button 
+            onClick={() => setIsSidebarOpen(true)}
+            className="p-2 bg-brand-blue/5 rounded-xl text-brand-blue border border-brand-blue/10 active:scale-95 transition-all"
+          >
+            <Menu className="h-6 w-6" />
+          </button>
+          {activeTab !== 'joined' && (
+            <h2 className="font-display text-sm font-black text-slate-900 uppercase italic tracking-tighter">
+              {activeTab === 'discover' ? t('discover', "Discover Communities") : selectedCommunity?.community_name}
+            </h2>
+          )}
+        </div>
+
         {/* Top Header */}
-        <header className="flex items-center justify-between gap-6 pb-8 border-b border-slate-100 mb-8">
+        <header className="hidden md:flex items-center justify-between gap-6 pb-8 border-b border-slate-100 mb-8">
             <div className="flex items-center gap-4">
               <button 
                 onClick={() => setIsSidebarOpen(true)}
@@ -380,55 +417,188 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
                })}
              </div>
            </div>
-        ) : (
-          <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-            {joinedRooms.map((room) => (
-              <motion.div 
-                key={room.id}
-                layout
-                onClick={() => handleEnterRoom(room)}
-                className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm hover:shadow-md transition-all group relative cursor-pointer"
-              >
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="h-10 w-10 bg-slate-100 rounded-xl flex items-center justify-center font-black text-slate-400">
-                    {room.community.community_name.charAt(0)}
+         ) : (
+          <>
+            {/* Desktop Layout */}
+            <div className="hidden md:grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+              {joinedRooms.map((room) => (
+                <motion.div 
+                  key={room.id}
+                  layout
+                  onClick={() => handleEnterRoom(room)}
+                  className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm hover:shadow-md transition-all group relative cursor-pointer"
+                >
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="h-10 w-10 bg-slate-100 rounded-xl flex items-center justify-center font-black text-slate-400">
+                      {room.community.community_name.charAt(0)}
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-black uppercase text-slate-900 leading-none mb-1">{room.room_name}</h4>
+                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest italic">{room.community.community_name}</p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="text-sm font-black uppercase text-slate-900 leading-none mb-1">{room.room_name}</h4>
-                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest italic">{room.community.community_name}</p>
+                  
+                  <div className="flex items-center justify-between border-t border-slate-50 pt-4">
+                    <div className="flex items-center gap-1.5">
+                      <div className={cn("w-2 h-2 rounded-full", room.room_type === 'live' ? "bg-red-500 animate-pulse" : "bg-slate-300")}></div>
+                      <span className="text-[10px] font-black uppercase text-slate-400">{room.room_type === 'live' ? "Live" : "Class"}</span>
+                    </div>
+                    <button className="bg-brand-blue text-white px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-md shadow-blue-500/10">
+                      {t('enter', 'Enter')}
+                    </button>
                   </div>
-                </div>
-                
-                <div className="flex items-center justify-between border-t border-slate-50 pt-4">
-                  <div className="flex items-center gap-1.5">
-                    <div className={cn("w-2 h-2 rounded-full", room.room_type === 'live' ? "bg-red-500 animate-pulse" : "bg-slate-300")}></div>
-                    <span className="text-[10px] font-black uppercase text-slate-400">{room.room_type === 'live' ? "Live" : "Room"}</span>
+                </motion.div>
+              ))}
+
+              {joinedRooms.length === 0 && (
+                <div className="col-span-full py-32 flex flex-col items-center justify-center space-y-6 text-center">
+                  <div className="h-24 w-24 bg-white rounded-[40px] flex items-center justify-center shadow-xl border border-slate-100 text-slate-200">
+                    <Users className="h-12 w-12" />
                   </div>
-                  <button className="bg-brand-blue text-white px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-md shadow-blue-500/10">
-                    {t('enter', 'Enter')}
+                  <div className="space-y-2">
+                    <h3 className="text-xl font-black font-display uppercase italic text-slate-900">Your Classroom is Empty</h3>
+                    <p className="text-xs text-slate-400 max-w-xs mx-auto">Discover teacher communities and join rooms to start learning.</p>
+                  </div>
+                  <button 
+                    onClick={() => setActiveTab("discover")}
+                    className="px-8 py-4 bg-brand-blue text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl shadow-blue-500/20"
+                  >
+                    Explore Communities
                   </button>
                 </div>
-              </motion.div>
-            ))}
+              )}
+            </div>
 
-            {joinedRooms.length === 0 && (
-              <div className="col-span-full py-32 flex flex-col items-center justify-center space-y-6 text-center">
-                <div className="h-24 w-24 bg-white rounded-[40px] flex items-center justify-center shadow-xl border border-slate-100 text-slate-200">
-                  <Users className="h-12 w-12" />
-                </div>
-                <div className="space-y-2">
-                  <h3 className="text-xl font-black font-display uppercase italic text-slate-900">Your Classroom is Empty</h3>
-                  <p className="text-xs text-slate-400 max-w-xs mx-auto">Discover teacher communities and join rooms to start learning.</p>
-                </div>
-                <button 
-                  onClick={() => setActiveTab("discover")}
-                  className="px-8 py-4 bg-brand-blue text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl shadow-blue-500/20"
-                >
-                  Explore Communities
-                </button>
+            {/* Mobile Layout (Exact mockup matching layout) */}
+            <div className="block md:hidden space-y-6">
+              {/* Greeting */}
+              <div className="space-y-1 text-right rtl:text-right px-1">
+                <p className="text-slate-400 text-sm font-medium">مرحباً،</p>
+                <h1 className="text-3xl font-bold tracking-tight text-slate-900">{profile.fullname}</h1>
               </div>
-            )}
-          </div>
+
+              {/* My communities section */}
+              <div className="space-y-4 pt-2 text-right rtl:text-right">
+                <div className="flex items-center justify-between px-1">
+                  <button onClick={() => setActiveTab("discover")} className="text-xs font-extrabold text-blue-500 hover:underline">{t('all', 'الكل')}</button>
+                  <h3 className="text-lg font-bold text-slate-800">{t('my_classes_title', 'مجتمعاتي')}</h3>
+                </div>
+
+                <div className="space-y-3">
+                  {/* Filter classes based on active subfilter */}
+                  {joinedRooms
+                    .filter(room => !mobileSubFilter || room.room_type === mobileSubFilter)
+                    .map((room, idx) => {
+                      const isEven = idx % 2 === 0;
+                      return (
+                        <motion.div 
+                          key={room.id}
+                          whileTap={{ scale: 0.98 }}
+                          onClick={() => handleEnterRoom(room)}
+                          className="bg-white p-4 rounded-[24px] border border-slate-100/60 shadow-sm flex items-center justify-between cursor-pointer transition-all hover:bg-slate-50/50"
+                        >
+                          {/* Left: dot indicator */}
+                          <div className="flex items-center">
+                            {room.room_type === 'live' ? (
+                              <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
+                            ) : (
+                              <div className={cn("w-2.5 h-2.5 rounded-full", isEven ? "bg-blue-500" : "bg-emerald-500")} />
+                            )}
+                          </div>
+
+                          {/* Right: details and book icon */}
+                          <div className="flex items-center gap-3">
+                            <div className="text-right flex flex-col items-end">
+                              <h4 className="text-sm font-bold text-slate-800 leading-none">{room.room_name}</h4>
+                              <p className="text-[10px] font-bold text-slate-400 mt-1.5">{room.community.community_name}</p>
+                            </div>
+                            
+                            {/* Circle BookIcon */}
+                            <div className={cn(
+                              "h-11 w-11 rounded-full flex items-center justify-center border",
+                              isEven 
+                                ? "bg-blue-50/75 border-blue-100/50 text-blue-500" 
+                                : "bg-emerald-50/75 border-emerald-100/50 text-emerald-500"
+                            )}>
+                              <BookOpen className="h-4.5 w-4.5" />
+                            </div>
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+
+                  {joinedRooms.filter(room => !mobileSubFilter || room.room_type === mobileSubFilter).length === 0 && (
+                    <div className="py-8 text-center bg-slate-50/50 rounded-2xl border border-dashed border-slate-100">
+                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center w-full">
+                         {mobileSubFilter === 'chat' ? "لا توجد دردشات بعد" : (mobileSubFilter === 'announcements' ? "لا توجد إعلانات بعد" : "لا توجد صفوف انضممت إليها بعد")}
+                       </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Upcoming live section */}
+              {!mobileSubFilter && (
+                <div className="space-y-4 pt-2 text-right rtl:text-right">
+                  <div className="px-1 text-right rtl:text-right">
+                    <h3 className="text-lg font-bold text-slate-850">الدروس المباشرة القادمة</h3>
+                  </div>
+
+                  <div className="space-y-3">
+                    {joinedRooms.filter(r => r.room_type === 'live').map((room) => (
+                      <motion.div
+                        key={room.id}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => handleEnterRoom(room)}
+                        className="bg-white rounded-[24px] border border-orange-100/50 shadow-sm relative overflow-hidden flex items-center justify-between p-4 cursor-pointer"
+                        style={{ borderLeftWidth: i18n.language === 'ar' ? '1px' : '4px', borderLeftColor: i18n.language === 'ar' ? undefined : '#f43f5e', borderRightWidth: i18n.language === 'ar' ? '4px' : '1px', borderRightColor: i18n.language === 'ar' ? '#f43f5e' : undefined }}
+                      >
+                        <div className="flex flex-col gap-1 items-start text-left rtl:text-right">
+                          <div className="inline-flex items-center gap-1 bg-red-50 border border-red-100 px-2.5 py-0.5 rounded-full text-[9px] font-extrabold text-red-500 tracking-wider">
+                            LIVE <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                          </div>
+                          <h4 className="text-base font-extrabold text-slate-800 leading-tight mt-1">{room.room_name}</h4>
+                          <p className="text-[10px] font-bold text-slate-400">اليوم على 18:00</p>
+                        </div>
+
+                        <div className="relative">
+                          <img 
+                            src={room.teacherProfile?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(room.community.community_name)}&background=3b82f6&color=fff`} 
+                            alt="Teacher" 
+                            className="h-14 w-14 rounded-full border-2 border-white shadow-md object-cover" 
+                          />
+                        </div>
+                      </motion.div>
+                    ))}
+                    
+                    {joinedRooms.filter(r => r.room_type === 'live').length === 0 && (
+                      <motion.div
+                        whileTap={{ scale: 0.98 }}
+                        className="bg-white rounded-[24px] border border-orange-100/50 shadow-sm relative overflow-hidden flex items-center justify-between p-4 cursor-pointer"
+                        style={{ borderLeftWidth: i18n.language === 'ar' ? '1px' : '4px', borderLeftColor: i18n.language === 'ar' ? undefined : '#f43f5e', borderRightWidth: i18n.language === 'ar' ? '4px' : '1px', borderRightColor: i18n.language === 'ar' ? '#f43f5e' : undefined }}
+                      >
+                        <div className="flex flex-col gap-1 items-start text-left rtl:text-right">
+                          <div className="inline-flex items-center gap-1 bg-red-50 border border-red-100 px-2.5 py-0.5 rounded-full text-[9px] font-extrabold text-red-500 tracking-wider">
+                            LIVE <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                          </div>
+                          <h4 className="text-base font-extrabold text-slate-800 leading-tight mt-1">الرياضيات</h4>
+                          <p className="text-[10px] font-bold text-slate-400">اليوم على 18:00</p>
+                        </div>
+
+                        <div className="relative">
+                          <img 
+                            src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80" 
+                            alt="Teacher" 
+                            className="h-14 w-14 rounded-full border-2 border-white shadow-md object-cover" 
+                          />
+                        </div>
+                      </motion.div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </>
         )}
       </main>
 
@@ -478,6 +648,64 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
           </div>
         </div>
       )}
+      {/* Beautiful Bottom Navigation for Mobile */}
+      <div className="fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur-md border-t border-slate-100 flex items-center justify-around py-3 z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.03)] rounded-t-2xl md:hidden">
+        <button 
+          onClick={() => {
+            setActiveTab("joined");
+            setMobileSubFilter(null);
+          }}
+          className={cn(
+            "flex flex-col items-center gap-1 transition-all",
+            (activeTab === "joined" && !mobileSubFilter) ? "text-brand-blue" : "text-slate-400"
+          )}
+        >
+          <PlayCircle className="h-5 w-5" />
+          <span className="text-[10px] font-bold">مباشر</span>
+        </button>
+        
+        <button 
+          onClick={() => {
+            setActiveTab("joined");
+            setMobileSubFilter("chat");
+          }}
+          className={cn(
+            "flex flex-col items-center gap-1 transition-all",
+            (activeTab === "joined" && mobileSubFilter === "chat") ? "text-brand-blue" : "text-slate-400"
+          )}
+        >
+          <MessageSquare className="h-5 w-5" />
+          <span className="text-[10px] font-bold">الدردشة</span>
+        </button>
+
+        <button 
+          onClick={() => {
+            setActiveTab("discover");
+            setMobileSubFilter(null);
+          }}
+          className={cn(
+            "flex flex-col items-center gap-1 transition-all",
+            activeTab === "discover" ? "text-brand-blue" : "text-slate-400"
+          )}
+        >
+          <Users className="h-5 w-5" />
+          <span className="text-[10px] font-bold">الفرق</span>
+        </button>
+
+        <button 
+          onClick={() => {
+            setActiveTab("joined");
+            setMobileSubFilter("announcements");
+          }}
+          className={cn(
+            "flex flex-col items-center gap-1 transition-all",
+            (activeTab === "joined" && mobileSubFilter === "announcements") ? "text-brand-blue" : "text-slate-400"
+          )}
+        >
+          <Bell className="h-5 w-5" />
+          <span className="text-[10px] font-bold flex items-center justify-center">الإعلانات</span>
+        </button>
+      </div>
     </div>
   );
 }

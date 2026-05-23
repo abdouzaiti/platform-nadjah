@@ -850,7 +850,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
               ) : sidebarActiveTab === "private_chat" ? (
                 <div className="absolute inset-0 bg-white flex flex-col p-6 mt-16 pb-24 shadow-inner">
                   <div className="mb-6">
-                    <h2 className="text-4xl font-display font-black uppercase italic tracking-tighter text-slate-900 leading-none">{t('private_chat', 'Private Chat')}</h2>
+                    <h2 className="text-4xl font-display font-black uppercase italic tracking-tighter text-slate-900 leading-none">{t('private_chat', 'Ask Teacher')}</h2>
                     <div className="h-1.5 w-16 bg-brand-blue rounded-full mt-3"></div>
                   </div>
                   
@@ -960,7 +960,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                            {messages.filter(m => m.content === 'private' && (m.sender_id === profile.id || m.recipient_id === profile.id)).length === 0 && (
                              <div className="h-full flex flex-col items-center justify-center text-center p-12">
                                 <MessageCircle className="h-16 w-16 text-slate-100 mb-6" />
-                                <h3 className="text-xl font-black uppercase text-slate-900 italic tracking-tighter mb-2">{t('private_placeholder_title', 'Private Question?')}</h3>
+                                <h3 className="text-xl font-black uppercase text-slate-900 italic tracking-tighter mb-2">{t('private_placeholder_title', 'Ask your Teacher')}</h3>
                                 <p className="text-sm font-medium text-slate-400 max-w-xs">{t('private_placeholder_desc', 'Send a private message to your teacher. Only you and the teacher can see this.')}</p>
                              </div>
                            )}

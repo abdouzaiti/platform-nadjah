@@ -74,11 +74,11 @@ export default function RoomSidebar({ isOpen, onToggle, activeTab, setActiveTab,
 
         <div className="flex-1 p-2 flex flex-col gap-1 overflow-y-auto">
           {[
-            { id: "announcements", icon: Megaphone, label: "Announcements" },
-            { id: "group_chat", icon: Users, label: "Group Chat" },
-            { id: "private_chat", icon: MessageCircle, label: "Private Chat" },
-            { id: "recordings", icon: Save, label: "Recordings" },
-            { id: "live", icon: Radio, label: "Live" }
+            { id: "announcements", icon: Megaphone, label: t('announcements', 'Announcements') },
+            { id: "group_chat", icon: Users, label: t('group_chat', 'Group Chat') },
+            { id: "private_chat", icon: MessageCircle, label: t('private_chat', 'Ask Teacher') },
+            { id: "recordings", icon: Save, label: t('recordings', 'Recordings') },
+            { id: "live", icon: Radio, label: t('live', 'Live') }
           ].map(item => (
             <button 
               key={item.id}
