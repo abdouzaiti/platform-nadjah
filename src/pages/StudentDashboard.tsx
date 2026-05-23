@@ -648,64 +648,7 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
           </div>
         </div>
       )}
-      {/* Beautiful Bottom Navigation for Mobile */}
-      <div className="fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur-md border-t border-slate-100 flex items-center justify-around py-3 z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.03)] rounded-t-2xl md:hidden">
-        <button 
-          onClick={() => {
-            setActiveTab("joined");
-            setMobileSubFilter(null);
-          }}
-          className={cn(
-            "flex flex-col items-center gap-1 transition-all",
-            (activeTab === "joined" && !mobileSubFilter) ? "text-brand-blue" : "text-slate-400"
-          )}
-        >
-          <PlayCircle className="h-5 w-5" />
-          <span className="text-[10px] font-bold">{t('live_nav', 'مباشر')}</span>
-        </button>
-        
-        <button 
-          onClick={() => {
-            setActiveTab("joined");
-            setMobileSubFilter("chat");
-          }}
-          className={cn(
-            "flex flex-col items-center gap-1 transition-all",
-            (activeTab === "joined" && mobileSubFilter === "chat") ? "text-brand-blue" : "text-slate-400"
-          )}
-        >
-          <MessageSquare className="h-5 w-5" />
-          <span className="text-[10px] font-bold">{t('chat_nav', 'الدردشة')}</span>
-        </button>
- 
-        <button 
-          onClick={() => {
-            setActiveTab("discover");
-            setMobileSubFilter(null);
-          }}
-          className={cn(
-            "flex flex-col items-center gap-1 transition-all",
-            activeTab === "discover" ? "text-brand-blue" : "text-slate-400"
-          )}
-        >
-          <Users className="h-5 w-5" />
-          <span className="text-[10px] font-bold">{t('teams_nav', 'الفرق')}</span>
-        </button>
- 
-        <button 
-          onClick={() => {
-            setActiveTab("joined");
-            setMobileSubFilter("announcements");
-          }}
-          className={cn(
-            "flex flex-col items-center gap-1 transition-all",
-            (activeTab === "joined" && mobileSubFilter === "announcements") ? "text-brand-blue" : "text-slate-400"
-          )}
-        >
-          <Bell className="h-5 w-5" />
-          <span className="text-[10px] font-bold flex items-center justify-center">{t('announcements_nav', 'الإعلانات')}</span>
-        </button>
-      </div>
+
     </div>
   );
 }
