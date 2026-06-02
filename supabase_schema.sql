@@ -229,6 +229,7 @@ DROP POLICY IF EXISTS "Members view memberships" ON public.room_members;
 DROP POLICY IF EXISTS "Users join rooms" ON public.room_members;
 DROP POLICY IF EXISTS "Messages viewable" ON public.room_messages;
 DROP POLICY IF EXISTS "Post messages" ON public.room_messages;
+DROP POLICY IF EXISTS "Delete own messages" ON public.room_messages;
 DROP POLICY IF EXISTS "Live sessions viewable" ON public.live_sessions;
 DROP POLICY IF EXISTS "Teachers manage live" ON public.live_sessions;
 DROP POLICY IF EXISTS "Recordings viewable" ON public.recordings;
