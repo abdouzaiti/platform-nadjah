@@ -291,17 +291,71 @@ ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name;
 -- TRIGGER FOR PROFILES
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$
+DECLARE
+  base_username text;
+  final_username text;
+  suffix text;
+  is_taken boolean;
 BEGIN
+  -- Get base username from email or default to user name
+  IF new.email IS NOT NULL AND new.email <> '' THEN
+    base_username := LOWER(REGEXP_REPLACE(SPLIT_PART(new.email, '@', 1), '[^a-zA-Z0-9]', '', 'g'));
+  ELSE
+    base_username := 'user';
+  END IF;
+
+  -- Ensure we don't have an empty/null base username
+  IF base_username IS NULL OR base_username = '' THEN
+    base_username := 'user';
+  END IF;
+
+  -- Try inserting with the base_username. If it clashes, append a short unique segment
+  final_username := base_username;
+  SELECT EXISTS(SELECT 1 FROM public.profiles WHERE username = final_username) INTO is_taken;
+  
+  IF is_taken THEN
+    -- Extract the first 6 chars of the user UUID to guarantee uniqueness
+    suffix := substring(new.id::text from 1 for 6);
+    final_username := base_username || '_' || suffix;
+  END IF;
+
+  -- Double check and fallback to substring UUID if username is still too long or clashes
+  SELECT EXISTS(SELECT 1 FROM public.profiles WHERE username = final_username) INTO is_taken;
+  IF is_taken THEN
+    final_username := 'user_' || replace(new.id::text, '-', '');
+  END IF;
+
+  -- Insert into public.profiles with completely clean bounds and COALESCE safety
   INSERT INTO public.profiles (id, email, name, fullname, username, role)
   VALUES (
     new.id, 
-    new.email, 
-    COALESCE(new.raw_user_meta_data->>'full_name', new.email),
-    COALESCE(new.raw_user_meta_data->>'full_name', new.email),
-    LOWER(REGEXP_REPLACE(SPLIT_PART(new.email, '@', 1), '[^a-zA-Z0-9]', '', 'g')),
+    COALESCE(new.email, 'user_' || replace(new.id::text, '-', '') || '@no-email.com'), 
+    COALESCE(new.raw_user_meta_data->>'full_name', new.email, 'User ' || substring(new.id::text, 1, 8)),
+    COALESCE(new.raw_user_meta_data->>'full_name', new.email, 'User ' || substring(new.id::text, 1, 8)),
+    final_username,
     'GUEST'
   );
   RETURN new;
+EXCEPTION
+  WHEN OTHERS THEN
+    -- In the absolute worst case, we swallow any specific errors and make sure the transaction does NOT abort
+    BEGIN
+      INSERT INTO public.profiles (id, email, name, fullname, username, role)
+      VALUES (
+        new.id, 
+        COALESCE(new.email, 'user_' || replace(new.id::text, '-', '') || '@no-email.com'), 
+        'User', 
+        'User', 
+        'user_' || replace(new.id::text, '-', ''), 
+        'GUEST'
+      )
+      ON CONFLICT (id) DO NOTHING;
+    EXCEPTION
+      WHEN OTHERS THEN
+         -- Swallowing the exception completely so auth.users table insert succeeds no matter what
+         RETURN new;
+    END;
+    RETURN new;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
