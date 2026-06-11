@@ -31,17 +31,17 @@ export default function Sidebar({ profile, activeTab, setActiveTab, isOpen = fal
   const isDeveloper = ["developer", "developper"].includes(profile.role?.toString().toLowerCase()) || profile.email?.toLowerCase() === "zaitiabdou27@gmail.com";
 
   const menuItems = [];
-  if (isTeacher || isDeveloper) {
+  if (isDeveloper) {
+    menuItems.push({ id: "manage-users", icon: Users, label: i18n.language === 'ar' ? 'أعضاء المنصة والطلبات' : (i18n.language === 'fr' ? 'Membres & Approbations' : 'Students & Approvals') });
+    menuItems.push({ id: "settings", icon: Settings, label: i18n.language === 'ar' ? 'إعدادات الحساب' : (i18n.language === 'fr' ? 'Paramètres du Compte' : 'Account Settings') });
+  } else if (isTeacher) {
     menuItems.push({ id: "rooms", icon: School, label: t('my_community', 'My Community') });
     menuItems.push({ id: "create-room", icon: PlusCircle, label: t('add_room', 'Add Class') });
-    if (isDeveloper) {
-      menuItems.push({ id: "manage-users", icon: Users, label: i18n.language === 'ar' ? 'أعضاء المنصة والطلبات' : 'Students & Approvals' });
-    }
-    menuItems.push({ id: "settings", icon: Settings, label: i18n.language === 'ar' ? 'إعدادات الحساب' : 'Account Settings' });
+    menuItems.push({ id: "settings", icon: Settings, label: i18n.language === 'ar' ? 'إعدادات الحساب' : (i18n.language === 'fr' ? 'Paramètres du Compte' : 'Account Settings') });
   } else {
     menuItems.push({ id: "joined", icon: Home, label: t('joined', 'Joined Classes') });
     menuItems.push({ id: "discover", icon: Search, label: t('discover', 'Discover Communities') });
-    menuItems.push({ id: "settings", icon: Settings, label: i18n.language === 'ar' ? 'إعدادات الحساب' : 'Account Settings' });
+    menuItems.push({ id: "settings", icon: Settings, label: i18n.language === 'ar' ? 'إعدادات الحساب' : (i18n.language === 'fr' ? 'Paramètres du Compte' : 'Account Settings') });
   }
 
   const handleSignOut = async () => {
@@ -125,7 +125,7 @@ export default function Sidebar({ profile, activeTab, setActiveTab, isOpen = fal
                     : "text-slate-400 hover:text-slate-600"
                 )}
               >
-                {lng === 'ar' ? 'العربية' : lng}
+                {lng === 'ar' ? 'العربية' : lng === 'fr' ? 'Français' : 'English'}
               </button>
             ))}
           </div>
@@ -162,7 +162,7 @@ export default function Sidebar({ profile, activeTab, setActiveTab, isOpen = fal
                       ? (i18n.language === 'ar' ? 'المطور' : (i18n.language === 'fr' ? 'Développeur' : 'Developer'))
                       : profile.role === 'teacher'
                         ? (i18n.language === 'ar' ? 'أستاذ' : (i18n.language === 'fr' ? 'Professeur' : 'Professor'))
-                        : (profile.role === 'admin' ? 'Admin' : (i18n.language === 'ar' ? 'طالب' : 'Student'))}
+                        : (profile.role === 'admin' ? 'Admin' : (i18n.language === 'ar' ? 'طالب' : (i18n.language === 'fr' ? 'Élève' : 'Student')))}
                   </p>
                 </div>
             </div>

@@ -660,7 +660,7 @@ CREATE TABLE public.room_messages (
                   : "bg-slate-100 text-slate-400 hover:bg-slate-200"
                 }`}
               >
-                {lng}
+                {lng === 'ar' ? 'العربية' : lng === 'fr' ? 'Français' : 'English'}
               </button>
             ))}
           </div>

@@ -15,7 +15,15 @@ interface TeacherDashboardProps {
 
 export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
   const { t, i18n } = useTranslation();
-  const [activeTab, setActiveTab] = React.useState("rooms");
+  
+  const getLabel = (ar: string, fr: string, en: string) => {
+    if (i18n.language === 'ar') return ar;
+    if (i18n.language === 'fr') return fr;
+    return en;
+  };
+
+  const isDeveloper = ["developer", "developper"].includes(profile.role?.toString().toLowerCase()) || profile.email?.toLowerCase() === "zaitiabdou27@gmail.com";
+  const [activeTab, setActiveTab] = React.useState(isDeveloper ? "manage-users" : "rooms");
   const [community, setCommunity] = React.useState<TeacherCommunity | null>(null);
   const [rooms, setRooms] = React.useState<ClassRoom[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -395,12 +403,18 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                   <span className="bg-indigo-500 text-white text-[8px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full shadow-md shadow-indigo-500/10">💻 Developer Console</span>
                 </div>
                 <h3 className="text-xl font-black font-display uppercase tracking-tight text-slate-900 mt-1">
-                  {i18n.language === 'ar' ? "لوحة المطور: التحكم والقبول" : "Ultimate Developer Console"}
+                  {getLabel(
+                    "لوحة المطور: التحكم والقبول",
+                    "Console Développeur: Contrôle & Approbations",
+                    "Ultimate Developer Console"
+                  )}
                 </h3>
                 <p className="text-xs text-slate-400 font-medium">
-                  {i18n.language === 'ar' 
-                    ? "بصفتك المطور الرئيسي للمنصة، لك الصلاحية الكاملة لتسجيل الطلاب والأساتذة وإدارتهم مباشرة."
-                    : "As the lead platform developer, you hold absolute master privileges to register and authorize both students and teachers."}
+                  {getLabel(
+                    "بصفتك المطور الرئيسي للمنصة، لك الصلاحية الكاملة لتسجيل الطلاب والأساتذة وإدارتهم مباشرة.",
+                    "En tant que développeur principal de la plateforme, vous disposez des privilèges absolus pour inscrire et autoriser les étudiants et enseignants.",
+                    "As the lead platform developer, you hold absolute master privileges to register and authorize both students and teachers."
+                  )}
                 </p>
               </div>
               
@@ -409,7 +423,11 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                   <Key className="h-5 w-5 text-brand-blue" />
                   <div>
                     <p className="text-[10px] font-black uppercase text-brand-blue">
-                      {i18n.language === 'ar' ? "مفتاح التسجيل لطلابك" : "Your Community ID"}
+                      {getLabel(
+                        "مفتاح التسجيل لطلابك",
+                        "ID d'inscription étudiant",
+                        "Your Community ID"
+                      )}
                     </p>
                     <p className="text-xs font-mono font-black text-slate-700">
                       @{community.community_username}
@@ -427,12 +445,18 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                 </div>
                 <div>
                   <h4 className="text-sm font-black text-slate-800 uppercase tracking-wide">
-                    {i18n.language === 'ar' ? "تسجيل طالب أو أستاذ جديد تلقائياً" : "Fast-Track User Registration"}
+                    {getLabel(
+                      "تسجيل طالب أو أستاذ جديد تلقائياً",
+                      "Enregistrement rapide d'utilisateur",
+                      "Fast-Track User Registration"
+                    )}
                   </h4>
                   <p className="text-[10px] font-semibold text-slate-400">
-                    {i18n.language === 'ar' 
-                      ? "سجل العضو ببريده الإلكتروني مباشرة وستكون كلمة المرور هي بادئة بريده الإلكتروني بحرف كبير مع كلمة 2026 لتستوفي المعايير الأمنية." 
-                      : "Register a user with their email. The initial passcode will be generated with a capitalized prefix and '2026' to meet security rules."}
+                    {getLabel(
+                      "سجل العضو ببريده الإلكتروني مباشرة وستكون كلمة المرور هي بادئة بريده الإلكتروني بحرف كبير مع كلمة 2026 لتستوفي المعايير الأمنية.",
+                      "Créez le profil d'un membre avec son e-mail. Le mot de passe initial sera le début de l'e-mail avec une majuscule suivi de 2026.",
+                      "Register a user with their email. The initial passcode will be generated with a capitalized prefix and '2026' to meet security rules."
+                    )}
                   </p>
                 </div>
               </div>
@@ -454,12 +478,12 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
               <form onSubmit={handleRegisterUser} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                 <div className="space-y-1.5 text-left rtl:text-right md:col-span-1">
                   <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-1">
-                    {i18n.language === 'ar' ? "الاسم الكامل للعضو" : "Full Name"}
+                    {getLabel("الاسم الكامل للعضو", "Nom complet du membre", "Full Name")}
                   </label>
                   <input 
                     type="text"
                     required
-                    placeholder={i18n.language === 'ar' ? "مثل: محمد علي" : "e.g. Jean Dupont"}
+                    placeholder={getLabel("مثل: محمد علي", "Ex: Jean Dupont", "e.g. Jean Dupont")}
                     value={regFullName}
                     onChange={(e) => setRegFullName(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-slate-800 text-xs focus:outline-none focus:border-brand-blue transition-all font-medium"
@@ -468,12 +492,12 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
 
                 <div className="space-y-1.5 text-left rtl:text-right md:col-span-1">
                   <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-1">
-                    {i18n.language === 'ar' ? "البريد الإلكتروني" : "Email Address"}
+                    {getLabel("البريد الإلكتروني", "Adresse e-mail", "Email Address")}
                   </label>
                   <input 
                     type="email"
                     required
-                    placeholder={i18n.language === 'ar' ? "student@example.com" : "student@example.com"}
+                    placeholder="student@example.com"
                     value={regEmail}
                     onChange={(e) => setRegEmail(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-slate-800 text-xs focus:outline-none focus:border-brand-blue transition-all font-medium"
@@ -482,15 +506,15 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
 
                 <div className="space-y-1.5 text-left rtl:text-right md:col-span-1">
                   <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-1">
-                    {i18n.language === 'ar' ? "الصفة / الحساب" : "Role / Position"}
+                    {getLabel("الصفة / الحساب", "Rôle / Fonction", "Role / Position")}
                   </label>
                   <select 
                     value={regRole}
                     onChange={(e) => setRegRole(e.target.value as any)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-slate-800 text-xs focus:outline-none focus:border-brand-blue transition-all font-bold"
                   >
-                    <option value="student">{i18n.language === 'ar' ? "🧑‍🎓 طالب (Student)" : "Student"}</option>
-                    <option value="teacher">{i18n.language === 'ar' ? "🧑‍🏫 أستاذ (Teacher)" : "Teacher"}</option>
+                    <option value="student">{getLabel("🧑‍🎓 طالب (Student)", "🧑‍🎓 Étudiant", "Student")}</option>
+                    <option value="teacher">{getLabel("🧑‍🏫 أستاذ (Teacher)", "🧑‍🏫 Enseignant", "Teacher")}</option>
                   </select>
                 </div>
 
@@ -502,7 +526,7 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                   {regLoading ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    <span>{i18n.language === 'ar' ? "تسجيل وتفعيل العضو" : "Create Account"}</span>
+                    <span>{getLabel("تسجيل وتفعيل العضو", "Créer et activer le membre", "Create Account")}</span>
                   )}
                 </button>
               </form>
@@ -517,19 +541,25 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                 {/* Statistics Box */}
                 <div className="grid grid-cols-3 gap-4">
                   <div className="p-4 bg-white rounded-2xl border border-slate-100 shadow-sm">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">{i18n.language === 'ar' ? "قيد الانتظار" : "Pending Approval"}</p>
+                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">
+                      {getLabel("قيد الانتظار", "En attente d'approbation", "Pending Approval")}
+                    </p>
                     <p className="text-xl font-black text-amber-500">
                       {usersList.filter(u => u.role?.toLowerCase() === 'guest').length}
                     </p>
                   </div>
                   <div className="p-4 bg-white rounded-2xl border border-slate-100 shadow-sm">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">{i18n.language === 'ar' ? "الطلاب النشطين" : "Active Students"}</p>
+                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">
+                      {getLabel("الطلاب النشطين", "Étudiants actifs", "Active Students")}
+                    </p>
                     <p className="text-xl font-black text-emerald-500">
                       {usersList.filter(u => u.role?.toLowerCase() === 'student').length}
                     </p>
                   </div>
                   <div className="p-4 bg-white rounded-2xl border border-slate-100 shadow-sm">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">{i18n.language === 'ar' ? "الأساتذة والمدراء" : "Active Faculty"}</p>
+                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">
+                      {getLabel("الأساتذة والمدراء", "Corps enseignant", "Active Faculty")}
+                    </p>
                     <p className="text-xl font-black text-blue-500">
                       {usersList.filter(u => ['teacher', 'admin', 'developer', 'developper'].includes(u.role?.toLowerCase())).length}
                     </p>
@@ -542,10 +572,10 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                   <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm space-y-4">
                     <div className="flex items-center justify-between border-b border-slate-50 pb-3">
                       <h4 className="text-xs font-black uppercase tracking-widest text-slate-400">
-                        {i18n.language === 'ar' ? "قائمة طلبات الانضمام المعلقة" : "Pending Sign-Up Approvals"}
+                        {getLabel("قائمة طلبات الانضمام المعلقة", "Demandes d'inscription en attente", "Pending Sign-Up Approvals")}
                       </h4>
                       <span className="px-2 py-0.5 bg-amber-50 text-amber-500 rounded text-[9px] font-black uppercase">
-                        {usersList.filter(u => u.role?.toLowerCase() === 'guest').length} {i18n.language === 'ar' ? "طلبات" : "Requests"}
+                        {usersList.filter(u => u.role?.toLowerCase() === 'guest').length} {getLabel("طلبات", "Demandes", "Requests")}
                       </span>
                     </div>
 
@@ -557,7 +587,11 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                             <p className="text-[9px] text-slate-400 font-mono">@{userItem.username} • {userItem.email}</p>
                             {userItem.role_requested && (
                               <p className="text-[9px] font-black text-amber-500 uppercase mt-1">
-                                {i18n.language === 'ar' ? `طلب صفة: ${userItem.role_requested === 'teacher' ? 'أستاذ' : 'طالب'}` : `Requesting: ${userItem.role_requested}`}
+                                {getLabel(
+                                  `طلب صفة: ${userItem.role_requested === 'teacher' ? 'أستاذ' : 'طالب'}`,
+                                  `Rôle demandé: ${userItem.role_requested === 'teacher' ? 'Enseignant' : 'Étudiant'}`,
+                                  `Requesting: ${userItem.role_requested}`
+                                )}
                               </p>
                             )}
                           </div>
@@ -565,17 +599,19 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                           <div className="flex items-center gap-2 text-right rtl:text-left">
                             <button
                               onClick={() => handleApproveUser(userItem.id, (userItem.role_requested as 'student' | 'teacher') || 'student')}
-                              className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-md shadow-emerald-500/10 cursor-pointer"
+                              className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-md shadow-emerald-500/15 flex items-center justify-center gap-2 cursor-pointer"
                             >
-                              💡 {i18n.language === 'ar' ? "قبول وتفعيل كطلب" : "Approve"}
+                              💡 {getLabel("قبول وتفعيل كطلب", "Approuver", "Approve")}
                             </button>
                             <button
                               onClick={() => handleApproveUser(userItem.id, userItem.role_requested === 'teacher' ? 'student' : 'teacher')}
                               className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
                             >
-                              {i18n.language === 'ar' 
-                                ? (userItem.role_requested === 'teacher' ? "تفعيل كطالب" : "تفعيل كأستاذ") 
-                                : `As ${userItem.role_requested === 'teacher' ? 'Student' : 'Teacher'}`}
+                              {getLabel(
+                                userItem.role_requested === 'teacher' ? "تفعيل كطالب" : "تفعيل كأستاذ",
+                                userItem.role_requested === 'teacher' ? "Activer comme Étudiant" : "Activer comme Enseignant",
+                                `As ${userItem.role_requested === 'teacher' ? 'Student' : 'Teacher'}`
+                              )}
                             </button>
                           </div>
                         </div>
@@ -593,10 +629,10 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                   <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm space-y-4">
                     <div className="flex items-center justify-between border-b border-slate-50 pb-3">
                       <h4 className="text-xs font-black uppercase tracking-widest text-slate-400">
-                        {i18n.language === 'ar' ? "قاعدة بيانات الأعضاء المسجّلين" : "Registered Active Members"}
+                        {getLabel("قاعدة بيانات الأعضاء المسجّلين", "Base de données des membres actifs", "Registered Active Members")}
                       </h4>
                       <span className="px-2 py-0.5 bg-blue-50 text-blue-500 rounded text-[9px] font-black uppercase">
-                        {usersList.filter(u => u.role?.toLowerCase() !== 'guest').length} {i18n.language === 'ar' ? "عضو" : "Members"}
+                        {usersList.filter(u => u.role?.toLowerCase() !== 'guest').length} {getLabel("عضو", "Membres", "Members")}
                       </span>
                     </div>
 
@@ -618,7 +654,11 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                               "text-[8px] font-black uppercase px-2.5 py-1 rounded-full",
                               userItem.role?.toLowerCase() === 'developer' || userItem.role?.toLowerCase() === 'developper' ? "bg-indigo-500/10 text-indigo-500" : userItem.role?.toLowerCase() === 'teacher' ? "bg-blue-500/10 text-blue-500" : (userItem.role?.toLowerCase() === 'admin' ? "bg-purple-500/10 text-purple-500" : "bg-emerald-500/10 text-emerald-500")
                             )}>
-                              {userItem.role?.toLowerCase() === 'developer' || userItem.role?.toLowerCase() === 'developper' ? (i18n.language === 'ar' ? 'المطور' : 'Developer') : userItem.role?.toLowerCase() === 'teacher' ? (i18n.language === 'ar' ? 'أستاذ' : 'Teacher') : (userItem.role?.toLowerCase() === 'admin' ? 'Admin' : (i18n.language === 'ar' ? 'طالب' : 'Student'))}
+                              {userItem.role?.toLowerCase() === 'developer' || userItem.role?.toLowerCase() === 'developper' 
+                                ? getLabel('المطور', 'Développeur', 'Developer') 
+                                : userItem.role?.toLowerCase() === 'teacher' 
+                                  ? getLabel('أستاذ', 'Professeur', 'Teacher') 
+                                  : (userItem.role?.toLowerCase() === 'admin' ? 'Admin' : getLabel('طالب', 'Élève', 'Student'))}
                             </span>
                             
                             {userItem.id !== profile.id && (
@@ -626,16 +666,16 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                                 <button
                                   onClick={() => handleApproveUser(userItem.id, 'guest')}
                                   className="px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all border border-amber-500/10 cursor-pointer"
-                                  title={i18n.language === 'ar' ? "تجميد الحساب وإرساله لقائمة الانتظار" : "Deactivate accounts to pending state"}
+                                  title={getLabel("تجميد الحساب وإرساله لقائمة الانتظار", "Désactiver le compte vers la liste d'attente", "Deactivate accounts to pending state")}
                                 >
-                                  🔒 {i18n.language === 'ar' ? "تجميد الحساب" : "Freeze"}
+                                  🔒 {getLabel("تجميد الحساب", "Désactiver", "Freeze")}
                                 </button>
                                 
                                 <button
                                   onClick={() => handleRejectOrDelete(userItem.id)}
                                   className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-500 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
                                 >
-                                  🗑️ {i18n.language === 'ar' ? "حذف" : "Delete"}
+                                  🗑️ {getLabel("حذف", "Supprimer", "Delete")}
                                 </button>
                               </>
                             )}
