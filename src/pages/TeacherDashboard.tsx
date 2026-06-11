@@ -384,7 +384,271 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
       />
       
       <main className="flex-1 overflow-y-auto p-4 md:p-8 no-scrollbar bg-slate-50/50">
-        {!community ? (
+        {activeTab === "settings" ? (
+          <SettingsView profile={profile} />
+        ) : (activeTab === "manage-users" && (profile.role === "developer" || profile.role === "developper" || profile.email?.toLowerCase() === "zaitiabdou27@gmail.com")) ? (
+          <div className="space-y-6">
+            {/* Intro Card */}
+            <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="bg-indigo-500 text-white text-[8px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full shadow-md shadow-indigo-500/10">💻 Developer Console</span>
+                </div>
+                <h3 className="text-xl font-black font-display uppercase tracking-tight text-slate-900 mt-1">
+                  {i18n.language === 'ar' ? "لوحة المطور: التحكم والقبول" : "Ultimate Developer Console"}
+                </h3>
+                <p className="text-xs text-slate-400 font-medium">
+                  {i18n.language === 'ar' 
+                    ? "بصفتك المطور الرئيسي للمنصة، لك الصلاحية الكاملة لتسجيل الطلاب والأساتذة وإدارتهم مباشرة."
+                    : "As the lead platform developer, you hold absolute master privileges to register and authorize both students and teachers."}
+                </p>
+              </div>
+              
+              {community && (
+                <div className="bg-brand-blue/5 border border-brand-blue/10 p-4 rounded-2xl flex items-center gap-3 shrink-0">
+                  <Key className="h-5 w-5 text-brand-blue" />
+                  <div>
+                    <p className="text-[10px] font-black uppercase text-brand-blue">
+                      {i18n.language === 'ar' ? "مفتاح التسجيل لطلابك" : "Your Community ID"}
+                    </p>
+                    <p className="text-xs font-mono font-black text-slate-700">
+                      @{community.community_username}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Fast-Track Academic Registration Widget */}
+            <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-indigo-500/10 text-indigo-500 rounded-xl">
+                  <Plus className="h-5 w-5" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-black text-slate-800 uppercase tracking-wide">
+                    {i18n.language === 'ar' ? "تسجيل طالب أو أستاذ جديد تلقائياً" : "Fast-Track User Registration"}
+                  </h4>
+                  <p className="text-[10px] font-semibold text-slate-400">
+                    {i18n.language === 'ar' 
+                      ? "سجل العضو ببريده الإلكتروني مباشرة وستكون كلمة المرور هي بادئة بريده الإلكتروني بحرف كبير مع كلمة 2026 لتستوفي المعايير الأمنية." 
+                      : "Register a user with their email. The initial passcode will be generated with a capitalized prefix and '2026' to meet security rules."}
+                  </p>
+                </div>
+              </div>
+
+              {regError && (
+                <div className="bg-red-50 text-red-600 border border-red-100 rounded-xl p-3 text-xs font-semibold flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                  <span>{regError}</span>
+                </div>
+              )}
+
+              {regSuccess && (
+                <div className="bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-xl p-3 text-xs font-semibold flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                  <span>{regSuccess}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleRegisterUser} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                <div className="space-y-1.5 text-left rtl:text-right md:col-span-1">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-1">
+                    {i18n.language === 'ar' ? "الاسم الكامل للعضو" : "Full Name"}
+                  </label>
+                  <input 
+                    type="text"
+                    required
+                    placeholder={i18n.language === 'ar' ? "مثل: محمد علي" : "e.g. Jean Dupont"}
+                    value={regFullName}
+                    onChange={(e) => setRegFullName(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-slate-800 text-xs focus:outline-none focus:border-brand-blue transition-all font-medium"
+                  />
+                </div>
+
+                <div className="space-y-1.5 text-left rtl:text-right md:col-span-1">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-1">
+                    {i18n.language === 'ar' ? "البريد الإلكتروني" : "Email Address"}
+                  </label>
+                  <input 
+                    type="email"
+                    required
+                    placeholder={i18n.language === 'ar' ? "student@example.com" : "student@example.com"}
+                    value={regEmail}
+                    onChange={(e) => setRegEmail(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-slate-800 text-xs focus:outline-none focus:border-brand-blue transition-all font-medium"
+                  />
+                </div>
+
+                <div className="space-y-1.5 text-left rtl:text-right md:col-span-1">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-1">
+                    {i18n.language === 'ar' ? "الصفة / الحساب" : "Role / Position"}
+                  </label>
+                  <select 
+                    value={regRole}
+                    onChange={(e) => setRegRole(e.target.value as any)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-slate-800 text-xs focus:outline-none focus:border-brand-blue transition-all font-bold"
+                  >
+                    <option value="student">{i18n.language === 'ar' ? "🧑‍🎓 طالب (Student)" : "Student"}</option>
+                    <option value="teacher">{i18n.language === 'ar' ? "🧑‍🏫 أستاذ (Teacher)" : "Teacher"}</option>
+                  </select>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={regLoading}
+                  className="w-full py-3 bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 text-white font-black text-[10px] uppercase tracking-[0.1em] rounded-xl shadow-lg shadow-indigo-500/15 flex items-center justify-center gap-2 cursor-pointer h-10"
+                >
+                  {regLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <span>{i18n.language === 'ar' ? "تسجيل وتفعيل العضو" : "Create Account"}</span>
+                  )}
+                </button>
+              </form>
+            </div>
+
+            {usersLoading ? (
+              <div className="flex justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-brand-blue" />
+              </div>
+            ) : (
+              <div className="grid gap-6 grid-cols-1">
+                {/* Statistics Box */}
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="p-4 bg-white rounded-2xl border border-slate-100 shadow-sm">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">{i18n.language === 'ar' ? "قيد الانتظار" : "Pending Approval"}</p>
+                    <p className="text-xl font-black text-amber-500">
+                      {usersList.filter(u => u.role?.toLowerCase() === 'guest').length}
+                    </p>
+                  </div>
+                  <div className="p-4 bg-white rounded-2xl border border-slate-100 shadow-sm">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">{i18n.language === 'ar' ? "الطلاب النشطين" : "Active Students"}</p>
+                    <p className="text-xl font-black text-emerald-500">
+                      {usersList.filter(u => u.role?.toLowerCase() === 'student').length}
+                    </p>
+                  </div>
+                  <div className="p-4 bg-white rounded-2xl border border-slate-100 shadow-sm">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">{i18n.language === 'ar' ? "الأساتذة والمدراء" : "Active Faculty"}</p>
+                    <p className="text-xl font-black text-blue-500">
+                      {usersList.filter(u => ['teacher', 'admin', 'developer', 'developper'].includes(u.role?.toLowerCase())).length}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Left/Right layout for pending and active */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Pending Request Queue */}
+                  <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm space-y-4">
+                    <div className="flex items-center justify-between border-b border-slate-50 pb-3">
+                      <h4 className="text-xs font-black uppercase tracking-widest text-slate-400">
+                        {i18n.language === 'ar' ? "قائمة طلبات الانضمام المعلقة" : "Pending Sign-Up Approvals"}
+                      </h4>
+                      <span className="px-2 py-0.5 bg-amber-50 text-amber-500 rounded text-[9px] font-black uppercase">
+                        {usersList.filter(u => u.role?.toLowerCase() === 'guest').length} {i18n.language === 'ar' ? "طلبات" : "Requests"}
+                      </span>
+                    </div>
+
+                    <div className="space-y-3 max-h-[350px] overflow-y-auto no-scrollbar">
+                      {usersList.filter(u => u.role?.toLowerCase() === 'guest').map((userItem) => (
+                        <div key={userItem.id} className="p-4 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between gap-4">
+                          <div>
+                            <p className="text-xs font-bold text-slate-800">{userItem.fullname}</p>
+                            <p className="text-[9px] text-slate-400 font-mono">@{userItem.username} • {userItem.email}</p>
+                            {userItem.role_requested && (
+                              <p className="text-[9px] font-black text-amber-500 uppercase mt-1">
+                                {i18n.language === 'ar' ? `طلب صفة: ${userItem.role_requested === 'teacher' ? 'أستاذ' : 'طالب'}` : `Requesting: ${userItem.role_requested}`}
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-2 text-right rtl:text-left">
+                            <button
+                              onClick={() => handleApproveUser(userItem.id, (userItem.role_requested as 'student' | 'teacher') || 'student')}
+                              className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-md shadow-emerald-500/10 cursor-pointer"
+                            >
+                              💡 {i18n.language === 'ar' ? "قبول وتفعيل كطلب" : "Approve"}
+                            </button>
+                            <button
+                              onClick={() => handleApproveUser(userItem.id, userItem.role_requested === 'teacher' ? 'student' : 'teacher')}
+                              className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
+                            >
+                              {i18n.language === 'ar' 
+                                ? (userItem.role_requested === 'teacher' ? "تفعيل كطالب" : "تفعيل كأستاذ") 
+                                : `As ${userItem.role_requested === 'teacher' ? 'Student' : 'Teacher'}`}
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+
+                      {usersList.filter(u => u.role?.toLowerCase() === 'guest').length === 0 && (
+                        <div className="text-center py-8 text-slate-400 text-[10px] font-bold uppercase">
+                          ☘️ {i18n.language === 'ar' ? "لا توجد طلبات معلقة حالياً" : "All users are authorized!"}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Active Registered Members database */}
+                  <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm space-y-4">
+                    <div className="flex items-center justify-between border-b border-slate-50 pb-3">
+                      <h4 className="text-xs font-black uppercase tracking-widest text-slate-400">
+                        {i18n.language === 'ar' ? "قاعدة بيانات الأعضاء المسجّلين" : "Registered Active Members"}
+                      </h4>
+                      <span className="px-2 py-0.5 bg-blue-50 text-blue-500 rounded text-[9px] font-black uppercase">
+                        {usersList.filter(u => u.role?.toLowerCase() !== 'guest').length} {i18n.language === 'ar' ? "عضو" : "Members"}
+                      </span>
+                    </div>
+
+                    <div className="space-y-3 max-h-[350px] overflow-y-auto no-scrollbar">
+                      {usersList.filter(u => u.role?.toLowerCase() !== 'guest').map((userItem) => (
+                        <div key={userItem.id} className="p-4 bg-slate-50/50 rounded-xl border border-slate-100 flex items-center justify-between gap-4">
+                          <div className="overflow-hidden">
+                            <div className="flex items-center gap-2">
+                              <p className="text-xs font-black text-slate-800 truncate">{userItem.fullname}</p>
+                              {userItem.email === "zaitiabdou27@gmail.com" && (
+                                <span className="bg-indigo-500 text-white text-[8px] font-black uppercase px-2 py-0.5 rounded">DEV</span>
+                              )}
+                            </div>
+                            <p className="text-[9px] text-slate-400 truncate font-mono mt-0.5">@{userItem.username} • {userItem.email}</p>
+                          </div>
+                          
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className={cn(
+                              "text-[8px] font-black uppercase px-2.5 py-1 rounded-full",
+                              userItem.role?.toLowerCase() === 'developer' || userItem.role?.toLowerCase() === 'developper' ? "bg-indigo-500/10 text-indigo-500" : userItem.role?.toLowerCase() === 'teacher' ? "bg-blue-500/10 text-blue-500" : (userItem.role?.toLowerCase() === 'admin' ? "bg-purple-500/10 text-purple-500" : "bg-emerald-500/10 text-emerald-500")
+                            )}>
+                              {userItem.role?.toLowerCase() === 'developer' || userItem.role?.toLowerCase() === 'developper' ? (i18n.language === 'ar' ? 'المطور' : 'Developer') : userItem.role?.toLowerCase() === 'teacher' ? (i18n.language === 'ar' ? 'أستاذ' : 'Teacher') : (userItem.role?.toLowerCase() === 'admin' ? 'Admin' : (i18n.language === 'ar' ? 'طالب' : 'Student'))}
+                            </span>
+                            
+                            {userItem.id !== profile.id && (
+                              <>
+                                <button
+                                  onClick={() => handleApproveUser(userItem.id, 'guest')}
+                                  className="px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all border border-amber-500/10 cursor-pointer"
+                                  title={i18n.language === 'ar' ? "تجميد الحساب وإرساله لقائمة الانتظار" : "Deactivate accounts to pending state"}
+                                >
+                                  🔒 {i18n.language === 'ar' ? "تجميد الحساب" : "Freeze"}
+                                </button>
+                                
+                                <button
+                                  onClick={() => handleRejectOrDelete(userItem.id)}
+                                  className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-500 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
+                                >
+                                  🗑️ {i18n.language === 'ar' ? "حذف" : "Delete"}
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : !community ? (
           <div className="mx-auto max-w-2xl mt-10">
             <button 
               onClick={() => setIsSidebarOpen(true)}
@@ -559,7 +823,7 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                   </form>
                 </div>
               </div>
-            ) : activeTab === "manage-users" ? (
+            ) : false ? (
               <div className="space-y-6">
                 {/* Intro Card */}
                 <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
@@ -718,7 +982,7 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                             {i18n.language === 'ar' ? "الأساتذة والمدراء" : "Teachers & Admins"}
                           </p>
                           <p className="text-3xl font-black text-brand-blue mt-1">
-                            {usersList.filter(u => ['teacher', 'admin'].includes(u.role?.toLowerCase())).length}
+                            {usersList.filter(u => ['teacher', 'admin', 'developer', 'developper'].includes(u.role?.toLowerCase())).length}
                           </p>
                         </div>
                         <div className="p-3 bg-brand-blue/10 text-brand-blue rounded-xl">
@@ -831,9 +1095,9 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                             <div className="flex items-center gap-2">
                               <span className={cn(
                                 "text-[8px] font-black uppercase px-2.5 py-1 rounded-full",
-                                userItem.role?.toLowerCase() === 'teacher' ? "bg-blue-500/10 text-blue-500" : (userItem.role?.toLowerCase() === 'admin' ? "bg-purple-500/10 text-purple-500" : "bg-emerald-500/10 text-emerald-500")
+                                userItem.role?.toLowerCase() === 'developer' || userItem.role?.toLowerCase() === 'developper' ? "bg-indigo-500/10 text-indigo-500" : userItem.role?.toLowerCase() === 'teacher' ? "bg-blue-500/10 text-blue-500" : (userItem.role?.toLowerCase() === 'admin' ? "bg-purple-500/10 text-purple-500" : "bg-emerald-500/10 text-emerald-500")
                               )}>
-                                {userItem.role?.toLowerCase() === 'teacher' ? (i18n.language === 'ar' ? 'أستاذ' : 'Teacher') : (userItem.role?.toLowerCase() === 'admin' ? 'Admin' : (i18n.language === 'ar' ? 'طالب' : 'Student'))}
+                                {userItem.role?.toLowerCase() === 'developer' || userItem.role?.toLowerCase() === 'developper' ? (i18n.language === 'ar' ? 'المطور' : 'Developer') : userItem.role?.toLowerCase() === 'teacher' ? (i18n.language === 'ar' ? 'أستاذ' : 'Teacher') : (userItem.role?.toLowerCase() === 'admin' ? 'Admin' : (i18n.language === 'ar' ? 'طالب' : 'Student'))}
                               </span>
                               
                               {userItem.id !== profile.id && (

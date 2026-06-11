@@ -28,17 +28,21 @@ interface SidebarProps {
 export default function Sidebar({ profile, activeTab, setActiveTab, isOpen = false, onClose }: SidebarProps) {
   const { t, i18n } = useTranslation();
   const isTeacher = profile.role === "teacher";
+  const isDeveloper = ["developer", "developper"].includes(profile.role?.toString().toLowerCase()) || profile.email?.toLowerCase() === "zaitiabdou27@gmail.com";
 
-  const menuItems = isTeacher ? [
-    { id: "rooms", icon: School, label: t('my_community', 'My Community') },
-    { id: "create-room", icon: PlusCircle, label: t('add_room', 'Add Class') },
-    { id: "manage-users", icon: Users, label: i18n.language === 'ar' ? 'أعضاء المنصة والطلبات' : 'Students & Approvals' },
-    { id: "settings", icon: Settings, label: i18n.language === 'ar' ? 'إعدادات الحساب' : 'Account Settings' },
-  ] : [
-    { id: "joined", icon: Home, label: t('joined', 'Joined Classes') },
-    { id: "discover", icon: Search, label: t('discover', 'Discover Communities') },
-    { id: "settings", icon: Settings, label: i18n.language === 'ar' ? 'إعدادات الحساب' : 'Account Settings' },
-  ];
+  const menuItems = [];
+  if (isTeacher || isDeveloper) {
+    menuItems.push({ id: "rooms", icon: School, label: t('my_community', 'My Community') });
+    menuItems.push({ id: "create-room", icon: PlusCircle, label: t('add_room', 'Add Class') });
+    if (isDeveloper) {
+      menuItems.push({ id: "manage-users", icon: Users, label: i18n.language === 'ar' ? 'أعضاء المنصة والطلبات' : 'Students & Approvals' });
+    }
+    menuItems.push({ id: "settings", icon: Settings, label: i18n.language === 'ar' ? 'إعدادات الحساب' : 'Account Settings' });
+  } else {
+    menuItems.push({ id: "joined", icon: Home, label: t('joined', 'Joined Classes') });
+    menuItems.push({ id: "discover", icon: Search, label: t('discover', 'Discover Communities') });
+    menuItems.push({ id: "settings", icon: Settings, label: i18n.language === 'ar' ? 'إعدادات الحساب' : 'Account Settings' });
+  }
 
   const handleSignOut = async () => {
     window.dispatchEvent(new Event("dev-logout"));
@@ -153,7 +157,13 @@ export default function Sidebar({ profile, activeTab, setActiveTab, isOpen = fal
                 <p className="truncate text-xs font-black text-slate-900 uppercase tracking-tight">{profile.fullname}</p>
                 <div className="flex items-center gap-1.5 rtl:space-x-reverse">
                   <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
-                  <p className="text-[9px] font-black text-brand-blue uppercase tracking-widest">{profile.role === 'teacher' ? (i18n.language === 'ar' ? 'أستاذ' : (i18n.language === 'fr' ? 'Professeur' : 'Professor')) : (profile.role === 'admin' ? 'Admin' : (i18n.language === 'ar' ? 'طالب' : 'Student'))}</p>
+                  <p className="text-[9px] font-black text-brand-blue uppercase tracking-widest">
+                    {profile.role === 'developer' || profile.role === 'developper'
+                      ? (i18n.language === 'ar' ? 'المطور' : (i18n.language === 'fr' ? 'Développeur' : 'Developer'))
+                      : profile.role === 'teacher'
+                        ? (i18n.language === 'ar' ? 'أستاذ' : (i18n.language === 'fr' ? 'Professeur' : 'Professor'))
+                        : (profile.role === 'admin' ? 'Admin' : (i18n.language === 'ar' ? 'طالب' : 'Student'))}
+                  </p>
                 </div>
             </div>
         </div>

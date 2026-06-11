@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   username text UNIQUE,
   phone text,
   avatar_url text,
-  role text CHECK (role IN ('admin', 'teacher', 'student', 'ADMIN', 'TEACHER', 'STUDENT', 'GUEST')) NOT NULL DEFAULT 'GUEST',
+  role text CHECK (role IN ('admin', 'teacher', 'student', 'ADMIN', 'TEACHER', 'STUDENT', 'GUEST', 'developer', 'DEVELOPER', 'developper', 'DEVELOPPER')) NOT NULL DEFAULT 'GUEST',
   role_requested text,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now()
@@ -77,7 +77,7 @@ CREATE TABLE IF NOT EXISTS registration_requests (
     email TEXT UNIQUE NOT NULL,
     phone TEXT,
     parent_phone TEXT,
-    role TEXT CHECK (role IN ('STUDENT', 'TEACHER', 'ADMIN')),
+    role TEXT CHECK (role IN ('STUDENT', 'TEACHER', 'ADMIN', 'DEVELOPER', 'DEVELOPPER')),
     level_id UUID REFERENCES levels(id),
     year_id UUID REFERENCES years(id),
     subject_name TEXT,

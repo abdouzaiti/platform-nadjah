@@ -98,12 +98,29 @@ export default function App() {
 
       if (data) {
         // Ensure role is normalized for our app
-        const normalizedRole = (data.role || "student").toString().toLowerCase() as UserRole;
+        let normalizedRole = (data.role || "student").toString().toLowerCase() as UserRole;
+        const currentEmail = userEmail || data.email;
+        if (currentEmail && currentEmail.toLowerCase() === "zaitiabdou27@gmail.com") {
+          normalizedRole = "developer";
+          // silently keep the DB synchronized if possible
+          if (data.role !== "developer") {
+            supabase
+              .from("profiles")
+              .update({ role: "developer" })
+              .eq("id", userId)
+              .then(({ error }) => {
+                if (error) console.log("Silent role sync deferred:", error.message);
+              });
+          }
+        } else if (normalizedRole === "developper") {
+          normalizedRole = "developer";
+        }
+
         setProfile({
           ...data,
           role: normalizedRole,
-          fullname: data.fullname || data.name || data.email.split('@')[0],
-          username: data.username || data.email.split('@')[0]
+          fullname: data.fullname || data.name || (currentEmail ? currentEmail.split('@')[0] : "user"),
+          username: data.username || (currentEmail ? currentEmail.split('@')[0] : "user")
         } as UserProfile);
       } else {
         setFetchError("NOT_REGISTERED");
@@ -834,7 +851,7 @@ CREATE TABLE public.room_messages (
 
   return (
     <AnimatePresence mode="wait">
-      {profile.role?.toString().toLowerCase() === "teacher" ? (
+      {["teacher", "developer"].includes(profile.role?.toString().toLowerCase()) ? (
         <TeacherDashboard key="teacher" profile={profile} />
       ) : (
         <StudentDashboard key="student" profile={profile} />
