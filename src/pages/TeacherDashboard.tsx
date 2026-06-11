@@ -110,10 +110,20 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
       // 1. Initialize isolated auth client
       const adminAuth = createAdminAuthClient();
       
-      // 2. Register the user with Email and password set as Email!
+      // Generate standard, easy-to-remember password satisfying the security policy (uppercase, lowercase, number)
+      const prefixClean = emailToSignUp.split('@')[0].replace(/[^a-zA-Z0-9]/g, '');
+      const dynamicPass = (() => {
+        if (prefixClean.length >= 3) {
+          const capitalized = prefixClean.charAt(0).toUpperCase() + prefixClean.slice(1).toLowerCase();
+          return `${capitalized}2026`; // e.g., "Abdou2026"
+        }
+        return "Nadjah2026";
+      })();
+      
+      // 2. Register the user with compliant password
       const { data: signUpData, error: signUpError } = await adminAuth.auth.signUp({
         email: emailToSignUp,
-        password: emailToSignUp, // The password is the email itself!
+        password: dynamicPass,
         options: {
           data: {
             fullname: fullNameToSignUp,
@@ -145,8 +155,8 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
 
         setRegSuccess(
           i18n.language === 'ar'
-            ? `تم تسجيل الحساب (${fullNameToSignUp}) بنجاح! كلمة السر الافتراضية هي نفس البريد الإلكتروني الخاص به.`
-            : `Success! Account (${fullNameToSignUp}) registered. The initial passcode is set to their email Address.`
+            ? `تم تسجيل الحساب (${fullNameToSignUp}) بنجاح! كلمة السر الافتراضية للولوج هي: ${dynamicPass} (يمكن للطالب تغييرها من الإعدادات)`
+            : `Success! Account (${fullNameToSignUp}) registered. The login passcode is set to: ${dynamicPass} (the student can customize it in Account Settings anytime).`
         );
 
         // Reset form fields
@@ -589,8 +599,8 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                       </h4>
                       <p className="text-[10px] font-semibold text-slate-400">
                         {i18n.language === 'ar' 
-                          ? "سجل العضو ببريده الإلكتروني مباشرة وستكون كلمة المرور الافتراضية هي نفس البريد الإلكتروني." 
-                          : "Register a user with their email. The initial passcode will be set to their email itself."}
+                          ? "سجل العضو ببريده الإلكتروني مباشرة وستكون كلمة المرور هي بادئة بريده الإلكتروني بحرف كبير مع كلمة 2026 لتستوفي المعايير الأمنية." 
+                          : "Register a user with their email. The initial passcode will be generated with a capitalized prefix and '2026' to meet security rules."}
                       </p>
                     </div>
                   </div>
