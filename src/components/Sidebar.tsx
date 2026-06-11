@@ -32,9 +32,12 @@ export default function Sidebar({ profile, activeTab, setActiveTab, isOpen = fal
   const menuItems = isTeacher ? [
     { id: "rooms", icon: School, label: t('my_community', 'My Community') },
     { id: "create-room", icon: PlusCircle, label: t('add_room', 'Add Class') },
+    { id: "manage-users", icon: Users, label: i18n.language === 'ar' ? 'أعضاء المنصة والطلبات' : 'Students & Approvals' },
+    { id: "settings", icon: Settings, label: i18n.language === 'ar' ? 'إعدادات الحساب' : 'Account Settings' },
   ] : [
     { id: "joined", icon: Home, label: t('joined', 'Joined Classes') },
     { id: "discover", icon: Search, label: t('discover', 'Discover Communities') },
+    { id: "settings", icon: Settings, label: i18n.language === 'ar' ? 'إعدادات الحساب' : 'Account Settings' },
   ];
 
   const handleSignOut = async () => {
@@ -140,20 +143,7 @@ export default function Sidebar({ profile, activeTab, setActiveTab, isOpen = fal
            </div>
         )}
 
-        <div>
-          <p className="px-2 mb-4 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">{t('live_channels')}</p>
-          <div className="space-y-3">
-            {[1, 2].map((i) => (
-              <div key={i} className="flex items-center gap-3 p-2 bg-slate-50 rounded-lg border border-slate-100 rtl:space-x-reverse h-14">
-                <div className={cn("w-8 h-8 rounded shrink-0", i === 1 ? "bg-gradient-to-br from-blue-500 to-indigo-600" : "bg-gradient-to-br from-emerald-400 to-teal-500 shadow-sm")}></div>
-                <div className="overflow-hidden">
-                  <p className="text-xs font-bold truncate text-slate-800">{i === 1 ? (i18n.language === 'ar' ? "حساب التفاضل ٢" : "Calculus II") : (i18n.language === 'ar' ? "علوم الحياة" : "Bio Science")}</p>
-                  <p className="text-[10px] text-blue-500 font-bold">{i === 1 ? (i18n.language === 'ar' ? "١.٢ ألف مشاهد" : "1.2k Viewers") : t('offline')}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+
       </div>
 
       <div className="border-t border-slate-100 p-4 space-y-4">

@@ -3,7 +3,7 @@ import { supabase, supabaseConfigured, isProperAnonKey } from "./lib/supabase";
 import { UserProfile, UserRole } from "./types";
 import TeacherDashboard from "./pages/TeacherDashboard";
 import StudentDashboard from "./pages/StudentDashboard";
-import { LogIn, GraduationCap, School, Loader2, Database, Key, CheckCircle2, Mail, ArrowRight, Video, Languages } from "lucide-react";
+import { LogIn, GraduationCap, School, Loader2, Database, Key, CheckCircle2, Mail, ArrowRight, Video, Languages, User } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useTranslation } from "react-i18next";
 import { cn } from "./lib/utils";
@@ -19,6 +19,9 @@ export default function App() {
   const [authMode, setAuthMode] = React.useState<"signin" | "signup">("signin");
 
   const [email, setEmail] = React.useState("");
+  const [fullname, setFullname] = React.useState("");
+  const [username, setUsername] = React.useState("");
+  const [chosenRole, setChosenRole] = React.useState<UserRole>("student");
   const [password, setPassword] = React.useState("");
   const [authLoading, setAuthLoading] = React.useState(false);
 
@@ -181,38 +184,94 @@ export default function App() {
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) return;
     
     setAuthLoading(true);
     setAuthError(null);
     
     try {
       if (authMode === "signin") {
+        if (!email || !password) return;
+        let loginEmail = email.trim();
+        
+        // If it doesn't contain "@", treat it as a Username
+        if (!loginEmail.includes("@")) {
+          const { data: profileObj, error: searchError } = await supabase
+            .from("profiles")
+            .select("email, id")
+            .eq("username", loginEmail.toLowerCase())
+            .maybeSingle();
+            
+          if (profileObj?.email) {
+            loginEmail = profileObj.email;
+          } else {
+            // Placeholder standard suffix: username@ecolenadjah.local
+            loginEmail = `${loginEmail.toLowerCase()}@ecolenadjah.local`;
+          }
+        }
+        
         const { error } = await supabase.auth.signInWithPassword({
-          email,
+          email: loginEmail,
           password,
         });
-        if (error) throw error;
+        if (error) {
+          // If the profile holds a different email pattern we didn't search properly, bypass if it fails
+          throw error;
+        }
       } else {
-        const { error } = await supabase.auth.signUp({
-          email,
+        // Sign Up Mode
+        if (!fullname.trim() || !username.trim() || !password) {
+          throw new Error(i18n.language === 'ar' ? 'يرجى ملء جميع الحقول المطلوبة!' : 'Please fill all required fields!');
+        }
+        
+        const cleanUsername = username.trim().toLowerCase().replace(/[^a-zA-Z0-9_]/g, '');
+        if (cleanUsername.length < 3) {
+          throw new Error(i18n.language === 'ar' ? 'يجب أن يكون اسم المستخدم 3 أحرف على الأقل.' : 'Username must be at least 3 character long alphanumeric string.');
+        }
+        
+        // Generate a clean virtual email that is 100% free and requires no verification
+        const signUpEmail = `${cleanUsername}@ecolenadjah.local`;
+        
+        const { data: signUpData, error } = await supabase.auth.signUp({
+          email: signUpEmail,
           password,
           options: {
             data: {
-              fullname: email.split('@')[0],
+              fullname: fullname.trim(),
             }
           }
         });
+        
         if (error) throw error;
-        setAuthError("CONFIRM_REQUIRED: Account created! Please check your email for the confirmation link or ask the admin to auto-confirm your account.");
+        
+        if (signUpData.user) {
+          // Enforce GUEST state upon registration, preventing instant/fake profile activation
+          const { error: profileError } = await supabase
+            .from("profiles")
+            .update({
+              fullname: fullname.trim(),
+              name: fullname.trim(),
+              username: cleanUsername,
+              role: 'GUEST',
+              role_requested: chosenRole
+            })
+            .eq("id", signUpData.user.id);
+            
+          if (profileError) {
+            console.error("Error setting custom role upon signup:", profileError);
+          }
+        }
+        
+        setAuthError("ACCOUNT_CREATED_SUCCESS: Success! Your account was registered. Please ask the Teacher or School Manager to authorize and activate your account. You can sign in once active.");
+        setAuthMode("signin");
+        setEmail(cleanUsername); // Pre-fill username field in login
       }
     } catch (err: any) {
       console.error("Auth error details:", err);
       const msg = err.message || "";
       if (msg.includes('Invalid login credentials')) {
-        setAuthError("PENDING_OR_INVALID: Access Denied. Your account might be pending manual activation by the manager, or the credentials entered are incorrect.");
+        setAuthError(i18n.language === 'ar' ? "خطأ في تسجيل الدخول. يرجى التحقق من اسم المستخدم وكلمة المرور." : "Access Denied. Please ensure your username and password are correct.");
       } else if (msg.includes('Email not confirmed')) {
-        setAuthError("CONFIRM_REQUIRED: Validation Required. Please click the link in your email or ask the manager to check 'Auto-confirm user' in Supabase.");
+        setAuthError(i18n.language === 'ar' ? "تأكيد البريد الإلكتروني مطلوب: يرجى الطلب من المدير إيقاف خيار 'Confirm email' في إعدادات Supabase للولوج الفوري." : "CONFIRM_REQUIRED: Email confirmation required. Please ask your administrator/manager to turn off 'Confirm email' under Authentication -> Providers -> Email in the Supabase Dashboard, which allows instant local signups for free!");
       } else {
         setAuthError(err.message);
       }
@@ -424,179 +483,26 @@ export default function App() {
         <div className="w-16 h-16 bg-brand-blue/10 rounded-2xl flex items-center justify-center mb-6 border border-brand-blue/20 shadow-sm">
           <Database className="h-8 w-8 text-brand-blue" />
         </div>
-        <h2 className="text-2xl font-black text-slate-900 uppercase italic tracking-tight mb-2">Access Denied</h2>
+        <h2 className="text-2xl font-black text-slate-900 uppercase italic tracking-tight mb-2">
+          {fetchError === 'NOT_REGISTERED' ? "Approval Pending" : "System Notification"}
+        </h2>
         
         <div className="max-w-2xl w-full text-sm mb-8 font-medium text-brand-blue bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
           {fetchError === 'NOT_REGISTERED' ? (
-            <div className="space-y-6 text-left">
-              <div className="space-y-2">
-                <p className="text-slate-600 leading-relaxed text-sm">
-                  Your account is active, but you are not yet authorized in the <strong className="text-slate-900">Nadjah Users</strong> list.
-                </p>
-                <div className="flex flex-col gap-2 bg-slate-50 p-4 rounded-xl border border-slate-200">
-                  <div className="flex items-center justify-between gap-4">
-                    <span className="text-[10px] text-brand-blue uppercase font-black tracking-widest">Email:</span>
-                    <span className="text-[10px] text-slate-500 font-medium truncate">{user?.email}</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-4">
-                    <span className="text-[10px] text-brand-blue uppercase font-black tracking-widest">User UID:</span>
-                    <span className="text-[10px] text-slate-900 font-mono truncate select-all">{user?.id}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="bg-slate-100 p-4 rounded-xl border border-slate-200 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <p className="text-[10px] text-brand-blue font-black uppercase tracking-widest bg-brand-blue/10 px-2 py-0.5 rounded">Quick Fix SQL</p>
-                    <CheckCircle2 className="h-3 w-3 text-emerald-500" />
-                  </div>
-                  <p className="text-[9px] text-slate-500">To allow yourself as a <span className="text-slate-900 font-bold">Teacher</span>, run this in Supabase SQL Editor:</p>
-                  <pre className="text-[9px] text-emerald-600 font-mono overflow-x-auto whitespace-pre p-2 bg-white rounded-lg border border-slate-200">
-{`DO $$ 
-DECLARE
-  target_user_id uuid;
-  target_email text := '${user?.email || 'test@example.com'}';
-BEGIN 
-  -- 0. Ensure profiles table exists
-  CREATE TABLE IF NOT EXISTS public.profiles (
-    id uuid REFERENCES auth.users NOT NULL PRIMARY KEY,
-    email text NOT NULL,
-    role text CHECK (role IN ('admin', 'teacher', 'student', 'ADMIN', 'TEACHER', 'STUDENT', 'GUEST')) NOT NULL DEFAULT 'GUEST',
-    created_at timestamp with time zone DEFAULT now(),
-    updated_at timestamp with time zone DEFAULT now()
-  );
-
-  -- 1. Ensure profile columns exist
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='name') THEN ALTER TABLE public.profiles ADD COLUMN name text; END IF;
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='fullname') THEN ALTER TABLE public.profiles ADD COLUMN fullname text; END IF;
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='username') THEN ALTER TABLE public.profiles ADD COLUMN username text; END IF;
-  
-  -- 1.5 Ensure communities and related tables exist
-  CREATE TABLE IF NOT EXISTS public.teacher_communities (
-    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    teacher_id uuid REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
-    community_name text NOT NULL,
-    community_username text UNIQUE NOT NULL,
-    community_password text,
-    description text,
-    created_at timestamp with time zone DEFAULT now()
-  );
-
-  CREATE TABLE IF NOT EXISTS public.class_rooms (
-    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    community_id uuid REFERENCES public.teacher_communities(id) ON DELETE CASCADE NOT NULL,
-    room_name text NOT NULL,
-    room_username text,
-    room_password text,
-    room_type text CHECK (room_type IN ('chat', 'live', 'announcements', 'files')) NOT NULL DEFAULT 'chat',
-    created_at timestamp with time zone DEFAULT now()
-  );
-
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='class_rooms' AND column_name='room_username') THEN ALTER TABLE public.class_rooms ADD COLUMN room_username text; END IF;
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='class_rooms' AND column_name='room_password') THEN ALTER TABLE public.class_rooms ADD COLUMN room_password text; END IF;
-
-  CREATE TABLE IF NOT EXISTS public.room_members (
-    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    room_id uuid REFERENCES public.class_rooms(id) ON DELETE CASCADE NOT NULL,
-    user_id uuid REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
-    created_at timestamp with time zone DEFAULT now(),
-    UNIQUE(room_id, user_id)
-  );
-
-  CREATE TABLE IF NOT EXISTS public.live_sessions (
-    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    room_id uuid REFERENCES public.class_rooms(id) ON DELETE CASCADE NOT NULL,
-    title text NOT NULL,
-    live_password text,
-    status text CHECK (status IN ('live', 'ended', 'scheduled')),
-    started_at timestamp with time zone,
-    ended_at timestamp with time zone,
-    created_at timestamp with time zone DEFAULT now()
-  );
-
-  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='live_sessions' AND column_name='live_password' AND is_nullable = 'NO') THEN ALTER TABLE public.live_sessions ALTER COLUMN live_password DROP NOT NULL; END IF;
-
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='teacher_communities' AND column_name='community_password') THEN ALTER TABLE public.teacher_communities ADD COLUMN community_password text; END IF;
-
-  -- Enable RLS
-  ALTER TABLE public.teacher_communities ENABLE ROW LEVEL SECURITY;
-  ALTER TABLE public.class_rooms ENABLE ROW LEVEL SECURITY;
-  ALTER TABLE public.room_members ENABLE ROW LEVEL SECURITY;
-
-  -- Ensure Postgres role permissions
-  GRANT ALL ON public.teacher_communities TO authenticated;
-  GRANT ALL ON public.class_rooms TO authenticated;
-  GRANT ALL ON public.room_members TO authenticated;
-  GRANT ALL ON public.profiles TO authenticated;
-  GRANT SELECT ON public.teacher_communities TO anon;
-  GRANT SELECT ON public.class_rooms TO anon;
-  GRANT SELECT ON public.profiles TO anon;
-
-  -- 2. Drop any legacy policies
-  DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
-  DROP POLICY IF EXISTS "Profiles are viewable by everyone" ON public.profiles;
-  DROP POLICY IF EXISTS "Communities viewable by all" ON public.teacher_communities;
-  DROP POLICY IF EXISTS "Teachers manage communities" ON public.teacher_communities;
-  DROP POLICY IF EXISTS "Rooms viewable by all" ON public.class_rooms;
-  DROP POLICY IF EXISTS "Teachers manage rooms" ON public.class_rooms;
-  DROP POLICY IF EXISTS "Members view memberships" ON public.room_members;
-  DROP POLICY IF EXISTS "Users join rooms" ON public.room_members;
-
-  -- 3. Lookup user from auth.users
-  SELECT id INTO target_user_id FROM auth.users WHERE email = target_email;
-  
-  IF target_user_id IS NOT NULL THEN
-    -- 4. Insert/Update teacher (Role assignment)
-    INSERT INTO public.profiles (id, email, fullname, name, username, role)
-    VALUES (
-      target_user_id, 
-      target_email, 
-      SPLIT_PART(target_email, '@', 1), 
-      SPLIT_PART(target_email, '@', 1), 
-      LOWER(REGEXP_REPLACE(SPLIT_PART(target_email, '@', 1), '[^a-zA-Z0-9]', '', 'g')), 
-      'teacher'
-    )
-    ON CONFLICT (id) DO UPDATE SET role = 'teacher';
-  END IF;
-  
-  -- 5. Recreate correct policies
-  CREATE POLICY "Profiles are viewable by everyone" ON public.profiles FOR SELECT USING (true);
-  CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
-
-  DROP POLICY IF EXISTS "Communities viewable by all" ON public.teacher_communities;
-  DROP POLICY IF EXISTS "Teachers manage communities" ON public.teacher_communities;
-  CREATE POLICY "Communities viewable by all" ON public.teacher_communities FOR SELECT USING (true);
-  CREATE POLICY "Teachers manage communities" ON public.teacher_communities FOR ALL USING (auth.uid() = teacher_id) WITH CHECK (auth.uid() = teacher_id);
-
-  DROP POLICY IF EXISTS "Rooms viewable by all" ON public.class_rooms;
-  DROP POLICY IF EXISTS "Teachers manage rooms" ON public.class_rooms;
-  CREATE POLICY "Rooms viewable by all" ON public.class_rooms FOR SELECT USING (true);
-  CREATE POLICY "Teachers manage rooms" ON public.class_rooms FOR ALL USING (EXISTS (SELECT 1 FROM public.teacher_communities WHERE id = community_id AND teacher_id = auth.uid())) WITH CHECK (EXISTS (SELECT 1 FROM public.teacher_communities WHERE id = community_id AND teacher_id = auth.uid()));
-
-  DROP POLICY IF EXISTS "Members view memberships" ON public.room_members;
-  DROP POLICY IF EXISTS "Users join rooms" ON public.room_members;
-  CREATE POLICY "Members view memberships" ON public.room_members FOR SELECT USING (auth.uid() = user_id OR EXISTS (SELECT 1 FROM public.class_rooms r JOIN public.teacher_communities c ON r.community_id = c.id WHERE r.id = room_id AND c.teacher_id = auth.uid()));
-  CREATE POLICY "Users join rooms" ON public.room_members FOR INSERT WITH CHECK (auth.uid() = user_id);
-
-END $$;`}
-                  </pre>
-                </div>
-
-                <div className="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100 flex items-center gap-3">
-                  <div className="h-8 w-8 rounded-full bg-emerald-100 flex items-center justify-center">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-emerald-600 font-black uppercase tracking-widest">Agora Streaming Ready</p>
-                    <p className="text-[9px] text-slate-500 font-medium">Classroom video engine is online and configured.</p>
-                  </div>
-                </div>
-              </div>
-
-              <p className="text-[10px] text-slate-400 italic text-center pt-2">
-                After running the SQL, click "Retry Access" below.
+            <div className="space-y-4 text-center py-2 h-auto">
+              <p className="leading-relaxed text-sm text-slate-600 font-medium">
+                Hi! Your account was successfully registered, but must be authorized by your teacher or school manager before you can enter classes.
               </p>
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-col gap-2">
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="font-bold uppercase tracking-wider text-slate-400">Account Email:</span>
+                  <span className="font-mono text-slate-900 font-bold">{user?.email}</span>
+                </div>
+              </div>
+              <p className="text-[10px] text-slate-400 font-semibold italic text-center pt-2">
+                Approval typically takes a short while. Please contact your coordinator.
+              </p>
+
             </div>
           ) : profile?.role?.toString().toLowerCase() === 'guest' ? (
             <div className="space-y-6 text-center">
@@ -804,17 +710,95 @@ CREATE TABLE public.room_messages (
             )}
 
             <form onSubmit={handleAuth} className="space-y-3">
-              <div className="relative group">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-brand-blue transition-colors" />
-                <input 
-                  type="email"
-                  placeholder={t('email_address')}
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 pl-12 pr-4 text-slate-900 text-sm focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue/10 transition-all font-medium"
-                />
-              </div>
+              {authMode === "signin" ? (
+                <>
+                  <div className="relative group">
+                    <User className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-brand-blue transition-colors" />
+                    <input 
+                      type="text"
+                      placeholder={i18n.language === 'ar' ? 'اسم المستخدم أو البريد الإلكتروني' : 'Username or Email Address'}
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 pl-12 pr-4 text-slate-900 text-sm focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue/10 transition-all font-medium"
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* Full Name field */}
+                  <div className="relative group">
+                    <User className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-brand-blue transition-colors" />
+                    <input 
+                      type="text"
+                      placeholder={i18n.language === 'ar' ? 'الاسم الكامل للمستخدم' : 'Full Name'}
+                      value={fullname}
+                      onChange={(e) => setFullname(e.target.value)}
+                      required
+                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 pl-12 pr-4 text-slate-900 text-sm focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue/10 transition-all font-medium"
+                    />
+                  </div>
+
+                  {/* Username / Id field */}
+                  <div className="relative group">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm select-none">@</span>
+                    <input 
+                      type="text"
+                      placeholder={i18n.language === 'ar' ? 'اسم مستخدم فريد (مثال: ali_student)' : 'Unique Username (e.g., ali_student)'}
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9_]/g, ''))}
+                      required
+                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 pl-12 pr-4 text-slate-900 text-sm focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue/10 transition-all font-medium"
+                    />
+                  </div>
+
+                  {/* Role Selector */}
+                  <div className="bg-slate-50 p-2.5 rounded-2xl border border-slate-200 space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-2">
+                      {i18n.language === 'ar' ? 'اختر الصفة أو الحساب' : 'Select Account Role'}
+                    </label>
+                    <div className="grid grid-cols-2 gap-2 text-center">
+                      <button
+                        type="button"
+                        onClick={() => setChosenRole("student")}
+                        className={cn(
+                          "py-3 border rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2",
+                          chosenRole === "student"
+                            ? "bg-brand-blue text-white border-brand-blue shadow-md shadow-blue-500/15"
+                            : "bg-white hover:bg-slate-50 text-slate-600 border-slate-200"
+                        )}
+                      >
+                        🧑‍🎓 {i18n.language === 'ar' ? 'طالب' : 'Student'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setChosenRole("teacher")}
+                        className={cn(
+                          "py-3 border rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2",
+                          chosenRole === "teacher"
+                            ? "bg-brand-blue text-white border-brand-blue shadow-md shadow-blue-500/15"
+                            : "bg-white hover:bg-slate-50 text-slate-600 border-slate-200"
+                        )}
+                      >
+                        🧑‍🏫 {i18n.language === 'ar' ? 'أستاذ' : 'Teacher'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Supabase Free Option Tip */}
+                  <div className="bg-amber-500/5 border border-amber-500/15 p-3.5 rounded-2xl text-[10px] space-y-1 text-left">
+                    <p className="font-bold text-amber-700 uppercase tracking-widest flex items-center gap-1.5 justify-start">
+                      💡 {i18n.language === 'ar' ? 'نصيحة لحساب مجاني فوري' : 'Free Instant Account Tip'}
+                    </p>
+                    <p className="text-amber-800/80 leading-relaxed font-semibold">
+                      {i18n.language === 'ar' 
+                        ? 'لتفعيل التسجيل المباشر المجاني وبدون تأكيد البريد الإلكتروني، يرجى تعطيل "Confirm email" في إعدادات Supabase.' 
+                        : 'To allow instant, zero-cost registrations and bypass real email rules, toggle Off "Confirm email" inside your Supabase Auth Provider settings.'}
+                    </p>
+                  </div>
+                </>
+              )}
+
               <div className="relative group">
                 <Key className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-brand-blue transition-colors" />
                 <input 
@@ -831,36 +815,11 @@ CREATE TABLE public.room_messages (
                 disabled={authLoading}
                 className="w-full bg-brand-blue hover:bg-blue-600 disabled:opacity-50 text-white font-black py-4 rounded-2xl text-xs uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3 shadow-lg shadow-blue-500/20"
               >
-                {authLoading ? t('authenticating') : (authMode === 'signin' ? t('access_dashboard') : 'Create Account')}
+                {authLoading ? t('authenticating') : (authMode === 'signin' ? t('access_dashboard') : (i18n.language === 'ar' ? 'إنشاء حساب جديد' : 'Register Account'))}
                 {!authLoading && <ArrowRight className={cn("h-4 w-4", i18n.language === 'ar' ? "rotate-180" : "")} />}
               </button>
             </form>
-            
-            <div className="text-center">
-              <button 
-                onClick={() => setAuthMode(authMode === 'signin' ? 'signup' : 'signin')}
-                className="text-[10px] text-slate-500 font-bold hover:text-brand-blue transition-colors uppercase tracking-widest"
-              >
-                {authMode === 'signin' ? "Don't have an account? Sign Up" : "Already have an account? Sign In"}
-              </button>
-            </div>
-
-            <div className="relative flex items-center py-2">
-                  <div className="flex-grow border-t border-slate-100"></div>
-                  <span className="flex-shrink mx-4 text-[10px] font-black text-slate-300 uppercase tracking-widest">or use</span>
-                  <div className="flex-grow border-t border-slate-100"></div>
-                </div>
-
-                 <button
-                  onClick={signInWithGoogle}
-                  className="group relative flex w-full items-center justify-center space-x-3 rounded-2xl bg-white py-4 text-slate-600 font-bold transition-all hover:bg-slate-50 border border-slate-200 active:scale-[0.98] shadow-sm"
-                >
-                  <div className="h-5 w-5 bg-white rounded-full p-1 flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
-                    <img src="https://www.gstatic.com/images/branding/googleg/1x/googleg_standard_color_128dp.png" alt="Google" className="h-full w-full" />
-                  </div>
-                  <span className="text-sm font-black uppercase tracking-widest">{t('google_account')}</span>
-                </button>
-              </div>
+          </div>
           
           <div className="text-center text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">
             {t('professional_engine')}

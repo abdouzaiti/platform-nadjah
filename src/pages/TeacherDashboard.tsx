@@ -1,8 +1,9 @@
 import React from "react";
 import { UserProfile, TeacherCommunity, ClassRoom, RoomType, LiveSession } from "../types";
 import Sidebar from "../components/Sidebar";
-import { supabase } from "../lib/supabase";
-import { Plus, Video, Trash2, Edit3, Loader2, Play, Users, Menu, X, Database, MessageSquare, Megaphone, FileText, Settings, Hash, Radio } from "lucide-react";
+import SettingsView from "../components/SettingsView";
+import { supabase, createAdminAuthClient } from "../lib/supabase";
+import { Plus, Video, Trash2, Edit3, Loader2, Play, Users, Menu, X, Database, MessageSquare, Megaphone, FileText, Settings, Hash, Radio, Key } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import StreamPlayer from "../components/StreamPlayer";
 import { cn } from "../lib/utils";
@@ -77,6 +78,153 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
       supabase.removeChannel(commChannel);
     };
   }, [profile.id]);
+
+  // Manage Users State
+  const [usersList, setUsersList] = React.useState<UserProfile[]>([]);
+  const [usersLoading, setUsersLoading] = React.useState(false);
+
+  // Manual User Registration States
+  const [regFullName, setRegFullName] = React.useState("");
+  const [regEmail, setRegEmail] = React.useState("");
+  const [regRole, setRegRole] = React.useState<"student" | "teacher">("student");
+  const [regLoading, setRegLoading] = React.useState(false);
+  const [regError, setRegError] = React.useState<string | null>(null);
+  const [regSuccess, setRegSuccess] = React.useState<string | null>(null);
+
+  const handleRegisterUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setRegLoading(true);
+    setRegError(null);
+    setRegSuccess(null);
+
+    const emailToSignUp = regEmail.trim();
+    const fullNameToSignUp = regFullName.trim();
+
+    if (!emailToSignUp || !fullNameToSignUp) {
+      setRegError(i18n.language === 'ar' ? "يرجى ملء جميع الحقول المطلوبة!" : "Please fill in all fields.");
+      setRegLoading(false);
+      return;
+    }
+
+    try {
+      // 1. Initialize isolated auth client
+      const adminAuth = createAdminAuthClient();
+      
+      // 2. Register the user with Email and password set as Email!
+      const { data: signUpData, error: signUpError } = await adminAuth.auth.signUp({
+        email: emailToSignUp,
+        password: emailToSignUp, // The password is the email itself!
+        options: {
+          data: {
+            fullname: fullNameToSignUp,
+            full_name: fullNameToSignUp,
+          }
+        }
+      });
+
+      if (signUpError) throw signUpError;
+
+      if (signUpData.user) {
+        const newUserId = signUpData.user.id;
+        
+        // 3. Immediately activate / update their role to the selected role
+        // Instead of GUEST, they directly become Student or Teacher!
+        const { error: profileError } = await supabase
+          .from("profiles")
+          .update({
+            fullname: fullNameToSignUp,
+            name: fullNameToSignUp,
+            role: regRole, // directly 'student' or 'teacher'
+            role_requested: null
+          })
+          .eq("id", newUserId);
+
+        if (profileError) {
+          console.error("Profile role activation error:", profileError);
+        }
+
+        setRegSuccess(
+          i18n.language === 'ar'
+            ? `تم تسجيل الحساب (${fullNameToSignUp}) بنجاح! كلمة السر الافتراضية هي نفس البريد الإلكتروني الخاص به.`
+            : `Success! Account (${fullNameToSignUp}) registered. The initial passcode is set to their email Address.`
+        );
+
+        // Reset form fields
+        setRegFullName("");
+        setRegEmail("");
+        setRegRole("student");
+        
+        // Refresh users list
+        await fetchUsers();
+      }
+    } catch (err: any) {
+      console.error("Register student error:", err);
+      // Clean display of signup error
+      setRegError(err.message || "Failed to create user account. Ensure email is unique.");
+    } finally {
+      setRegLoading(false);
+    }
+  };
+
+  const fetchUsers = async () => {
+    setUsersLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      setUsersList((data || []) as UserProfile[]);
+    } catch (err) {
+      console.error("Fetch users error:", err);
+    } finally {
+      setUsersLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    if (activeTab === "manage-users") {
+      fetchUsers();
+    }
+  }, [activeTab]);
+
+  const handleApproveUser = async (userId: string, targetRole: 'student' | 'teacher' | 'guest') => {
+    try {
+      setUsersLoading(true);
+      const { error } = await supabase
+        .from("profiles")
+        .update({ 
+          role: targetRole,
+          role_requested: null
+        })
+        .eq("id", userId);
+      
+      if (error) throw error;
+      await fetchUsers();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setUsersLoading(false);
+    }
+  };
+
+  const handleRejectOrDelete = async (userId: string) => {
+    if (!confirm(i18n.language === 'ar' ? "هل أنت متأكد من حذف هذا الحساب؟" : "Are you sure you want to delete this user?")) return;
+    try {
+      setUsersLoading(true);
+      const { error } = await supabase
+        .from("profiles")
+        .delete()
+        .eq("id", userId);
+      
+      if (error) throw error;
+      await fetchUsers();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setUsersLoading(false);
+    }
+  };
 
   const [schemaError, setSchemaError] = React.useState<string | null>(null);
 
@@ -323,7 +471,9 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                 </div>
             </header>
 
-            {activeTab === "create-room" ? (
+            {activeTab === "settings" ? (
+              <SettingsView profile={profile} />
+            ) : activeTab === "create-room" ? (
               <div className="max-w-xl mx-auto py-10">
                 <div className="space-y-6 bg-white p-8 rounded-[32px] border border-slate-100 shadow-xl shadow-blue-500/5">
                   <div className="text-center space-y-2">
@@ -398,6 +548,309 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                     </div>
                   </form>
                 </div>
+              </div>
+            ) : activeTab === "manage-users" ? (
+              <div className="space-y-6">
+                {/* Intro Card */}
+                <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                  <div className="space-y-1">
+                    <h3 className="text-xl font-bold font-display uppercase tracking-tight text-slate-900">
+                      {i18n.language === 'ar' ? "التحكم في العضويات والقبول" : "Members Administration"}
+                    </h3>
+                    <p className="text-xs text-slate-400 font-medium">
+                      {i18n.language === 'ar' 
+                        ? "قم بتفعيل حسابات طلابك الجدد يدوياً أو تجميد الحسابات الوهمية لتجنب الاكتظاظ."
+                        : "Verify and activate new student accounts manually, or suspend inactive accounts."}
+                    </p>
+                  </div>
+                  
+                  <div className="bg-brand-blue/5 border border-brand-blue/10 p-4 rounded-2xl flex items-center gap-3 shrink-0">
+                    <Key className="h-5 w-5 text-brand-blue" />
+                    <div>
+                      <p className="text-[10px] font-black uppercase text-brand-blue">
+                        {i18n.language === 'ar' ? "مفتاح التسجيل لطلابك" : "Your Community ID"}
+                      </p>
+                      <p className="text-xs font-mono font-black text-slate-700">
+                        @{community.community_username}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Fast-Track Academic Registration Widget */}
+                <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-brand-blue/10 text-brand-blue rounded-xl">
+                      <Plus className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-black text-slate-800 uppercase tracking-wide">
+                        {i18n.language === 'ar' ? "تسجيل طالب أو أستاذ جديد تلقائياً" : "Fast-Track User Registration"}
+                      </h4>
+                      <p className="text-[10px] font-semibold text-slate-400">
+                        {i18n.language === 'ar' 
+                          ? "سجل العضو ببريده الإلكتروني مباشرة وستكون كلمة المرور الافتراضية هي نفس البريد الإلكتروني." 
+                          : "Register a user with their email. The initial passcode will be set to their email itself."}
+                      </p>
+                    </div>
+                  </div>
+
+                  {regError && (
+                    <div className="bg-red-50 text-red-600 border border-red-100 rounded-xl p-3 text-xs font-semibold flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                      <span>{regError}</span>
+                    </div>
+                  )}
+
+                  {regSuccess && (
+                    <div className="bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-xl p-3 text-xs font-semibold flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                      <span>{regSuccess}</span>
+                    </div>
+                  )}
+
+                  <form onSubmit={handleRegisterUser} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                    <div className="space-y-1.5 text-left rtl:text-right md:col-span-1">
+                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-1">
+                        {i18n.language === 'ar' ? "الاسم الكامل للعضو" : "Full Name"}
+                      </label>
+                      <input 
+                        type="text"
+                        required
+                        placeholder={i18n.language === 'ar' ? "مثل: محمد علي" : "e.g. Jean Dupont"}
+                        value={regFullName}
+                        onChange={(e) => setRegFullName(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-slate-800 text-xs focus:outline-none focus:border-brand-blue transition-all font-medium"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5 text-left rtl:text-right md:col-span-1">
+                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-1">
+                        {i18n.language === 'ar' ? "البريد الإلكتروني" : "Email Address"}
+                      </label>
+                      <input 
+                        type="email"
+                        required
+                        placeholder={i18n.language === 'ar' ? "student@example.com" : "student@example.com"}
+                        value={regEmail}
+                        onChange={(e) => setRegEmail(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-slate-800 text-xs focus:outline-none focus:border-brand-blue transition-all font-medium"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5 text-left rtl:text-right md:col-span-1">
+                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-1">
+                        {i18n.language === 'ar' ? "الصفة / الحساب" : "Role / Position"}
+                      </label>
+                      <select 
+                        value={regRole}
+                        onChange={(e) => setRegRole(e.target.value as any)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-slate-800 text-xs focus:outline-none focus:border-brand-blue transition-all font-bold"
+                      >
+                        <option value="student">{i18n.language === 'ar' ? "🧑‍🎓 طالب (Student)" : "Student"}</option>
+                        <option value="teacher">{i18n.language === 'ar' ? "🧑‍🏫 أستاذ (Teacher)" : "Teacher"}</option>
+                      </select>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={regLoading}
+                      className="w-full py-3 bg-brand-blue hover:bg-blue-600 disabled:opacity-50 text-white font-black text-[10px] uppercase tracking-[0.1em] rounded-xl shadow-lg shadow-blue-500/15 flex items-center justify-center gap-2 cursor-pointer h-10"
+                    >
+                      {regLoading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <span>{i18n.language === 'ar' ? "تسجيل وتفعيل العضو" : "Create Account"}</span>
+                      )}
+                    </button>
+                  </form>
+                </div>
+
+                {usersLoading ? (
+                  <div className="flex justify-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin text-brand-blue" />
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {/* Stats Counter */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div className="bg-white p-5 rounded-2xl border border-slate-100 flex items-center justify-between">
+                        <div>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                            {i18n.language === 'ar' ? "قيد الانتظار" : "Pending Approvals"}
+                          </p>
+                          <p className="text-3xl font-black text-amber-500 mt-1">
+                            {usersList.filter(u => u.role?.toLowerCase() === 'guest').length}
+                          </p>
+                        </div>
+                        <div className="p-3 bg-amber-500/10 text-amber-500 rounded-xl">
+                          <Users className="h-5 w-5 animate-pulse" />
+                        </div>
+                      </div>
+
+                      <div className="bg-white p-5 rounded-2xl border border-slate-100 flex items-center justify-between">
+                        <div>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                            {i18n.language === 'ar' ? "الطلاب النشطين" : "Active Students"}
+                          </p>
+                          <p className="text-3xl font-black text-emerald-500 mt-1">
+                            {usersList.filter(u => u.role?.toLowerCase() === 'student').length}
+                          </p>
+                        </div>
+                        <div className="p-3 bg-emerald-500/10 text-emerald-500 rounded-xl">
+                          <Users className="h-5 w-5" />
+                        </div>
+                      </div>
+
+                      <div className="bg-white p-5 rounded-2xl border border-slate-100 flex items-center justify-between">
+                        <div>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                            {i18n.language === 'ar' ? "الأساتذة والمدراء" : "Teachers & Admins"}
+                          </p>
+                          <p className="text-3xl font-black text-brand-blue mt-1">
+                            {usersList.filter(u => ['teacher', 'admin'].includes(u.role?.toLowerCase())).length}
+                          </p>
+                        </div>
+                        <div className="p-3 bg-brand-blue/10 text-brand-blue rounded-xl">
+                          <Users className="h-5 w-5" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Pending Request Area */}
+                    <div className="bg-white rounded-[32px] border border-slate-100 overflow-hidden shadow-sm">
+                      <div className="px-6 py-4 border-b border-slate-50 flex items-center justify-between bg-slate-50/50">
+                        <h4 className="text-xs font-black uppercase tracking-widest text-slate-500">
+                          {i18n.language === 'ar' ? "طلبات الانضمام المعلقة" : "Pending Registration Requests"}
+                        </h4>
+                        <span className="bg-amber-100 text-amber-800 text-[9px] font-black uppercase px-2 py-0.5 rounded-full">
+                          {usersList.filter(u => u.role?.toLowerCase() === 'guest').length} {i18n.language === 'ar' ? "طلبات" : "Requests"}
+                        </span>
+                      </div>
+                      
+                      <div className="divide-y divide-slate-50 max-h-[300px] overflow-y-auto no-scrollbar">
+                        {usersList.filter(u => u.role?.toLowerCase() === 'guest').map((userItem) => (
+                          <div key={userItem.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50/50 transition-all">
+                            <div className="flex items-center gap-3">
+                              <img 
+                                src={userItem.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(userItem.fullname)}&background=f59e0b&color=fff`} 
+                                alt="" 
+                                className="h-10 w-10 rounded-full shadow-sm" 
+                              />
+                              <div>
+                                <p className="text-xs font-black uppercase text-slate-800">{userItem.fullname}</p>
+                                <p className="text-[10px] font-mono text-slate-400">@{userItem.username}</p>
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-2">
+                              {userItem.role_requested && (
+                                <span className="text-[8px] font-black uppercase bg-slate-100 text-slate-500 px-2.5 py-1 rounded-full mr-2">
+                                  {i18n.language === 'ar' ? `طلب صفة: ${userItem.role_requested === 'teacher' ? 'أستاذ' : 'طالب'}` : `Requesting: ${userItem.role_requested}`}
+                                </span>
+                              )}
+                              
+                              <button
+                                onClick={() => handleApproveUser(userItem.id, (userItem.role_requested as 'student' | 'teacher') || 'student')}
+                                className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-md shadow-emerald-500/10 cursor-pointer"
+                              >
+                                {i18n.language === 'ar' ? "قبول وتفعيل كلي" : "Approve & Activate"}
+                              </button>
+                              
+                              <button
+                                onClick={() => handleApproveUser(userItem.id, userItem.role_requested === 'teacher' ? 'student' : 'teacher')}
+                                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
+                              >
+                                {i18n.language === 'ar' 
+                                  ? (userItem.role_requested === 'teacher' ? "تفعيل كطالب" : "تفعيل كأستاذ") 
+                                  : `As ${userItem.role_requested === 'teacher' ? 'Student' : 'Teacher'}`}
+                              </button>
+
+                              <button
+                                onClick={() => handleRejectOrDelete(userItem.id)}
+                                className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-500 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
+                              >
+                                {i18n.language === 'ar' ? "رفض وحذف" : "Reject"}
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                        
+                        {usersList.filter(u => u.role?.toLowerCase() === 'guest').length === 0 && (
+                          <div className="p-12 text-center text-slate-400">
+                            <p className="text-xs font-black uppercase tracking-wider">{i18n.language === 'ar' ? "لا يوجد أي طلبات معلقة" : "No pending requests"}</p>
+                            <p className="text-[9px] font-medium mt-1">{i18n.language === 'ar' ? "سيصلك إشعار هنا عند قيام طلاب جدد بالتسجيل في المنصة." : "New students registration will manifest here for approval."}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Active Accounts Area */}
+                    <div className="bg-white rounded-[32px] border border-slate-100 overflow-hidden shadow-sm">
+                      <div className="px-6 py-4 border-b border-slate-50 flex items-center justify-between bg-slate-50/50">
+                        <h4 className="text-xs font-black uppercase tracking-widest text-slate-500">
+                          {i18n.language === 'ar' ? "الأعضاء المسجلين والطلاب النشطين" : "Active School Database Profiles"}
+                        </h4>
+                        <span className="bg-brand-blue/15 text-brand-blue text-[9px] font-black uppercase px-2 py-0.5 rounded-full">
+                          {usersList.filter(u => u.role?.toLowerCase() !== 'guest').length} {i18n.language === 'ar' ? "عضو" : "Members"}
+                        </span>
+                      </div>
+                      
+                      <div className="divide-y divide-slate-50 max-h-[350px] overflow-y-auto no-scrollbar">
+                        {usersList.filter(u => u.role?.toLowerCase() !== 'guest').map((userItem) => (
+                          <div key={userItem.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50/50 transition-all">
+                            <div className="flex items-center gap-3">
+                              <img 
+                                src={userItem.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(userItem.fullname)}&background=3b82f6&color=fff`} 
+                                alt="" 
+                                className="h-10 w-10 rounded-full shadow-sm" 
+                              />
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <p className="text-xs font-black uppercase text-slate-800">{userItem.fullname}</p>
+                                  {userItem.id === profile.id && (
+                                    <span className="bg-brand-blue/10 text-brand-blue text-[8px] font-black uppercase px-1.5 py-0.5 rounded">
+                                      {i18n.language === 'ar' ? "أنت" : "You"}
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-[10px] font-mono text-slate-400">@{userItem.username}</p>
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-2">
+                              <span className={cn(
+                                "text-[8px] font-black uppercase px-2.5 py-1 rounded-full",
+                                userItem.role?.toLowerCase() === 'teacher' ? "bg-blue-500/10 text-blue-500" : (userItem.role?.toLowerCase() === 'admin' ? "bg-purple-500/10 text-purple-500" : "bg-emerald-500/10 text-emerald-500")
+                              )}>
+                                {userItem.role?.toLowerCase() === 'teacher' ? (i18n.language === 'ar' ? 'أستاذ' : 'Teacher') : (userItem.role?.toLowerCase() === 'admin' ? 'Admin' : (i18n.language === 'ar' ? 'طالب' : 'Student'))}
+                              </span>
+                              
+                              {userItem.id !== profile.id && (
+                                <>
+                                  <button
+                                    onClick={() => handleApproveUser(userItem.id, 'guest')}
+                                    className="px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all border border-amber-500/10 cursor-pointer"
+                                    title={i18n.language === 'ar' ? "تجميد الحساب وإرساله لقائمة الانتظار" : "Deactivate accounts to pending state"}
+                                  >
+                                    🔒 {i18n.language === 'ar' ? "تجميد الحساب" : "Freeze"}
+                                  </button>
+                                  
+                                  <button
+                                    onClick={() => handleRejectOrDelete(userItem.id)}
+                                    className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-500 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
+                                  >
+                                    🗑️ {i18n.language === 'ar' ? "حذف نهائي" : "Delete"}
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <>

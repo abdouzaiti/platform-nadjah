@@ -8,6 +8,7 @@ export interface UserProfile {
   username: string;
   avatar_url?: string;
   role: UserRole;
+  role_requested?: string;
   created_at: string;
 }
 

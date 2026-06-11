@@ -46,3 +46,19 @@ export const supabase = createClient(
   supabaseUrlToUse(supabaseUrl), 
   supabaseAnonKey || 'placeholder'
 );
+
+// Create an isolated auth client that does not persist session so registration does not log out the active teacher
+export const createAdminAuthClient = () => {
+  return createClient(
+    supabaseUrlToUse(supabaseUrl),
+    supabaseAnonKey || 'placeholder',
+    {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false
+      }
+    }
+  );
+};
+

@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   phone text,
   avatar_url text,
   role text CHECK (role IN ('admin', 'teacher', 'student', 'ADMIN', 'TEACHER', 'STUDENT', 'GUEST')) NOT NULL DEFAULT 'GUEST',
+  role_requested text,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now()
 );
@@ -237,6 +238,18 @@ DROP POLICY IF EXISTS "Teachers manage recordings" ON public.recordings;
 
 CREATE POLICY "Profiles are viewable by everyone" ON public.profiles FOR SELECT USING (true);
 CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
+
+DROP POLICY IF EXISTS "Teachers can update profiles" ON public.profiles;
+CREATE POLICY "Teachers can update profiles" ON public.profiles FOR UPDATE USING (
+  EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND (role = 'teacher' OR role = 'TEACHER' OR role = 'admin' OR role = 'ADMIN'))
+) WITH CHECK (
+  EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND (role = 'teacher' OR role = 'TEACHER' OR role = 'admin' OR role = 'ADMIN'))
+);
+
+DROP POLICY IF EXISTS "Teachers can delete profiles" ON public.profiles;
+CREATE POLICY "Teachers can delete profiles" ON public.profiles FOR DELETE USING (
+  EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND (role = 'teacher' OR role = 'TEACHER' OR role = 'admin' OR role = 'ADMIN'))
+);
 
 -- Modular system policies
 CREATE POLICY "Communities viewable by all" ON public.teacher_communities FOR SELECT USING (true);

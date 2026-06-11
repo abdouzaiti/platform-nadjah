@@ -1,6 +1,7 @@
 import React from "react";
 import { UserProfile, TeacherCommunity, ClassRoom, RoomType, LiveSession } from "../types";
 import Sidebar from "../components/Sidebar";
+import SettingsView from "../components/SettingsView";
 import { supabase } from "../lib/supabase";
 import { Play, Eye, Clock, Search, Bell, Menu, Users, Hash, Plus, Loader2, ArrowRight, BookOpen, MessageSquare, PlayCircle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
@@ -325,7 +326,9 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
             </div>
         </header>
 
-        {activeTab === "discover" ? (
+        {activeTab === "settings" ? (
+          <SettingsView profile={profile} />
+        ) : activeTab === "discover" ? (
           <div className="space-y-8">
             <form onSubmit={handleSearch} className="max-w-xl mx-auto flex gap-4">
               <div className="relative flex-1 group">
