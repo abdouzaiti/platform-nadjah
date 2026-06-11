@@ -648,10 +648,16 @@ CREATE TABLE public.room_messages (
 
   if (!user) {
     return (
-      <div className="flex min-h-screen flex-col lg:flex-row bg-gradient-to-tr from-slate-50 via-[#f1f6fc] to-[#e4eefa] text-slate-900 font-sans relative overflow-x-hidden">
+      <div 
+        className="flex min-h-screen flex-col lg:flex-row bg-cover bg-center text-slate-900 font-sans relative overflow-x-hidden"
+        style={{ backgroundImage: "url('/back.png')" }}
+      >
+        {/* Semi-translucent overlay to enable crisp readability on top of custom background */}
+        <div className="absolute inset-0 bg-white/55 backdrop-blur-[1.5px] pointer-events-none z-0" />
+
         {/* Ambient background blur blobs */}
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-200/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-10 left-10 w-[400px] h-[400px] bg-indigo-200/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-200/25 rounded-full blur-3xl pointer-events-none z-0" />
+        <div className="absolute bottom-10 left-10 w-[400px] h-[400px] bg-indigo-200/25 rounded-full blur-3xl pointer-events-none z-0" />
 
         {/* Floating Educative Animations */}
         {[
