@@ -3,7 +3,7 @@ import { UserProfile, TeacherCommunity, ClassRoom, RoomType, LiveSession } from 
 import Sidebar from "../components/Sidebar";
 import SettingsView from "../components/SettingsView";
 import { supabase, createAdminAuthClient } from "../lib/supabase";
-import { Plus, Video, Trash2, Edit3, Loader2, Play, Users, Menu, X, Database, MessageSquare, Megaphone, FileText, Settings, Hash, Radio, Key, Mail, Phone } from "lucide-react";
+import { Plus, Video, Trash2, Edit3, Loader2, Play, Users, Menu, X, Database, MessageSquare, Megaphone, FileText, Settings, Hash, Radio, Key, Mail, Phone, LogOut } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import StreamPlayer from "../components/StreamPlayer";
 import { cn } from "../lib/utils";
@@ -546,9 +546,60 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
       
       <main className="flex-1 overflow-y-auto p-4 md:p-8 no-scrollbar bg-slate-50/50">
         {activeTab === "settings" ? (
-          <SettingsView profile={profile} />
+          <div className="space-y-6">
+            {/* Mobile Header Bar */}
+            <div className="flex lg:hidden items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 shadow-sm">
+              <button 
+                onClick={() => setIsSidebarOpen(true)}
+                className="p-2 bg-brand-blue/5 rounded-xl text-brand-blue border border-brand-blue/10 active:scale-95 transition-all cursor-pointer"
+              >
+                <Menu className="h-5 w-5" />
+              </button>
+              
+              <span className="font-sans font-black text-xs uppercase tracking-wider text-slate-800">
+                {getLabel("إعدادات الحساب", "Paramètres du Compte", "Account Settings")}
+              </span>
+
+              <button
+                onClick={async () => {
+                  window.dispatchEvent(new Event("dev-logout"));
+                  await supabase.auth.signOut();
+                }}
+                className="p-2 bg-red-50 hover:bg-red-100 rounded-xl text-red-500 border border-red-100 active:scale-95 transition-all cursor-pointer flex items-center justify-center"
+                title={getLabel("تسجيل الخروج", "Déconnexion", "Sign Out")}
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
+            </div>
+            <SettingsView profile={profile} />
+          </div>
         ) : (activeTab === "manage-users" && (profile.role === "developer" || profile.role === "developper" || profile.email?.toLowerCase() === "zaitiabdou27@gmail.com")) ? (
           <div className="space-y-6">
+            {/* Mobile Header Bar */}
+            <div className="flex lg:hidden items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 shadow-sm">
+              <button 
+                onClick={() => setIsSidebarOpen(true)}
+                className="p-2 bg-brand-blue/5 rounded-xl text-brand-blue border border-brand-blue/10 active:scale-95 transition-all cursor-pointer"
+              >
+                <Menu className="h-5 w-5" />
+              </button>
+              
+              <span className="font-sans font-black text-xs uppercase tracking-wider text-slate-800">
+                {getLabel("مركز التحكم للمطور", "Console Développeur", "Developer Console")}
+              </span>
+
+              <button
+                onClick={async () => {
+                  window.dispatchEvent(new Event("dev-logout"));
+                  await supabase.auth.signOut();
+                }}
+                className="p-2 bg-red-50 hover:bg-red-100 rounded-xl text-red-500 border border-red-100 active:scale-95 transition-all cursor-pointer flex items-center justify-center"
+                title={getLabel("تسجيل الخروج", "Déconnexion", "Sign Out")}
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
+            </div>
+
             {/* Intro Card */}
             <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
               <div className="space-y-1">

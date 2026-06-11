@@ -70,8 +70,8 @@ export default function Sidebar({ profile, activeTab, setActiveTab, isOpen = fal
       )}>
         <div className="flex h-20 items-center justify-between px-6 border-b border-slate-100">
           <div className="flex items-center space-x-3 rtl:space-x-reverse">
-            <div className="flex h-10 w-10 items-center justify-center rounded bg-brand-blue shadow-lg shadow-blue-500/10 overflow-hidden">
-              <img src="/logo.png" alt="Logo" className="h-full w-full object-cover" />
+            <div className="flex h-10 w-10 items-center justify-center">
+              <img src="/logo.png" alt="Logo" className="h-full w-full object-contain" />
             </div>
             <span className="text-xl font-black tracking-tighter uppercase text-slate-900">
               {i18n.language === 'ar' ? t('app_name').split(' ')[0] : 'Nadjah'} <span className="text-brand-blue">{i18n.language === 'ar' ? t('app_name').split(' ')[1] : 'Live'}</span>

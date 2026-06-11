@@ -3,7 +3,7 @@ import { supabase, supabaseConfigured, isProperAnonKey } from "./lib/supabase";
 import { UserProfile, UserRole } from "./types";
 import TeacherDashboard from "./pages/TeacherDashboard";
 import StudentDashboard from "./pages/StudentDashboard";
-import { LogIn, GraduationCap, School, Loader2, Database, Key, CheckCircle2, Mail, ArrowRight, Video, Languages, User } from "lucide-react";
+import { LogIn, GraduationCap, School, Loader2, Database, Key, CheckCircle2, Mail, ArrowRight, Video, Languages, User, Users, BookOpen, Sparkles, Calculator, Atom, Compass, Brain, Globe, Trophy, Palette, Music, Lightbulb, PenTool, FlaskConical, Ruler, Sigma } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useTranslation } from "react-i18next";
 import { cn } from "./lib/utils";
@@ -640,208 +640,398 @@ CREATE TABLE public.room_messages (
     );
   }
 
+  const getAuthLabel = (ar: string, en: string, fr: string) => {
+    if (i18n.language === 'ar') return ar;
+    if (i18n.language === 'fr') return fr;
+    return en;
+  };
+
   if (!user) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-slate-50 p-4 overflow-hidden relative pt-12">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,var(--color-blue-100),transparent_50%)] pointer-events-none opacity-50" />
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-md space-y-6 sm:space-y-8 rounded-[32px] bg-white p-6 sm:p-10 border border-slate-200 shadow-2xl shadow-blue-500/5 relative z-10"
-        >
-          <div className="flex justify-center gap-2 mb-4">
-            {['ar', 'fr', 'en'].map((lng) => (
-              <button
-                key={lng}
-                onClick={() => toggleLanguage(lng)}
-                className={`px-3 py-1 text-[10px] font-black uppercase rounded-full transition-all ${
-                  i18n.language === lng 
-                  ? "bg-brand-blue text-white shadow-md shadow-blue-500/20" 
-                  : "bg-slate-100 text-slate-400 hover:bg-slate-200"
-                }`}
-              >
-                {lng === 'ar' ? 'العربية' : lng === 'fr' ? 'Français' : 'English'}
-              </button>
-            ))}
+      <div className="flex min-h-screen flex-col lg:flex-row bg-gradient-to-tr from-slate-50 via-[#f1f6fc] to-[#e4eefa] text-slate-900 font-sans relative overflow-x-hidden">
+        {/* Ambient background blur blobs */}
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-200/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-10 left-10 w-[400px] h-[400px] bg-indigo-200/20 rounded-full blur-3xl pointer-events-none" />
+
+        {/* Floating Educative Animations */}
+        {[
+          { Icon: BookOpen, className: "text-blue-500/10 top-[15%] left-[8%] w-10 h-10 md:w-16 md:h-16" },
+          { Icon: Atom, className: "text-indigo-500/8 top-[12%] right-[10%] w-12 h-12 md:w-20 md:h-20" },
+          { Icon: Compass, className: "text-[#2563eb]/10 top-[40%] left-[25%] w-10 h-10 md:w-14 md:h-14" },
+          { Icon: Sparkles, className: "text-amber-500/12 top-[65%] right-[25%] w-8 h-8 md:w-12 md:h-12" },
+          { Icon: Calculator, className: "text-emerald-500/8 bottom-[25%] left-[10%] w-10 h-10 md:w-14 md:h-14" },
+          { Icon: Brain, className: "text-purple-500/8 bottom-[20%] right-[15%] w-12 h-12 md:w-18 md:h-18" },
+          { Icon: Globe, className: "text-sky-500/6 top-[5%] left-[45%] w-9 h-9 md:w-12 md:h-12" },
+          { Icon: Trophy, className: "text-yellow-500/10 bottom-[35%] left-[40%] w-10 h-10 md:w-14 md:h-14" },
+          { Icon: Palette, className: "text-pink-500/8 top-[28%] right-[40%] w-10 h-10 md:w-14 md:h-14" },
+          { Icon: Music, className: "text-rose-500/8 bottom-[45%] left-[5%] w-8 h-8 md:w-12 md:h-12" },
+          { Icon: Lightbulb, className: "text-yellow-500/10 top-[50%] right-[8%] w-11 h-11 md:w-16 md:h-16" },
+          { Icon: PenTool, className: "text-cyan-500/8 top-[55%] left-[15%] w-9 h-9 md:w-12 md:h-12" },
+          { Icon: FlaskConical, className: "text-emerald-600/6 top-[78%] left-[30%] w-11 h-11 md:w-16 md:h-16" },
+          { Icon: Ruler, className: "text-slate-400/8 top-[32%] left-[5%] w-10 h-10 md:w-14 md:h-14" },
+          { Icon: Sigma, className: "text-blue-600/8 bottom-[12%] left-[48%] w-9 h-9 md:w-12 md:h-12" },
+          { Icon: GraduationCap, className: "text-indigo-600/8 top-[22%] left-[35%] w-12 h-12 md:w-16 md:h-16" },
+          { Icon: School, className: "text-violet-500/6 bottom-[8%] right-[32%] w-12 h-12 md:w-16 md:h-16" }
+        ].map(({ Icon, className }, idx) => (
+          <motion.div
+            key={idx}
+            className={`absolute pointer-events-none select-none z-0 ${className}`}
+            animate={{
+              y: [0, -25, 25, 0],
+              x: [0, 20, -20, 0],
+              rotate: [0, 25, -25, 0],
+            }}
+            transition={{
+              duration: 9 + idx * 2.5,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: idx * 0.4
+            }}
+          >
+            <Icon className="w-full h-full stroke-[1.2]" />
+          </motion.div>
+        ))}
+
+        {/* LEFT COLUMN: Hero content & visual graphics - Hidden on mobile/tablet */}
+        <div className="hidden lg:flex lg:w-[55%] xl:w-[60%] flex-col justify-between p-12 xl:p-16 relative z-10 border-r border-[#e2edf9]/50">
+          
+          {/* Logo brand header */}
+          <div className="flex items-center gap-3">
+            <img src="/logo.png" alt="Logo" className="h-11 w-11 object-contain shrink-0" referrerPolicy="no-referrer" />
+            <div className="flex flex-col">
+              <span className="font-sans font-black text-lg tracking-tight text-[#0f172a]">
+                {getAuthLabel("مدرسة نجاح", "Nadjah School", "École Nadjah")}
+              </span>
+              <span className="font-sans font-semibold text-[10px] text-slate-400 -mt-0.5 uppercase tracking-wide">
+                {getAuthLabel("منصة التعليم المتقدمة", "Advanced Educational Platform", "Plateforme d'Enseignement Avancée")}
+              </span>
+            </div>
           </div>
 
-          <div className="flex flex-col items-center space-y-4 sm:space-y-6">
-            <div className="flex h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-2xl bg-brand-blue shadow-xl shadow-blue-500/10 overflow-hidden">
-              <img src="/logo.png" alt="Logo" className="h-full w-full object-cover" />
+          {/* Interactive geometric/diagram desktop backdrop content */}
+          <div className="my-auto max-w-xl space-y-10 py-8">
+            <div className="space-y-4">
+              <h2 className="text-4xl xl:text-5xl font-sans font-extrabold tracking-tight text-slate-800 leading-tight">
+                {i18n.language === 'ar' ? (
+                  <>
+                    تعلم اليوم <br />
+                    <span className="text-blue-600 block mt-1">لتنجح غداً</span>
+                  </>
+                ) : i18n.language === 'fr' ? (
+                  <>
+                    Apprendre aujourd'hui <br />
+                    <span className="text-blue-600 block mt-1">pour réussir demain</span>
+                  </>
+                ) : (
+                  <>
+                    Learn today <br />
+                    <span className="text-blue-600 block mt-1">to succeed tomorrow</span>
+                  </>
+                )}
+              </h2>
+              <p className="text-slate-500 font-semibold text-sm xl:text-base leading-relaxed">
+                {getAuthLabel(
+                  "منصة تعليمية متكاملة تساعدك على الوصول إلى أهدافك الأكاديمية بسهولة وفعالية",
+                  "An integrated educational platform designed to help you reach your academic goals with ease and efficiency.",
+                  "Une plateforme éducative intégrée conçue pour vous aider à atteindre vos objectifs académiques avec facilité et efficacité."
+                )}
+              </p>
             </div>
-            <div className="space-y-1">
-              <h1 className="text-center font-display text-3xl sm:text-4xl font-black tracking-tighter uppercase text-slate-900">
-                {i18n.language === 'en' ? 'Ecole' : t('login_title').split(' ')[0]} <span className="text-brand-blue">{i18n.language === 'en' ? 'Nadjah' : t('login_title').split(' ')[1]}</span>
-              </h1>
-              <p className="text-center text-[10px] sm:text-sm font-medium text-slate-400 uppercase tracking-widest">
-                {t('login_subtitle')}
+
+            {/* Feature cards layout */}
+            <div className="space-y-4">
+              {/* Feature 1 */}
+              <div className="flex items-center gap-4 bg-white/70 backdrop-blur-md p-4 rounded-[20px] border border-white/40 shadow-sm hover:translate-x-1 hover:bg-white transition-all duration-300">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                  <GraduationCap className="h-5 w-5" />
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-slate-800 text-sm">
+                    {getAuthLabel("تعليم متطور", "Advanced Learning", "Apprentissage Avancé")}
+                  </h4>
+                  <p className="text-slate-400 text-xs font-semibold">
+                    {getAuthLabel("مناهج حديثة ومحتوى تفاعلي", "Modern curricula and interactive content", "Programmes d'études modernes et contenu interactif")}
+                  </p>
+                </div>
+              </div>
+
+              {/* Feature 2 */}
+              <div className="flex items-center gap-4 bg-white/70 backdrop-blur-md p-4 rounded-[20px] border border-white/40 shadow-sm hover:translate-x-1 hover:bg-white transition-all duration-300">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 002 2h2a2 2 0 002-2z" />
+                  </svg>
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-slate-800 text-sm">
+                    {getAuthLabel("متابعة التقدم", "Progress Tracking", "Suivi du Progrès")}
+                  </h4>
+                  <p className="text-slate-400 text-xs font-semibold">
+                    {getAuthLabel("تقارير مفصلة عن أدائك الأكاديمي", "Detailed reports on your academic performance", "Rapports détaillés sur vos performances")}
+                  </p>
+                </div>
+              </div>
+
+              {/* Feature 3 */}
+              <div className="flex items-center gap-4 bg-white/70 backdrop-blur-md p-4 rounded-[20px] border border-white/40 shadow-sm hover:translate-x-1 hover:bg-white transition-all duration-300">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-purple-50 text-purple-600">
+                  <Users className="h-5 w-5" />
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-slate-800 text-sm">
+                    {getAuthLabel("مجتمع تعليمي", "Educational Community", "Communauté Éducative")}
+                  </h4>
+                  <p className="text-slate-400 text-xs font-semibold">
+                    {getAuthLabel("تواصل وتعاون مع زملائك ومعلميك", "Communication and collaboration with peers and teachers", "Communication et collaboration avec pairs")}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Translucent quote module */}
+            <div className="relative bg-white/40 border border-white/60 p-5 rounded-2xl shadow-sm text-slate-600 max-w-md">
+              <span className="absolute -top-3 left-4 text-3xl font-serif text-blue-600 leading-none">“</span>
+              <p className="font-medium text-xs md:text-sm italic pl-2 leading-relaxed">
+                {getAuthLabel(
+                  "التعليم هو المفتاح الذهبي لحرية المستقبل",
+                  "Education is the golden key to future freedom.",
+                  "L'éducation est la clé d'or pour la liberté du futur."
+                )}
+              </p>
+              <p className="text-right text-[10px] uppercase font-black tracking-widest text-[#2563eb] mt-2">
+                {getAuthLabel("— جورج واشنطن", "— George Washington", "— George Washington")}
               </p>
             </div>
           </div>
 
-          <div className="w-full space-y-6 text-slate-900">
-            {authError && (
-              <motion.div 
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                className="bg-brand-blue/5 border border-brand-blue/10 p-4 rounded-xl"
+          {/* Sizable spacer below so bottom stats ribbon doesn't overlap */}
+          <div className="h-10" />
+        </div>
+
+        {/* RIGHT COLUMN: Authentication Card Area */}
+        <div className="w-full lg:w-[45%] xl:w-[40%] flex flex-col items-center justify-center p-4 sm:p-8 min-h-screen relative z-10">
+          
+          {/* Header language toggles */}
+          <div className="flex justify-center gap-2 mb-6">
+            {['en', 'fr', 'ar'].map((lng) => (
+              <button
+                key={lng}
+                onClick={() => toggleLanguage(lng)}
+                className={`px-4 py-1.5 text-[11px] font-bold uppercase rounded-full transition-all cursor-pointer ${
+                  i18n.language === lng 
+                  ? "bg-blue-600 text-white shadow-md shadow-blue-500/20" 
+                  : "bg-white/80 border border-slate-100/90 text-slate-400 hover:bg-slate-100"
+                }`}
               >
-                <div className="text-[10px] text-brand-blue font-bold tracking-wide leading-relaxed">
-                  {authError.includes('PENDING_OR_INVALID') ? (
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-3 text-brand-blue mb-2">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <p className="font-black uppercase tracking-tight italic">Waiting for Manager</p>
-                      </div>
-                      <p className="text-slate-600 leading-relaxed font-medium">
-                        Verification is <span className="text-brand-blue">Manual</span>. The manager must add your email to the system directly.
-                      </p>
-                      <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
-                        <div className="flex items-center gap-2">
-                          <Database className="h-3 w-3 text-brand-blue" />
-                          <p className="text-[9px] text-brand-blue font-black uppercase tracking-widest">Manager Workspace</p>
+                {lng === 'ar' ? 'العربية' : lng === 'fr' ? 'FRANÇAIS' : 'ENGLISH'}
+              </button>
+            ))}
+          </div>
+
+          <motion.div 
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ type: "spring", damping: 25 }}
+            className="w-full max-w-[520px] bg-white border border-slate-100 shadow-[0_30px_70px_-10px_rgba(0,0,0,0.08)] rounded-[32px] p-8 sm:p-12 space-y-7 relative"
+          >
+            {/* Logo image */}
+            <div className="flex justify-center">
+              <img src="/logo.png" alt="Logo" className="h-[84px] w-auto object-contain hover:scale-105 transition-transform duration-300" referrerPolicy="no-referrer" />
+            </div>
+
+            {/* School Title matching image */}
+            <div className="space-y-1.5 text-center">
+              <h1 className="font-sans text-2xl font-black tracking-tight text-slate-800 font-display">
+                {getAuthLabel("مدرسة نجاح", "Nadjah School", "École Nadjah")}
+              </h1>
+              <p className="text-[11px] font-black text-slate-400 uppercase tracking-wider leading-none">
+                {getAuthLabel("منصة البث الأكاديمي المتقدمة", "Advanced Academic Broadcasting Platform", "Plateforme de Diffusion Académique")}
+              </p>
+            </div>
+
+            {/* Form system */}
+            <div className="space-y-4 text-slate-900">
+              {authError && (
+                <motion.div 
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  className="bg-brand-blue/5 border border-brand-blue/10 p-4 rounded-xl"
+                >
+                  <div className="text-[10px] text-brand-blue font-bold tracking-wide leading-relaxed">
+                    {authError.includes('PENDING_OR_INVALID') ? (
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-3 text-brand-blue mb-2">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <p className="font-black uppercase tracking-tight italic">Waiting for Manager</p>
                         </div>
-                        <p className="text-[9px] text-slate-500 leading-relaxed font-medium">
-                          The manager must add your email to the database manually.<br/><br/>
-                          <span className="text-slate-900 font-bold">Admin Check:</span> Supabase &rarr; Auth &rarr; Users &rarr; Add User.<br/>
-                          Verify that <span className="text-slate-900 font-bold">"Auto-confirm user"</span> is enabled.
+                        <p className="text-slate-600 leading-relaxed font-medium">
+                          Verification is <span className="text-brand-blue">Manual</span>. The manager must add your email to the system directly.
+                        </p>
+                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+                          <div className="flex items-center gap-2">
+                            <Database className="h-3 w-3 text-brand-blue" />
+                            <p className="text-[9px] text-brand-blue font-black uppercase tracking-widest">Manager Workspace</p>
+                          </div>
+                          <p className="text-[9px] text-slate-500 leading-relaxed font-medium">
+                            The manager must add your email to the database manually.<br/><br/>
+                            <span className="text-slate-900 font-bold">Admin Check:</span> Supabase &rarr; Auth &rarr; Users &rarr; Add User.<br/>
+                            Verify that <span className="text-slate-900 font-bold">"Auto-confirm user"</span> is enabled.
+                          </p>
+                        </div>
+                        <p className="text-[10px] text-slate-400 font-bold italic text-center">
+                          Approval typically takes less than 24 hours.
                         </p>
                       </div>
-                      <p className="text-[10px] text-slate-400 font-bold italic text-center">
-                        Approval typically takes less than 24 hours.
-                      </p>
-                    </div>
-                  ) : authError.includes('CONFIRM_REQUIRED') ? (
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-3 text-amber-600 mb-2">
-                        <Mail className="h-5 w-5" />
-                        <p className="font-black uppercase tracking-tight italic">Email Confirmation</p>
+                    ) : authError.includes('CONFIRM_REQUIRED') ? (
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-3 text-amber-600 mb-2">
+                          <Mail className="h-5 w-5" />
+                          <p className="font-black uppercase tracking-tight italic">Email Confirmation</p>
+                        </div>
+                        <p className="text-slate-600 leading-relaxed font-medium">
+                          Your email needs to be confirmed. Please check your inbox for a confirmation link from Supabase.
+                        </p>
                       </div>
-                      <p className="text-slate-600 leading-relaxed font-medium">
-                        Your email needs to be confirmed. Please check your inbox for a confirmation link from Supabase.
-                      </p>
-                    </div>
-                  ) : authError}
-                </div>
-              </motion.div>
-            )}
-
-            <form onSubmit={handleAuth} className="space-y-3">
-              {authMode === "signin" ? (
-                <>
-                  <div className="relative group">
-                    <User className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-brand-blue transition-colors" />
-                    <input 
-                      type="text"
-                      placeholder={i18n.language === 'ar' ? 'اسم المستخدم أو البريد الإلكتروني' : 'Username or Email Address'}
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 pl-12 pr-4 text-slate-900 text-sm focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue/10 transition-all font-medium"
-                    />
+                    ) : authError}
                   </div>
-                </>
-              ) : (
-                <>
-                  {/* Full Name field */}
-                  <div className="relative group">
-                    <User className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-brand-blue transition-colors" />
-                    <input 
-                      type="text"
-                      placeholder={i18n.language === 'ar' ? 'الاسم الكامل للمستخدم' : 'Full Name'}
-                      value={fullname}
-                      onChange={(e) => setFullname(e.target.value)}
-                      required
-                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 pl-12 pr-4 text-slate-900 text-sm focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue/10 transition-all font-medium"
-                    />
-                  </div>
-
-                  {/* Username / Id field */}
-                  <div className="relative group">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm select-none">@</span>
-                    <input 
-                      type="text"
-                      placeholder={i18n.language === 'ar' ? 'اسم مستخدم فريد (مثال: ali_student)' : 'Unique Username (e.g., ali_student)'}
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9_]/g, ''))}
-                      required
-                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 pl-12 pr-4 text-slate-900 text-sm focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue/10 transition-all font-medium"
-                    />
-                  </div>
-
-                  {/* Role Selector */}
-                  <div className="bg-slate-50 p-2.5 rounded-2xl border border-slate-200 space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-2">
-                      {i18n.language === 'ar' ? 'اختر الصفة أو الحساب' : 'Select Account Role'}
-                    </label>
-                    <div className="grid grid-cols-2 gap-2 text-center">
-                      <button
-                        type="button"
-                        onClick={() => setChosenRole("student")}
-                        className={cn(
-                          "py-3 border rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2",
-                          chosenRole === "student"
-                            ? "bg-brand-blue text-white border-brand-blue shadow-md shadow-blue-500/15"
-                            : "bg-white hover:bg-slate-50 text-slate-600 border-slate-200"
-                        )}
-                      >
-                        🧑‍🎓 {i18n.language === 'ar' ? 'طالب' : 'Student'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setChosenRole("teacher")}
-                        className={cn(
-                          "py-3 border rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2",
-                          chosenRole === "teacher"
-                            ? "bg-brand-blue text-white border-brand-blue shadow-md shadow-blue-500/15"
-                            : "bg-white hover:bg-slate-50 text-slate-600 border-slate-200"
-                        )}
-                      >
-                        🧑‍🏫 {i18n.language === 'ar' ? 'أستاذ' : 'Teacher'}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Supabase Free Option Tip */}
-                  <div className="bg-amber-500/5 border border-amber-500/15 p-3.5 rounded-2xl text-[10px] space-y-1 text-left">
-                    <p className="font-bold text-amber-700 uppercase tracking-widest flex items-center gap-1.5 justify-start">
-                      💡 {i18n.language === 'ar' ? 'نصيحة لحساب مجاني فوري' : 'Free Instant Account Tip'}
-                    </p>
-                    <p className="text-amber-800/80 leading-relaxed font-semibold">
-                      {i18n.language === 'ar' 
-                        ? 'لتفعيل التسجيل المباشر المجاني وبدون تأكيد البريد الإلكتروني، يرجى تعطيل "Confirm email" في إعدادات Supabase.' 
-                        : 'To allow instant, zero-cost registrations and bypass real email rules, toggle Off "Confirm email" inside your Supabase Auth Provider settings.'}
-                    </p>
-                  </div>
-                </>
+                </motion.div>
               )}
 
-              <div className="relative group">
-                <Key className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-brand-blue transition-colors" />
-                <input 
-                  type="password"
-                  placeholder={t('password')}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 pl-12 pr-4 text-slate-900 text-sm focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue/10 transition-all font-medium"
-                />
-              </div>
-              <button 
-                type="submit"
-                disabled={authLoading}
-                className="w-full bg-brand-blue hover:bg-blue-600 disabled:opacity-50 text-white font-black py-4 rounded-2xl text-xs uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3 shadow-lg shadow-blue-500/20"
-              >
-                {authLoading ? t('authenticating') : (authMode === 'signin' ? t('access_dashboard') : (i18n.language === 'ar' ? 'إنشاء حساب جديد' : 'Register Account'))}
-                {!authLoading && <ArrowRight className={cn("h-4 w-4", i18n.language === 'ar' ? "rotate-180" : "")} />}
-              </button>
-            </form>
-          </div>
-          
-          <div className="text-center text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">
-            {t('professional_engine')}
-          </div>
-        </motion.div>
+              <form onSubmit={handleAuth} className="space-y-3">
+                {authMode === "signin" ? (
+                  <>
+                    <div className="relative group">
+                      <User className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-blue-600 transition-colors" />
+                      <input 
+                        type="text"
+                        placeholder={getAuthLabel("اسم المستخدم أو البريد الإلكتروني", "Username or Email Address", "Nom d'utilisateur ou Email")}
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                        className="w-full bg-slate-50/60 border border-slate-200/60 rounded-2xl py-4 pl-12 pr-4 text-slate-900 text-sm focus:outline-none focus:border-blue-600 focus:bg-white transition-all font-semibold shadow-inner-sm"
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* Full Name field */}
+                    <div className="relative group">
+                      <User className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-blue-600 transition-colors" />
+                      <input 
+                        type="text"
+                        placeholder={getAuthLabel("الاسم الكامل للمستخدم", "Full Name", "Nom Complet")}
+                        value={fullname}
+                        onChange={(e) => setFullname(e.target.value)}
+                        required
+                        className="w-full bg-slate-50/60 border border-slate-200/60 rounded-2xl py-4 pl-12 pr-4 text-slate-900 text-sm focus:outline-none focus:border-blue-600 focus:bg-white transition-all font-semibold shadow-inner-sm"
+                      />
+                    </div>
+
+                    {/* Username field */}
+                    <div className="relative group">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-extrabold text-sm select-none">@</span>
+                      <input 
+                        type="text"
+                        placeholder={getAuthLabel("اسم المستخدم الفريد", "Unique Username", "Nom d'utilisateur Unique")}
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9_]/g, ''))}
+                        required
+                        className="w-full bg-slate-50/60 border border-slate-200/60 rounded-2xl py-4 pl-12 pr-4 text-slate-900 text-sm focus:outline-none focus:border-blue-600 focus:bg-white transition-all font-semibold shadow-inner-sm"
+                      />
+                    </div>
+
+                    {/* Role Selector cap */}
+                    <div className="bg-slate-50/50 p-3 rounded-2xl border border-slate-100 space-y-2">
+                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-1">
+                        {getAuthLabel("اختر نوع الحساب", "Select Account Type", "Choisir le type de compte")}
+                      </label>
+                      <div className="grid grid-cols-2 gap-2 text-center">
+                        <button
+                          type="button"
+                          onClick={() => setChosenRole("student")}
+                          className={cn(
+                            "py-3 border rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer",
+                            chosenRole === "student"
+                              ? "bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-500/15"
+                              : "bg-white hover:bg-slate-50 text-slate-600 border-slate-200"
+                          )}
+                        >
+                          🧑‍🎓 {getAuthLabel("طالب", "Student", "Éleve")}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setChosenRole("teacher")}
+                          className={cn(
+                            "py-3 border rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer",
+                            chosenRole === "teacher"
+                              ? "bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-500/15"
+                              : "bg-white hover:bg-slate-50 text-slate-600 border-slate-200"
+                          )}
+                        >
+                          🧑‍🏫 {getAuthLabel("أستاذ", "Teacher", "Professeur")}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Supabase Free Option Tip */}
+                    <div className="bg-amber-500/5 border border-amber-500/15 p-3 rounded-2xl text-[10px] space-y-1 text-left">
+                      <p className="font-bold text-amber-700 uppercase tracking-widest flex items-center gap-1.5 justify-start">
+                        💡 {getAuthLabel("نصيحة لحساب مجاني فوري", "Free Instant Account Tip", "Astuce d'inscription rapide")}
+                      </p>
+                      <p className="text-amber-800/80 leading-relaxed font-semibold">
+                        {i18n.language === 'ar' 
+                          ? 'لتفعيل التسجيل المباشر المجاني وبدون تأكيد البريد الإلكتروني، يرجى تعطيل "Confirm email" في إعدادات Supabase.' 
+                          : 'To allow instant, zero-cost registrations and bypass real email rules, toggle Off "Confirm email" inside your Supabase Auth Provider settings.'}
+                      </p>
+                    </div>
+                  </>
+                )}
+
+                {/* Password / Passcode */}
+                <div className="relative group">
+                  <Key className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-blue-600 transition-colors" />
+                  <input 
+                    type="password"
+                    placeholder={getAuthLabel("كلمة المرور", "Password / Passcode", "Mot de passe")}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    className="w-full bg-slate-50/60 border border-slate-200/60 rounded-2xl py-4 pl-12 pr-4 text-slate-900 text-sm focus:outline-none focus:border-blue-600 focus:bg-white transition-all font-semibold shadow-inner-sm"
+                  />
+                </div>
+
+                {/* Remember and links bar */}
+                <div className="flex items-center justify-between text-xs font-semibold text-slate-400 px-1 py-1">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input type="checkbox" className="rounded text-blue-600 focus:ring-blue-500 h-4 w-4 border-slate-200" defaultChecked />
+                    <span>{getAuthLabel("تذكرني", "Remember me", "Se souvenir")}</span>
+                  </label>
+                  <button type="button" className="text-blue-600 hover:underline">
+                    {getAuthLabel("نسيت كلمة المرور؟", "Forgot password?", "Mot de passe oublié ?")}
+                  </button>
+                </div>
+
+                {/* Enter Submit Button */}
+                <button 
+                  type="submit"
+                  disabled={authLoading}
+                  className="w-full bg-blue-600 hover:bg-blue-700 active:scale-[0.99] disabled:opacity-50 text-white font-bold py-4 rounded-2xl text-sm transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-500/15 cursor-pointer"
+                >
+                  {authLoading ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <>
+                      <span>{authMode === 'signin' ? getAuthLabel("الدخول إلى لوحة التحكم", "Access Dashboard", "Accéder au Tableau") : getAuthLabel("إنشاء حساب جديد", "Register Account", "S'inscrire")}</span>
+                      <ArrowRight className={cn("h-4 w-4 shrink-0 transition-transform", i18n.language === 'ar' ? "rotate-180" : "")} />
+                    </>
+                  )}
+                </button>
+              </form>
+
+              {/* Toggle AuthMode replaced with empty or kept simple if needed, but since user requested deletion of the toggle, we remove it completely */}
+            </div>
+          </motion.div>
+        </div>
       </div>
     );
   }
