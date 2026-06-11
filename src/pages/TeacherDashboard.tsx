@@ -224,6 +224,20 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
     if (activeTab === "manage-users") {
       fetchUsers();
       fetchRegistrationRequests();
+
+      // Subscribe to real-time additions, updates, or deletions of registration requests and users profile status
+      const userChannel = supabase.channel('manage-users-realtime')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'registration_requests' }, () => {
+          fetchRegistrationRequests();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
+          fetchUsers();
+        })
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(userChannel);
+      };
     }
   }, [activeTab]);
 
