@@ -3,7 +3,7 @@ import { UserProfile, TeacherCommunity, ClassRoom, RoomType, LiveSession } from 
 import Sidebar from "../components/Sidebar";
 import SettingsView from "../components/SettingsView";
 import { supabase, createAdminAuthClient } from "../lib/supabase";
-import { Plus, Video, Trash2, Edit3, Loader2, Play, Users, Menu, X, Database, MessageSquare, Megaphone, FileText, Settings, Hash, Radio, Key } from "lucide-react";
+import { Plus, Video, Trash2, Edit3, Loader2, Play, Users, Menu, X, Database, MessageSquare, Megaphone, FileText, Settings, Hash, Radio, Key, Mail, Phone } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import StreamPlayer from "../components/StreamPlayer";
 import { cn } from "../lib/utils";
@@ -90,6 +90,10 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
   // Manage Users State
   const [usersList, setUsersList] = React.useState<UserProfile[]>([]);
   const [usersLoading, setUsersLoading] = React.useState(false);
+  const [regRequests, setRegRequests] = React.useState<any[]>([]);
+  const [regRequestsLoading, setRegRequestsLoading] = React.useState(false);
+  const [actingRegId, setActingRegId] = React.useState<string | null>(null);
+  const [pendingSubTab, setPendingSubTab] = React.useState<"forms" | "guests">("forms");
 
   // Manual User Registration States
   const [regFullName, setRegFullName] = React.useState("");
@@ -200,11 +204,146 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
     }
   };
 
+  const fetchRegistrationRequests = async () => {
+    setRegRequestsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("registration_requests")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      setRegRequests(data || []);
+    } catch (err) {
+      console.error("Fetch registration requests error:", err);
+    } finally {
+      setRegRequestsLoading(false);
+    }
+  };
+
   React.useEffect(() => {
     if (activeTab === "manage-users") {
       fetchUsers();
+      fetchRegistrationRequests();
     }
   }, [activeTab]);
+
+  const handleApproveRegistrationRequest = async (request: any, finalRole?: string) => {
+    setActingRegId(request.id);
+    try {
+      const emailToSignUp = request.email.trim();
+      const fullNameToSignUp = request.full_name.trim();
+      const targetRole = (finalRole || request.role || 'STUDENT').toLowerCase() as 'student' | 'teacher';
+
+      // 1. Initialize admin auth client
+      const adminAuth = createAdminAuthClient();
+      
+      // Generate standard passcode satisfying password policy
+      const prefixClean = emailToSignUp.split('@')[0].replace(/[^a-zA-Z0-9]/g, '');
+      const dynamicPass = (() => {
+        if (prefixClean.length >= 3) {
+          const capitalized = prefixClean.charAt(0).toUpperCase() + prefixClean.slice(1).toLowerCase();
+          return `${capitalized}2026`;
+        }
+        return "Nadjah2026";
+      })();
+
+      // 2. See if profile already exists in public.profiles
+      const { data: searchProfile } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("email", emailToSignUp)
+        .maybeSingle();
+
+      let targetUserId: string | null = null;
+
+      if (searchProfile?.id) {
+        targetUserId = searchProfile.id;
+        const { error: profileError } = await supabase
+          .from("profiles")
+          .update({
+            fullname: fullNameToSignUp,
+            name: fullNameToSignUp,
+            role: targetRole,
+            role_requested: null
+          })
+          .eq("id", targetUserId);
+
+        if (profileError) throw profileError;
+      } else {
+        // Create userauth and update role
+        const { data: signUpData, error: signUpError } = await adminAuth.auth.signUp({
+          email: emailToSignUp,
+          password: dynamicPass,
+          options: {
+            data: {
+              fullname: fullNameToSignUp,
+              full_name: fullNameToSignUp,
+            }
+          }
+        });
+
+        if (signUpError) throw signUpError;
+
+        if (signUpData.user) {
+          targetUserId = signUpData.user.id;
+          const { error: profileError } = await supabase
+            .from("profiles")
+            .update({
+              fullname: fullNameToSignUp,
+              name: fullNameToSignUp,
+              role: targetRole,
+              role_requested: null
+            })
+            .eq("id", targetUserId);
+
+          if (profileError) {
+            console.error("Profile role activation error in auto-approve:", profileError);
+          }
+        }
+      }
+
+      // 3. Mark approved or remove from temporary registration table
+      const { error: updateReqError } = await supabase
+        .from("registration_requests")
+        .update({ status: 'APPROVED' })
+        .eq("id", request.id);
+
+      if (updateReqError) {
+        console.error("Error updating request status:", updateReqError);
+      }
+
+      alert(
+        i18n.language === 'ar'
+          ? `تم تفعيل حساب (${fullNameToSignUp}) بنجاح كـ ${targetRole === 'teacher' ? 'أستاذ' : 'طالب'}! كلمة المرور: ${dynamicPass}`
+          : `Success! Created account for (${fullNameToSignUp}) as ${targetRole}. Passcode: ${dynamicPass}`
+      );
+
+      await fetchUsers();
+      await fetchRegistrationRequests();
+    } catch (err: any) {
+      console.error("Approve registration request error:", err);
+      alert(err.message || "Failed to approve request.");
+    } finally {
+      setActingRegId(null);
+    }
+  };
+
+  const handleRejectRegistrationRequest = async (requestId: string) => {
+    if (!confirm(i18n.language === 'ar' ? "هل أنت متأكد من رفض وحذف هذا الطلب؟" : "Reject and delete this request?")) return;
+    try {
+      setRegRequestsLoading(true);
+      const { error } = await supabase
+        .from("registration_requests")
+        .delete()
+        .eq("id", requestId);
+      if (error) throw error;
+      await fetchRegistrationRequests();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setRegRequestsLoading(false);
+    }
+  };
 
   const handleApproveUser = async (userId: string, targetRole: 'student' | 'teacher' | 'guest') => {
     try {
@@ -570,57 +709,205 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {/* Pending Request Queue */}
                   <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm space-y-4">
-                    <div className="flex items-center justify-between border-b border-slate-50 pb-3">
-                      <h4 className="text-xs font-black uppercase tracking-widest text-slate-400">
-                        {getLabel("قائمة طلبات الانضمام المعلقة", "Demandes d'inscription en attente", "Pending Sign-Up Approvals")}
-                      </h4>
-                      <span className="px-2 py-0.5 bg-amber-50 text-amber-500 rounded text-[9px] font-black uppercase">
-                        {usersList.filter(u => u.role?.toLowerCase() === 'guest').length} {getLabel("طلبات", "Demandes", "Requests")}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-50 pb-3 gap-2">
+                      <div className="space-y-0.5">
+                        <h4 className="text-xs font-black uppercase tracking-widest text-slate-400">
+                          {getLabel("مركز طلبات الانتساب والتسجيل", "Centre d'admissions & Inscriptions", "Admissions & Inscriptions Queue")}
+                        </h4>
+                        <p className="text-[10px] text-slate-400 font-medium font-sans">
+                          {getLabel(
+                            "إدارة جميع طلبات التسجيل من استمارات الموقع الخارجي وحسابات المنصة.",
+                            "Gerez les demandes d'inscription issues des formulaires et des comptes.",
+                            "Manage admissions from enrollment forms and app accounts."
+                          )}
+                        </p>
+                      </div>
+                      <span className="shrink-0 px-2.5 py-1 bg-amber-500/10 text-amber-600 rounded-full text-[10px] font-black uppercase self-start sm:self-center font-mono">
+                        {(regRequests.filter(r => r.status?.toUpperCase() === 'PENDING' || !r.status).length + usersList.filter(u => u.role?.toLowerCase() === 'guest').length)} {getLabel("طلب جديد", "Demandes", "Pending Total")}
                       </span>
                     </div>
 
-                    <div className="space-y-3 max-h-[350px] overflow-y-auto no-scrollbar">
-                      {usersList.filter(u => u.role?.toLowerCase() === 'guest').map((userItem) => (
-                        <div key={userItem.id} className="p-4 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between gap-4">
-                          <div>
-                            <p className="text-xs font-bold text-slate-800">{userItem.fullname}</p>
-                            <p className="text-[9px] text-slate-400 font-mono">@{userItem.username} • {userItem.email}</p>
-                            {userItem.role_requested && (
-                              <p className="text-[9px] font-black text-amber-500 uppercase mt-1">
-                                {getLabel(
-                                  `طلب صفة: ${userItem.role_requested === 'teacher' ? 'أستاذ' : 'طالب'}`,
-                                  `Rôle demandé: ${userItem.role_requested === 'teacher' ? 'Enseignant' : 'Étudiant'}`,
-                                  `Requesting: ${userItem.role_requested}`
+                    {/* Sub-tab selection pill buttons */}
+                    <div className="flex bg-slate-50 p-1.5 rounded-xl border border-slate-100/50 gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setPendingSubTab("forms")}
+                        className={cn(
+                          "flex-1 text-center py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer",
+                          pendingSubTab === "forms"
+                            ? "bg-white text-indigo-600 shadow-sm border border-slate-100 font-extrabold"
+                            : "text-slate-400 hover:text-slate-600 font-medium"
+                        )}
+                      >
+                        📬 {getLabel("رسائل التسجيل (موقع)", "Formulaires du site web", "Form registrations")}
+                        <span className={cn(
+                          "px-1.5 py-0.5 text-[8px] rounded-full font-bold font-mono",
+                          pendingSubTab === "forms" ? "bg-indigo-600 text-white" : "bg-slate-200 text-slate-500"
+                        )}>
+                          {regRequests.filter(r => r.status?.toUpperCase() === 'PENDING' || !r.status).length}
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setPendingSubTab("guests")}
+                        className={cn(
+                          "flex-1 text-center py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer",
+                          pendingSubTab === "guests"
+                            ? "bg-white text-indigo-600 shadow-sm border border-slate-100 font-extrabold"
+                            : "text-slate-400 hover:text-slate-600 font-medium"
+                        )}
+                      >
+                        🧑‍💻 {getLabel("حسابات قيد التفعيل", "Profils GUEST", "Guest Profiles")}
+                        <span className={cn(
+                          "px-1.5 py-0.5 text-[8px] rounded-full font-bold font-mono",
+                          pendingSubTab === "guests" ? "bg-indigo-600 text-white" : "bg-slate-200 text-slate-500"
+                        )}>
+                          {usersList.filter(u => u.role?.toLowerCase() === 'guest').length}
+                        </span>
+                      </button>
+                    </div>
+
+                    <div className="space-y-3 max-h-[350px] overflow-y-auto no-scrollbar pt-1">
+                      {regRequestsLoading ? (
+                        <div className="flex justify-center py-8">
+                          <Loader2 className="h-6 w-6 animate-spin text-brand-blue" />
+                        </div>
+                      ) : pendingSubTab === "forms" ? (
+                        <>
+                          {regRequests.filter(r => r.status?.toUpperCase() === 'PENDING' || !r.status).map((req) => {
+                            const isTeacherRole = (req.role || '').toUpperCase() === 'TEACHER';
+                            const selfRoleClean = isTeacherRole ? 'teacher' : 'student';
+                            const otherRoleClean = isTeacherRole ? 'student' : 'teacher';
+                            const isCurrentlyProcessing = actingRegId === req.id;
+
+                            return (
+                              <div key={req.id} className="p-4 bg-slate-50 rounded-[18px] border border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all hover:border-slate-200 hover:shadow-sm">
+                                <div className="space-y-1.5 flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <p className="text-xs font-black text-slate-800 truncate">{req.full_name}</p>
+                                    <span className={cn(
+                                      "text-[8px] font-black uppercase px-2 py-0.5 rounded-full tracking-wider border font-mono",
+                                      isTeacherRole 
+                                        ? "bg-blue-50 text-blue-600 border-blue-100" 
+                                        : "bg-emerald-50 text-emerald-600 border-emerald-100"
+                                    )}>
+                                      {isTeacherRole 
+                                        ? getLabel("أستاذ", "Enseignant", "Teacher") 
+                                        : getLabel("طالب", "Étudiant", "Student")}
+                                    </span>
+                                  </div>
+
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-1 text-[9px] text-slate-400 font-semibold font-mono">
+                                    <span className="flex items-center gap-1 truncate text-slate-500">
+                                      <Mail className="h-3 w-3 text-slate-400 shrink-0" />
+                                      {req.email}
+                                    </span>
+                                    {req.phone && (
+                                      <span className="flex items-center gap-1 text-slate-500">
+                                        <Phone className="h-3 w-3 text-slate-400 shrink-0" />
+                                        {req.phone}
+                                      </span>
+                                    )}
+                                    {req.parent_phone && (
+                                      <span className="flex items-center gap-1 text-slate-400">
+                                        📱 {getLabel(`ولي الأمر: `, "Parent: ", "Parent: ")} {req.parent_phone}
+                                      </span>
+                                    )}
+                                    {req.subject_name && (
+                                      <span className="flex items-center gap-1 text-indigo-500 font-bold truncate">
+                                        📚 {getLabel(`المادة: `, "Matiere: ", "Subject: ")} {req.subject_name}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
+                                  <button
+                                    onClick={() => handleApproveRegistrationRequest(req, selfRoleClean)}
+                                    disabled={isCurrentlyProcessing}
+                                    className="px-2.5 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-md shadow-emerald-500/15 flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50 h-7"
+                                    title={getLabel("قبول كـطلب العضو الأصلي وهيكلة حسابه", "Approuver avec role demande", "Approve requested role")}
+                                  >
+                                    {isCurrentlyProcessing ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : "💡"} 
+                                    {getLabel("تفعيل الطلب", "Approuver", "Approve")}
+                                  </button>
+                                  
+                                  <button
+                                    onClick={() => handleApproveRegistrationRequest(req, otherRoleClean)}
+                                    disabled={isCurrentlyProcessing}
+                                    className="px-2.5 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer disabled:opacity-50 h-7"
+                                    title={getLabel(`تغيير وتفعيل كـ ${isTeacherRole ? 'طالب' : 'أستاذ'}`, `Inverser le role`, `Swap role and approve`)}
+                                  >
+                                    🔄 {isTeacherRole 
+                                      ? getLabel("طالب", "Étudiant", "Student") 
+                                      : getLabel("أستاذ", "Enseignant", "Teacher")}
+                                  </button>
+
+                                  <button
+                                    onClick={() => handleRejectRegistrationRequest(req.id)}
+                                    disabled={isCurrentlyProcessing}
+                                    className="p-1.5 bg-red-50 hover:bg-red-100 text-red-500 rounded-lg transition-all cursor-pointer disabled:opacity-50 h-7 w-7 flex items-center justify-center"
+                                    title={getLabel("رفض وحذف استمارة التسجيل", "Rejeter & Supprimer", "Reject & Delete")}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+
+                          {regRequests.filter(r => r.status?.toUpperCase() === 'PENDING' || !r.status).length === 0 && (
+                            <div className="text-center py-8 text-slate-400 text-[10px] font-bold uppercase font-sans">
+                              ☘️ {i18n.language === 'ar' ? "لا توجد رسائل تسجيل معلقة في قاعدة البيانات" : "No pending registration database rows found!"}
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          {usersList.filter(u => u.role?.toLowerCase() === 'guest').map((userItem) => (
+                            <div key={userItem.id} className="p-4 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between gap-4">
+                              <div>
+                                <p className="text-xs font-bold text-slate-800">{userItem.fullname}</p>
+                                <p className="text-[9px] text-slate-400 font-mono">@{userItem.username} • {userItem.email}</p>
+                                {userItem.role_requested && (
+                                  <p className="text-[9px] font-black text-amber-500 uppercase mt-1 font-mono">
+                                    {getLabel(
+                                      `طلب صفة: ${userItem.role_requested === 'teacher' ? 'أستاذ' : 'طالب'}`,
+                                      `Role demande: ${userItem.role_requested === 'teacher' ? 'Enseignant' : 'Étudiant'}`,
+                                      `Requesting: ${userItem.role_requested}`
+                                    )}
+                                  </p>
                                 )}
-                              </p>
-                            )}
-                          </div>
+                              </div>
 
-                          <div className="flex items-center gap-2 text-right rtl:text-left">
-                            <button
-                              onClick={() => handleApproveUser(userItem.id, (userItem.role_requested as 'student' | 'teacher') || 'student')}
-                              className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-md shadow-emerald-500/15 flex items-center justify-center gap-2 cursor-pointer"
-                            >
-                              💡 {getLabel("قبول وتفعيل كطلب", "Approuver", "Approve")}
-                            </button>
-                            <button
-                              onClick={() => handleApproveUser(userItem.id, userItem.role_requested === 'teacher' ? 'student' : 'teacher')}
-                              className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
-                            >
-                              {getLabel(
-                                userItem.role_requested === 'teacher' ? "تفعيل كطالب" : "تفعيل كأستاذ",
-                                userItem.role_requested === 'teacher' ? "Activer comme Étudiant" : "Activer comme Enseignant",
-                                `As ${userItem.role_requested === 'teacher' ? 'Student' : 'Teacher'}`
-                              )}
-                            </button>
-                          </div>
-                        </div>
-                      ))}
+                              <div className="flex items-center gap-2 text-right rtl:text-left shrink-0">
+                                <button
+                                  onClick={() => handleApproveUser(userItem.id, (userItem.role_requested as 'student' | 'teacher') || 'student')}
+                                  className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-md shadow-emerald-500/15 flex items-center justify-center gap-1 cursor-pointer h-7"
+                                >
+                                  💡 {getLabel("تعيين مباشر", "Approuver", "Approve")}
+                                </button>
+                                <button
+                                  onClick={() => handleApproveUser(userItem.id, userItem.role_requested === 'teacher' ? 'student' : 'teacher')}
+                                  className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer h-7"
+                                >
+                                  {getLabel(
+                                    userItem.role_requested === 'teacher' ? "طالب" : "أستاذ",
+                                    userItem.role_requested === 'teacher' ? "Activer Étudiant" : "Activer Enseignant",
+                                    `As ${userItem.role_requested === 'teacher' ? 'Student' : 'Teacher'}`
+                                  )}
+                                </button>
+                              </div>
+                            </div>
+                          ))}
 
-                      {usersList.filter(u => u.role?.toLowerCase() === 'guest').length === 0 && (
-                        <div className="text-center py-8 text-slate-400 text-[10px] font-bold uppercase">
-                          ☘️ {i18n.language === 'ar' ? "لا توجد طلبات معلقة حالياً" : "All users are authorized!"}
-                        </div>
+                          {usersList.filter(u => u.role?.toLowerCase() === 'guest').length === 0 && (
+                            <div className="text-center py-8 text-slate-400 text-[10px] font-bold uppercase font-sans">
+                              ☘️ {i18n.language === 'ar' ? "لا توجد طلبات معلقة حالياً" : "All users are authorized!"}
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>
