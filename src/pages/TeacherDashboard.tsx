@@ -1237,122 +1237,126 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
             ) : false ? (
               <div className="space-y-6">
                 {/* Intro Card */}
-                <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-                  <div className="space-y-1">
-                    <h3 className="text-xl font-bold font-display uppercase tracking-tight text-slate-900">
-                      {i18n.language === 'ar' ? "التحكم في العضويات والقبول" : "Members Administration"}
-                    </h3>
-                    <p className="text-xs text-slate-400 font-medium">
-                      {i18n.language === 'ar' 
-                        ? "قم بتفعيل حسابات طلابك الجدد يدوياً أو تجميد الحسابات الوهمية لتجنب الاكتظاظ."
-                        : "Verify and activate new student accounts manually, or suspend inactive accounts."}
-                    </p>
-                  </div>
-                  
-                  <div className="bg-brand-blue/5 border border-brand-blue/10 p-4 rounded-2xl flex items-center gap-3 shrink-0">
-                    <Key className="h-5 w-5 text-brand-blue" />
-                    <div>
-                      <p className="text-[10px] font-black uppercase text-brand-blue">
-                        {i18n.language === 'ar' ? "مفتاح التسجيل لطلابك" : "Your Community ID"}
-                      </p>
-                      <p className="text-xs font-mono font-black text-slate-700">
-                        @{community.community_username}
+                {isDeveloper && (
+                  <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                    <div className="space-y-1">
+                      <h3 className="text-xl font-bold font-display uppercase tracking-tight text-slate-900">
+                        {i18n.language === 'ar' ? "التحكم في العضويات والقبول" : "Members Administration"}
+                      </h3>
+                      <p className="text-xs text-slate-400 font-medium">
+                        {i18n.language === 'ar' 
+                          ? "قم بتفعيل حسابات طلابك الجدد يدوياً أو تجميد الحسابات الوهمية لتجنب الاكتظاظ."
+                          : "Verify and activate new student accounts manually, or suspend inactive accounts."}
                       </p>
                     </div>
+                    
+                    <div className="bg-brand-blue/5 border border-brand-blue/10 p-4 rounded-2xl flex items-center gap-3 shrink-0">
+                      <Key className="h-5 w-5 text-brand-blue" />
+                      <div>
+                        <p className="text-[10px] font-black uppercase text-brand-blue">
+                          {i18n.language === 'ar' ? "مفتاح التسجيل لطلابك" : "Your Community ID"}
+                        </p>
+                        <p className="text-xs font-mono font-black text-slate-700">
+                          @{community.community_username}
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Fast-Track Academic Registration Widget */}
-                <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm space-y-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2.5 bg-brand-blue/10 text-brand-blue rounded-xl">
-                      <Plus className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-black text-slate-800 uppercase tracking-wide">
-                        {i18n.language === 'ar' ? "تسجيل طالب أو أستاذ جديد تلقائياً" : "Fast-Track User Registration"}
-                      </h4>
-                      <p className="text-[10px] font-semibold text-slate-400">
-                        {i18n.language === 'ar' 
-                          ? "سجل العضو ببريده الإلكتروني مباشرة وستكون كلمة المرور هي بادئة بريده الإلكتروني بحرف كبير مع كلمة 2026 لتستوفي المعايير الأمنية." 
-                          : "Register a user with their email. The initial passcode will be generated with a capitalized prefix and '2026' to meet security rules."}
-                      </p>
-                    </div>
-                  </div>
-
-                  {regError && (
-                    <div className="bg-red-50 text-red-600 border border-red-100 rounded-xl p-3 text-xs font-semibold flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
-                      <span>{regError}</span>
-                    </div>
-                  )}
-
-                  {regSuccess && (
-                    <div className="bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-xl p-3 text-xs font-semibold flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                      <span>{regSuccess}</span>
-                    </div>
-                  )}
-
-                    <form onSubmit={handleRegisterUser} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                      <div className="space-y-1.5 text-left rtl:text-right md:col-span-1">
-                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-1">
-                          {i18n.language === 'ar' ? "الاسم الكامل للعضو" : "Full Name"}
-                        </label>
-                        <input 
-                          type="text"
-                          required
-                          disabled={isAdmin}
-                          placeholder={i18n.language === 'ar' ? "مثل: محمد علي" : "e.g. Jean Dupont"}
-                          value={regFullName}
-                          onChange={(e) => setRegFullName(e.target.value)}
-                          className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-slate-800 text-xs focus:outline-none focus:border-brand-blue transition-all font-medium disabled:opacity-50"
-                        />
+                {isDeveloper && (
+                  <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 bg-brand-blue/10 text-brand-blue rounded-xl">
+                        <Plus className="h-5 w-5" />
                       </div>
-
-                      <div className="space-y-1.5 text-left rtl:text-right md:col-span-1">
-                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-1">
-                          {i18n.language === 'ar' ? "البريد الإلكتروني" : "Email Address"}
-                        </label>
-                        <input 
-                          type="email"
-                          required
-                          disabled={isAdmin}
-                          placeholder={i18n.language === 'ar' ? "student@example.com" : "student@example.com"}
-                          value={regEmail}
-                          onChange={(e) => setRegEmail(e.target.value)}
-                          className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-slate-800 text-xs focus:outline-none focus:border-brand-blue transition-all font-medium disabled:opacity-50"
-                        />
+                      <div>
+                        <h4 className="text-sm font-black text-slate-800 uppercase tracking-wide">
+                          {i18n.language === 'ar' ? "تسجيل طالب أو أستاذ جديد تلقائياً" : "Fast-Track User Registration"}
+                        </h4>
+                        <p className="text-[10px] font-semibold text-slate-400">
+                          {i18n.language === 'ar' 
+                            ? "سجل العضو ببريده الإلكتروني مباشرة وستكون كلمة المرور هي بادئة بريده الإلكتروني بحرف كبير مع كلمة 2026 لتستوفي المعايير الأمنية." 
+                            : "Register a user with their email. The initial passcode will be generated with a capitalized prefix and '2026' to meet security rules."}
+                        </p>
                       </div>
+                    </div>
 
-                      <div className="space-y-1.5 text-left rtl:text-right md:col-span-1">
-                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-1">
-                          {i18n.language === 'ar' ? "الصفة / الحساب" : "Role / Position"}
-                        </label>
-                        <select 
-                          value={regRole}
-                          disabled={isAdmin}
-                          onChange={(e) => setRegRole(e.target.value as any)}
-                          className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-slate-800 text-xs focus:outline-none focus:border-brand-blue transition-all font-bold disabled:opacity-50"
+                    {regError && (
+                      <div className="bg-red-50 text-red-600 border border-red-100 rounded-xl p-3 text-xs font-semibold flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                        <span>{regError}</span>
+                      </div>
+                    )}
+
+                    {regSuccess && (
+                      <div className="bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-xl p-3 text-xs font-semibold flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                        <span>{regSuccess}</span>
+                      </div>
+                    )}
+
+                      <form onSubmit={handleRegisterUser} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                        <div className="space-y-1.5 text-left rtl:text-right md:col-span-1">
+                          <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-1">
+                            {i18n.language === 'ar' ? "الاسم الكامل للعضو" : "Full Name"}
+                          </label>
+                          <input 
+                            type="text"
+                            required
+                            disabled={isAdmin}
+                            placeholder={i18n.language === 'ar' ? "مثل: محمد علي" : "e.g. Jean Dupont"}
+                            value={regFullName}
+                            onChange={(e) => setRegFullName(e.target.value)}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-slate-800 text-xs focus:outline-none focus:border-brand-blue transition-all font-medium disabled:opacity-50"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5 text-left rtl:text-right md:col-span-1">
+                          <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-1">
+                            {i18n.language === 'ar' ? "البريد الإلكتروني" : "Email Address"}
+                          </label>
+                          <input 
+                            type="email"
+                            required
+                            disabled={isAdmin}
+                            placeholder={i18n.language === 'ar' ? "student@example.com" : "student@example.com"}
+                            value={regEmail}
+                            onChange={(e) => setRegEmail(e.target.value)}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-slate-800 text-xs focus:outline-none focus:border-brand-blue transition-all font-medium disabled:opacity-50"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5 text-left rtl:text-right md:col-span-1">
+                          <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-1">
+                            {i18n.language === 'ar' ? "الصفة / الحساب" : "Role / Position"}
+                          </label>
+                          <select 
+                            value={regRole}
+                            disabled={isAdmin}
+                            onChange={(e) => setRegRole(e.target.value as any)}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-slate-800 text-xs focus:outline-none focus:border-brand-blue transition-all font-bold disabled:opacity-50"
+                          >
+                            <option value="student">{i18n.language === 'ar' ? "🧑‍🎓 طالب (Student)" : "Student"}</option>
+                            <option value="teacher">{i18n.language === 'ar' ? "🧑‍🏫 أستاذ (Teacher)" : "Teacher"}</option>
+                          </select>
+                        </div>
+
+                        <button
+                          type="submit"
+                          disabled={regLoading || isAdmin}
+                          className="w-full py-3 bg-brand-blue hover:bg-blue-600 disabled:opacity-50 text-white font-black text-[10px] uppercase tracking-[0.1em] rounded-xl shadow-lg shadow-blue-500/15 flex items-center justify-center gap-2 cursor-pointer h-10"
                         >
-                          <option value="student">{i18n.language === 'ar' ? "🧑‍🎓 طالب (Student)" : "Student"}</option>
-                          <option value="teacher">{i18n.language === 'ar' ? "🧑‍🏫 أستاذ (Teacher)" : "Teacher"}</option>
-                        </select>
-                      </div>
-
-                      <button
-                        type="submit"
-                        disabled={regLoading || isAdmin}
-                        className="w-full py-3 bg-brand-blue hover:bg-blue-600 disabled:opacity-50 text-white font-black text-[10px] uppercase tracking-[0.1em] rounded-xl shadow-lg shadow-blue-500/15 flex items-center justify-center gap-2 cursor-pointer h-10"
-                      >
-                        {regLoading ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <span>{i18n.language === 'ar' ? "تسجيل وتفعيل العضو" : "Create Account"}</span>
-                        )}
-                      </button>
-                    </form>
-                </div>
+                          {regLoading ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <span>{i18n.language === 'ar' ? "تسجيل وتفعيل العضو" : "Create Account"}</span>
+                          )}
+                        </button>
+                      </form>
+                  </div>
+                )}
 
                 {usersLoading ? (
                   <div className="flex justify-center py-12">
