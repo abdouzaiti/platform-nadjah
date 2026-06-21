@@ -152,6 +152,8 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
       if (signUpData.user) {
         const newUserId = signUpData.user.id;
         
+        const usernameToSet = emailToSignUp.split('@')[0].toLowerCase().replace(/[^a-zA-Z0-9_]/g, '');
+
         // 3. Immediately activate / update their role to the selected role
         // Instead of GUEST, they directly become Student or Teacher!
         const { error: profileError } = await supabase
@@ -159,6 +161,7 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
           .update({
             fullname: fullNameToSignUp,
             name: fullNameToSignUp,
+            username: usernameToSet,
             role: regRole, // directly 'student' or 'teacher'
             role_requested: null
           })
@@ -275,11 +278,13 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
 
       if (searchProfile?.id) {
         targetUserId = searchProfile.id;
+        const usernameToSet = emailToSignUp.split('@')[0].toLowerCase().replace(/[^a-zA-Z0-9_]/g, '');
         const { error: profileError } = await supabase
           .from("profiles")
           .update({
             fullname: fullNameToSignUp,
             name: fullNameToSignUp,
+            username: usernameToSet,
             role: targetRole,
             role_requested: null
           })
@@ -303,11 +308,13 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
 
         if (signUpData.user) {
           targetUserId = signUpData.user.id;
+          const usernameToSet = emailToSignUp.split('@')[0].toLowerCase().replace(/[^a-zA-Z0-9_]/g, '');
           const { error: profileError } = await supabase
             .from("profiles")
             .update({
               fullname: fullNameToSignUp,
               name: fullNameToSignUp,
+              username: usernameToSet,
               role: targetRole,
               role_requested: null
             })

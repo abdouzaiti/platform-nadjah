@@ -210,20 +210,18 @@ export default function App() {
         if (!email || !password) return;
         let loginEmail = email.trim();
         
-        // If it doesn't contain "@", treat it as a Username
-        if (!loginEmail.includes("@")) {
-          const { data: profileObj, error: searchError } = await supabase
-            .from("profiles")
-            .select("email, id")
-            .eq("username", loginEmail.toLowerCase())
-            .maybeSingle();
+        // Try to see if this corresponds to a USERNAME in profiles to allow "username login"
+        const { data: profileObj } = await supabase
+          .from("profiles")
+          .select("email")
+          .eq("username", loginEmail.toLowerCase())
+          .maybeSingle();
             
-          if (profileObj?.email) {
-            loginEmail = profileObj.email;
-          } else {
-            // Placeholder standard suffix: username@ecolenadjah.local
-            loginEmail = `${loginEmail.toLowerCase()}@ecolenadjah.local`;
-          }
+        if (profileObj?.email) {
+          loginEmail = profileObj.email;
+        } else if (!loginEmail.includes("@")) {
+          // If no profile found and no "@", treat it as a virtual email (free instant accounts)
+          loginEmail = `${loginEmail.toLowerCase()}@ecolenadjah.local`;
         }
         
         const { error } = await supabase.auth.signInWithPassword({
