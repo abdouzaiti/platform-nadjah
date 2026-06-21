@@ -13,9 +13,13 @@ export default function SettingsView({ profile }: SettingsViewProps) {
   const { i18n } = useTranslation();
   const [newPassword, setNewPassword] = React.useState("");
   const [confirmPassword, setConfirmPassword] = React.useState("");
+  const [newUsername, setNewUsername] = React.useState(profile.username || "");
   const [loading, setLoading] = React.useState(false);
+  const [usernameLoading, setUsernameLoading] = React.useState(false);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
   const [successMsg, setSuccessMsg] = React.useState<string | null>(null);
+  const [usernameError, setUsernameError] = React.useState<string | null>(null);
+  const [usernameSuccess, setUsernameSuccess] = React.useState<string | null>(null);
 
   const getLabel = (ar: string, fr: string, en: string) => {
     if (i18n.language === 'ar') return ar;
@@ -73,6 +77,76 @@ export default function SettingsView({ profile }: SettingsViewProps) {
     }
   };
 
+  const handleUpdateUsername = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setUsernameError(null);
+    setUsernameSuccess(null);
+
+    const cleanUsername = newUsername.trim().toLowerCase().replace(/[^a-zA-Z0-9_]/g, '');
+    
+    if (cleanUsername.length < 3) {
+      setUsernameError(getLabel(
+        "يجب أن يتكون اسم المستخدم من 3 أحرف على الأقل.",
+        "Le nom d'utilisateur doit contenir au moins 3 caractères.",
+        "Username must be at least 3 characters long."
+      ));
+      return;
+    }
+
+    if (cleanUsername === profile.username) {
+      setUsernameError(getLabel(
+        "اسم المستخدم الجديد هو نفسه الحالي.",
+        "Le nouveau nom d'utilisateur est le même que l'actuel.",
+        "New username is the same as current."
+      ));
+      return;
+    }
+
+    setUsernameLoading(true);
+    try {
+      // Check if username is taken
+      const { data: existingUser } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("username", cleanUsername)
+        .maybeSingle();
+
+      if (existingUser) {
+        throw new Error(getLabel(
+          "اسم المستخدم هذا مأخوذ بالفعل.",
+          "Ce nom d'utilisateur est déjà pris.",
+          "This username is already taken."
+        ));
+      }
+
+      const { error } = await supabase
+        .from("profiles")
+        .update({ username: cleanUsername })
+        .eq("id", profile.id);
+
+      if (error) throw error;
+
+      setUsernameSuccess(getLabel(
+        "تم تحديث اسم المستخدم بنجاح! يرجى تحديث الصفحة لرؤية التغييرات.",
+        "Nom d'utilisateur mis à jour avec succès ! Veuillez rafraîchir pour voir les changements.",
+        "Username updated successfully! Please refresh to see changes."
+      ));
+      // Refresh page after a short delay
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+    } catch (err: any) {
+      console.error("Username update error:", err);
+      setUsernameError(err.message || getLabel(
+        "فشل تحديث اسم المستخدم.",
+        "Échec de la mise à jour du nom d'utilisateur.",
+        "Failed to update username."
+      ));
+    } finally {
+      setUsernameLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-2xl mx-auto p-4 sm:p-6">
       {/* Header Info */}
@@ -96,6 +170,69 @@ export default function SettingsView({ profile }: SettingsViewProps) {
       </div>
 
       {/* User Info Card */}
+      <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm space-y-4">
+        <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-2">
+          {getLabel(
+            "تحديث اسم المستخدم",
+            "Changer le nom d'utilisateur",
+            "Change Username"
+          )}
+        </h4>
+
+        {usernameError && (
+          <motion.div 
+            initial={{ opacity: 0, y: -5 }} 
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-4 bg-red-50 text-red-600 border border-red-100 rounded-xl p-3 flex items-center gap-2.5 text-xs font-semibold"
+          >
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            <span>{usernameError}</span>
+          </motion.div>
+        )}
+
+        {usernameSuccess && (
+          <motion.div 
+            initial={{ opacity: 0, y: -5 }} 
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-4 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-xl p-3 flex items-center gap-2.5 text-xs font-semibold"
+          >
+            <CheckCircle2 className="h-4 w-4 shrink-0" />
+            <span>{usernameSuccess}</span>
+          </motion.div>
+        )}
+
+        <form onSubmit={handleUpdateUsername} className="flex flex-col sm:flex-row gap-3 items-end">
+          <div className="space-y-1.5 text-left rtl:text-right flex-1">
+            <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-1">
+              {getLabel("اسم المستخدم الجديد", "Nouveau nom d'utilisateur", "New Username")}
+            </label>
+            <div className="relative group">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs select-none group-focus-within:text-brand-blue transition-colors">@</span>
+              <input 
+                type="text"
+                required
+                placeholder={getLabel("مثلاً: m_ali24", "Ex: m_ali24", "e.g. m_ali24")}
+                value={newUsername}
+                onChange={(e) => setNewUsername(e.target.value.toLowerCase().replace(/[^a-zA-Z0-9_]/g, ''))}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-10 pr-4 text-slate-800 text-xs focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue/10 transition-all font-medium"
+              />
+            </div>
+          </div>
+          <button
+            type="submit"
+            disabled={usernameLoading}
+            className="py-3.5 px-6 bg-slate-900 hover:bg-black transition-all disabled:opacity-50 text-white font-black text-[10px] uppercase tracking-[0.2em] rounded-xl flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap h-11"
+          >
+            {usernameLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <span>{getLabel("تحديث", "Mettre à jour", "Update Username")}</span>
+            )}
+          </button>
+        </form>
+      </div>
+
+      {/* User Info Card (Read only stats) */}
       <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm space-y-4">
         <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-2">
           {getLabel(
