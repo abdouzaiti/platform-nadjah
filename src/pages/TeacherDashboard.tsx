@@ -596,7 +596,11 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
               </button>
               
               <span className="font-sans font-black text-xs uppercase tracking-wider text-slate-800">
-                {getLabel("مركز التحكم للمطور", "Console Développeur", "Developer Console")}
+                {getLabel(
+                  isAdmin ? "لوحة المدير" : "مركز التحكم للمطور",
+                  isAdmin ? "Console Administrateur" : "Console Développeur",
+                  isAdmin ? "Admin Console" : "Developer Console"
+                )}
               </span>
 
               <button
@@ -615,25 +619,36 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
             <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <span className="bg-indigo-500 text-white text-[8px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full shadow-md shadow-indigo-500/10">💻 Developer Console</span>
+                  <span className={cn(
+                    "text-white text-[8px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full shadow-md",
+                    isAdmin ? "bg-amber-500 shadow-amber-500/10" : "bg-indigo-500 shadow-indigo-500/10"
+                  )}>
+                    {isAdmin ? "🛡️ Admin Console" : "💻 Developer Console"}
+                  </span>
                 </div>
                 <h3 className="text-xl font-black font-display uppercase tracking-tight text-slate-900 mt-1">
                   {getLabel(
-                    "لوحة المطور: التحكم والقبول",
-                    "Console Développeur: Contrôle & Approbations",
-                    "Ultimate Developer Console"
+                    isAdmin ? "لوحة المدير" : "لوحة المطور: التحكم والقبول",
+                    isAdmin ? "Console Administrateur" : "Console Développeur: Contrôle & Approbations",
+                    isAdmin ? "Admin Console" : "Ultimate Developer Console"
                   )}
                 </h3>
                 <p className="text-xs text-slate-400 font-medium">
                   {getLabel(
-                    "بصفتك المطور الرئيسي للمنصة، لك الصلاحية الكاملة لتسجيل الطلاب والأساتذة وإدارتهم مباشرة.",
-                    "En tant que développeur principal de la plateforme, vous disposez des privilèges absolus pour inscrire et autoriser les étudiants et enseignants.",
-                    "As the lead platform developer, you hold absolute master privileges to register and authorize both students and teachers."
+                    isAdmin 
+                      ? "بصفتك المسير، يمكنك متابعة قائمة الطلاب والأساتذة والطلبات الواردة (للعرض فقط)."
+                      : "بصفتك المطور الرئيسي للمنصة، لك الصلاحية الكاملة لتسجيل الطلاب والأساتذة وإدارتهم مباشرة.",
+                    isAdmin
+                      ? "En tant que gérant, vous pouvez consulter la liste des étudiants, enseignants et demandes (lecture seule)."
+                      : "En tant que développeur principal de la plateforme, vous disposez des privilèges absolus pour inscrire et autoriser les étudiants et enseignants.",
+                    isAdmin
+                      ? "As a manager, you can monitor the list of students, teachers, and incoming requests (read-only)."
+                      : "As the lead platform developer, you hold absolute master privileges to register and authorize both students and teachers."
                   )}
                 </p>
               </div>
               
-              {community && (
+              {community && isDeveloper && (
                 <div className="bg-brand-blue/5 border border-brand-blue/10 p-4 rounded-2xl flex items-center gap-3 shrink-0">
                   <Key className="h-5 w-5 text-brand-blue" />
                   <div>
@@ -653,99 +668,101 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
             </div>
 
             {/* Fast-Track Academic Registration Widget */}
-            <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-indigo-500/10 text-indigo-500 rounded-xl">
-                  <Plus className="h-5 w-5" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-black text-slate-800 uppercase tracking-wide">
-                    {getLabel(
-                      "تسجيل طالب أو أستاذ جديد تلقائياً",
-                      "Enregistrement rapide d'utilisateur",
-                      "Fast-Track User Registration"
-                    )}
-                  </h4>
-                  <p className="text-[10px] font-semibold text-slate-400">
-                    {getLabel(
-                      "سجل العضو ببريده الإلكتروني مباشرة وستكون كلمة المرور هي بادئة بريده الإلكتروني بحرف كبير مع كلمة 2026 لتستوفي المعايير الأمنية.",
-                      "Créez le profil d'un membre avec son e-mail. Le mot de passe initial sera le début de l'e-mail avec une majuscule suivi de 2026.",
-                      "Register a user with their email. The initial passcode will be generated with a capitalized prefix and '2026' to meet security rules."
-                    )}
-                  </p>
-                </div>
-              </div>
-
-              {regError && (
-                <div className="bg-red-50 text-red-600 border border-red-100 rounded-xl p-3 text-xs font-semibold flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
-                  <span>{regError}</span>
-                </div>
-              )}
-
-              {regSuccess && (
-                <div className="bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-xl p-3 text-xs font-semibold flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                  <span>{regSuccess}</span>
-                </div>
-              )}
-
-              <form onSubmit={handleRegisterUser} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                <div className="space-y-1.5 text-left rtl:text-right md:col-span-1">
-                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-1">
-                    {getLabel("الاسم الكامل للعضو", "Nom complet du membre", "Full Name")}
-                  </label>
-                  <input 
-                    type="text"
-                    required
-                    placeholder={getLabel("مثل: محمد علي", "Ex: Jean Dupont", "e.g. Jean Dupont")}
-                    value={regFullName}
-                    onChange={(e) => setRegFullName(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-slate-800 text-xs focus:outline-none focus:border-brand-blue transition-all font-medium"
-                  />
+            {isDeveloper && (
+              <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-indigo-500/10 text-indigo-500 rounded-xl">
+                    <Plus className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black text-slate-800 uppercase tracking-wide">
+                      {getLabel(
+                        "تسجيل طالب أو أستاذ جديد تلقائياً",
+                        "Enregistrement rapide d'utilisateur",
+                        "Fast-Track User Registration"
+                      )}
+                    </h4>
+                    <p className="text-[10px] font-semibold text-slate-400">
+                      {getLabel(
+                        "سجل العضو ببريده الإلكتروني مباشرة وستكون كلمة المرور هي بادئة بريده الإلكتروني بحرف كبير مع كلمة 2026 لتستوفي المعايير الأمنية.",
+                        "Créez le profil d'un membre avec son e-mail. Le mot de passe initial sera le début de l'e-mail avec une majuscule suivi de 2026.",
+                        "Register a user with their email. The initial passcode will be generated with a capitalized prefix and '2026' to meet security rules."
+                      )}
+                    </p>
+                  </div>
                 </div>
 
-                <div className="space-y-1.5 text-left rtl:text-right md:col-span-1">
-                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-1">
-                    {getLabel("البريد الإلكتروني", "Adresse e-mail", "Email Address")}
-                  </label>
-                  <input 
-                    type="email"
-                    required
-                    placeholder="student@example.com"
-                    value={regEmail}
-                    onChange={(e) => setRegEmail(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-slate-800 text-xs focus:outline-none focus:border-brand-blue transition-all font-medium"
-                  />
-                </div>
+                {regError && (
+                  <div className="bg-red-50 text-red-600 border border-red-100 rounded-xl p-3 text-xs font-semibold flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                    <span>{regError}</span>
+                  </div>
+                )}
 
-                <div className="space-y-1.5 text-left rtl:text-right md:col-span-1">
-                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-1">
-                    {getLabel("الصفة / الحساب", "Rôle / Fonction", "Role / Position")}
-                  </label>
-                  <select 
-                    value={regRole}
-                    onChange={(e) => setRegRole(e.target.value as any)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-slate-800 text-xs focus:outline-none focus:border-brand-blue transition-all font-bold"
+                {regSuccess && (
+                  <div className="bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-xl p-3 text-xs font-semibold flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    <span>{regSuccess}</span>
+                  </div>
+                )}
+
+                <form onSubmit={handleRegisterUser} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                  <div className="space-y-1.5 text-left rtl:text-right md:col-span-1">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-1">
+                      {getLabel("الاسم الكامل للعضو", "Nom complet du membre", "Full Name")}
+                    </label>
+                    <input 
+                      type="text"
+                      required
+                      placeholder={getLabel("مثل: محمد علي", "Ex: Jean Dupont", "e.g. Jean Dupont")}
+                      value={regFullName}
+                      onChange={(e) => setRegFullName(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-slate-800 text-xs focus:outline-none focus:border-brand-blue transition-all font-medium"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5 text-left rtl:text-right md:col-span-1">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-1">
+                      {getLabel("البريد الإلكتروني", "Adresse e-mail", "Email Address")}
+                    </label>
+                    <input 
+                      type="email"
+                      required
+                      placeholder="student@example.com"
+                      value={regEmail}
+                      onChange={(e) => setRegEmail(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-slate-800 text-xs focus:outline-none focus:border-brand-blue transition-all font-medium"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5 text-left rtl:text-right md:col-span-1">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-1">
+                      {getLabel("الصفة / الحساب", "Rôle / Fonction", "Role / Position")}
+                    </label>
+                    <select 
+                      value={regRole}
+                      onChange={(e) => setRegRole(e.target.value as any)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-slate-800 text-xs focus:outline-none focus:border-brand-blue transition-all font-bold"
+                    >
+                      <option value="student">{getLabel("🧑‍🎓 طالب (Student)", "🧑‍🎓 Étudiant", "Student")}</option>
+                      <option value="teacher">{getLabel("🧑‍🏫 أستاذ (Teacher)", "🧑‍🏫 Enseignant", "Teacher")}</option>
+                    </select>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={regLoading}
+                    className="w-full py-3 bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 text-white font-black text-[10px] uppercase tracking-[0.1em] rounded-xl shadow-lg shadow-indigo-500/15 flex items-center justify-center gap-2 cursor-pointer h-10"
                   >
-                    <option value="student">{getLabel("🧑‍🎓 طالب (Student)", "🧑‍🎓 Étudiant", "Student")}</option>
-                    <option value="teacher">{getLabel("🧑‍🏫 أستاذ (Teacher)", "🧑‍🏫 Enseignant", "Teacher")}</option>
-                  </select>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={regLoading}
-                  className="w-full py-3 bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 text-white font-black text-[10px] uppercase tracking-[0.1em] rounded-xl shadow-lg shadow-indigo-500/15 flex items-center justify-center gap-2 cursor-pointer h-10"
-                >
-                  {regLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <span>{getLabel("تسجيل وتفعيل العضو", "Créer et activer le membre", "Create Account")}</span>
-                  )}
-                </button>
-              </form>
-            </div>
+                    {regLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <span>{getLabel("تسجيل وتفعيل العضو", "Créer et activer le membre", "Create Account")}</span>
+                    )}
+                  </button>
+                </form>
+              </div>
+            )}
 
             {usersLoading ? (
               <div className="flex justify-center py-12">
