@@ -23,7 +23,9 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
   };
 
   const isDeveloper = ["developer", "developper"].includes(profile.role?.toString().toLowerCase()) || profile.email?.toLowerCase() === "zaitiabdou27@gmail.com";
-  const [activeTab, setActiveTab] = React.useState(isDeveloper ? "manage-users" : "rooms");
+  const isAdmin = profile.role?.toString().toLowerCase() === "admin";
+  const isManager = isDeveloper || isAdmin;
+  const [activeTab, setActiveTab] = React.useState(isManager ? "manage-users" : "rooms");
   const [community, setCommunity] = React.useState<TeacherCommunity | null>(null);
   const [rooms, setRooms] = React.useState<ClassRoom[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -105,6 +107,7 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
 
   const handleRegisterUser = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isAdmin) return;
     setRegLoading(true);
     setRegError(null);
     setRegSuccess(null);
@@ -360,6 +363,7 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
   };
 
   const handleApproveUser = async (userId: string, targetRole: 'student' | 'teacher' | 'guest') => {
+    if (isAdmin) return;
     try {
       setUsersLoading(true);
       const { error } = await supabase
@@ -380,6 +384,7 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
   };
 
   const handleRejectOrDelete = async (userId: string) => {
+    if (isAdmin) return;
     if (!confirm(i18n.language === 'ar' ? "هل أنت متأكد من حذف هذا الحساب؟" : "Are you sure you want to delete this user?")) return;
     try {
       setUsersLoading(true);
@@ -401,6 +406,7 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
 
   const handleCreateCommunity = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isAdmin) return;
     setLoading(true);
     setSchemaError(null);
     try {
@@ -433,6 +439,7 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
 
   const handleCreateRoom = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isAdmin) return;
     if (!community) return;
     setLoading(true);
     try {
@@ -488,6 +495,10 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
   };
 
   const handleDeleteRoom = async (roomId: string) => {
+    if (isAdmin) {
+      alert("Admin accounts have read-only access.");
+      return;
+    }
     if (!confirm("Are you sure you want to delete this room?")) return;
     try {
       const { error } = await supabase.from("class_rooms").delete().eq("id", roomId);
@@ -573,7 +584,7 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
             </div>
             <SettingsView profile={profile} />
           </div>
-        ) : (activeTab === "manage-users" && (profile.role === "developer" || profile.role === "developper" || profile.email?.toLowerCase() === "zaitiabdou27@gmail.com")) ? (
+        ) : (activeTab === "manage-users" && (isManager)) ? (
           <div className="space-y-6">
             {/* Mobile Header Bar */}
             <div className="flex lg:hidden items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 shadow-sm">
@@ -1126,15 +1137,23 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                       <p className="text-slate-400 font-bold tracking-widest text-[8px] sm:text-[10px] uppercase">@{community.community_username} • {rooms.length} {t('rooms', 'Rooms')}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <button 
-                    onClick={() => setActiveTab("create-room")}
-                    className="flex items-center gap-2 bg-brand-blue text-white px-6 py-3 rounded-xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-blue-500/10 hover:bg-blue-600 transition-all"
-                  >
-                    <Plus className="h-4 w-4" />
-                    {t('add_room', 'Add Room')}
-                  </button>
-                </div>
+            {!isAdmin && (
+              <div className="flex items-center gap-3">
+                <button 
+                  onClick={() => setActiveTab("create-room")}
+                  className="flex items-center gap-2 bg-brand-blue text-white px-6 py-3 rounded-xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-blue-500/10 hover:bg-blue-600 transition-all"
+                >
+                  <Plus className="h-4 w-4" />
+                  {t('add_room', 'Add Room')}
+                </button>
+              </div>
+            )}
+            {isAdmin && (
+              <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 border border-amber-100 rounded-xl text-amber-600 font-bold text-[10px] uppercase tracking-widest shadow-sm">
+                <Key className="h-3.5 w-3.5" />
+                Read Only Access
+              </div>
+            )}
             </header>
 
             {activeTab === "settings" ? (
@@ -1275,61 +1294,64 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                     </div>
                   )}
 
-                  <form onSubmit={handleRegisterUser} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                    <div className="space-y-1.5 text-left rtl:text-right md:col-span-1">
-                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-1">
-                        {i18n.language === 'ar' ? "الاسم الكامل للعضو" : "Full Name"}
-                      </label>
-                      <input 
-                        type="text"
-                        required
-                        placeholder={i18n.language === 'ar' ? "مثل: محمد علي" : "e.g. Jean Dupont"}
-                        value={regFullName}
-                        onChange={(e) => setRegFullName(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-slate-800 text-xs focus:outline-none focus:border-brand-blue transition-all font-medium"
-                      />
-                    </div>
+                    <form onSubmit={handleRegisterUser} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                      <div className="space-y-1.5 text-left rtl:text-right md:col-span-1">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-1">
+                          {i18n.language === 'ar' ? "الاسم الكامل للعضو" : "Full Name"}
+                        </label>
+                        <input 
+                          type="text"
+                          required
+                          disabled={isAdmin}
+                          placeholder={i18n.language === 'ar' ? "مثل: محمد علي" : "e.g. Jean Dupont"}
+                          value={regFullName}
+                          onChange={(e) => setRegFullName(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-slate-800 text-xs focus:outline-none focus:border-brand-blue transition-all font-medium disabled:opacity-50"
+                        />
+                      </div>
 
-                    <div className="space-y-1.5 text-left rtl:text-right md:col-span-1">
-                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-1">
-                        {i18n.language === 'ar' ? "البريد الإلكتروني" : "Email Address"}
-                      </label>
-                      <input 
-                        type="email"
-                        required
-                        placeholder={i18n.language === 'ar' ? "student@example.com" : "student@example.com"}
-                        value={regEmail}
-                        onChange={(e) => setRegEmail(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-slate-800 text-xs focus:outline-none focus:border-brand-blue transition-all font-medium"
-                      />
-                    </div>
+                      <div className="space-y-1.5 text-left rtl:text-right md:col-span-1">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-1">
+                          {i18n.language === 'ar' ? "البريد الإلكتروني" : "Email Address"}
+                        </label>
+                        <input 
+                          type="email"
+                          required
+                          disabled={isAdmin}
+                          placeholder={i18n.language === 'ar' ? "student@example.com" : "student@example.com"}
+                          value={regEmail}
+                          onChange={(e) => setRegEmail(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-slate-800 text-xs focus:outline-none focus:border-brand-blue transition-all font-medium disabled:opacity-50"
+                        />
+                      </div>
 
-                    <div className="space-y-1.5 text-left rtl:text-right md:col-span-1">
-                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-1">
-                        {i18n.language === 'ar' ? "الصفة / الحساب" : "Role / Position"}
-                      </label>
-                      <select 
-                        value={regRole}
-                        onChange={(e) => setRegRole(e.target.value as any)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-slate-800 text-xs focus:outline-none focus:border-brand-blue transition-all font-bold"
+                      <div className="space-y-1.5 text-left rtl:text-right md:col-span-1">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-1">
+                          {i18n.language === 'ar' ? "الصفة / الحساب" : "Role / Position"}
+                        </label>
+                        <select 
+                          value={regRole}
+                          disabled={isAdmin}
+                          onChange={(e) => setRegRole(e.target.value as any)}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-slate-800 text-xs focus:outline-none focus:border-brand-blue transition-all font-bold disabled:opacity-50"
+                        >
+                          <option value="student">{i18n.language === 'ar' ? "🧑‍🎓 طالب (Student)" : "Student"}</option>
+                          <option value="teacher">{i18n.language === 'ar' ? "🧑‍🏫 أستاذ (Teacher)" : "Teacher"}</option>
+                        </select>
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={regLoading || isAdmin}
+                        className="w-full py-3 bg-brand-blue hover:bg-blue-600 disabled:opacity-50 text-white font-black text-[10px] uppercase tracking-[0.1em] rounded-xl shadow-lg shadow-blue-500/15 flex items-center justify-center gap-2 cursor-pointer h-10"
                       >
-                        <option value="student">{i18n.language === 'ar' ? "🧑‍🎓 طالب (Student)" : "Student"}</option>
-                        <option value="teacher">{i18n.language === 'ar' ? "🧑‍🏫 أستاذ (Teacher)" : "Teacher"}</option>
-                      </select>
-                    </div>
-
-                    <button
-                      type="submit"
-                      disabled={regLoading}
-                      className="w-full py-3 bg-brand-blue hover:bg-blue-600 disabled:opacity-50 text-white font-black text-[10px] uppercase tracking-[0.1em] rounded-xl shadow-lg shadow-blue-500/15 flex items-center justify-center gap-2 cursor-pointer h-10"
-                    >
-                      {regLoading ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <span>{i18n.language === 'ar' ? "تسجيل وتفعيل العضو" : "Create Account"}</span>
-                      )}
-                    </button>
-                  </form>
+                        {regLoading ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <span>{i18n.language === 'ar' ? "تسجيل وتفعيل العضو" : "Create Account"}</span>
+                        )}
+                      </button>
+                    </form>
                 </div>
 
                 {usersLoading ? (
@@ -1409,36 +1431,38 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                               </div>
                             </div>
                             
-                            <div className="flex items-center gap-2">
-                              {userItem.role_requested && (
-                                <span className="text-[8px] font-black uppercase bg-slate-100 text-slate-500 px-2.5 py-1 rounded-full mr-2">
-                                  {i18n.language === 'ar' ? `طلب صفة: ${userItem.role_requested === 'teacher' ? 'أستاذ' : 'طالب'}` : `Requesting: ${userItem.role_requested}`}
-                                </span>
-                              )}
-                              
-                              <button
-                                onClick={() => handleApproveUser(userItem.id, (userItem.role_requested as 'student' | 'teacher') || 'student')}
-                                className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-md shadow-emerald-500/10 cursor-pointer"
-                              >
-                                {i18n.language === 'ar' ? "قبول وتفعيل كلي" : "Approve & Activate"}
-                              </button>
-                              
-                              <button
-                                onClick={() => handleApproveUser(userItem.id, userItem.role_requested === 'teacher' ? 'student' : 'teacher')}
-                                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
-                              >
-                                {i18n.language === 'ar' 
-                                  ? (userItem.role_requested === 'teacher' ? "تفعيل كطالب" : "تفعيل كأستاذ") 
-                                  : `As ${userItem.role_requested === 'teacher' ? 'Student' : 'Teacher'}`}
-                              </button>
+                            {!isAdmin && (
+                              <div className="flex items-center gap-2">
+                                {userItem.role_requested && (
+                                  <span className="text-[8px] font-black uppercase bg-slate-100 text-slate-500 px-2.5 py-1 rounded-full mr-2">
+                                    {i18n.language === 'ar' ? `طلب صفة: ${userItem.role_requested === 'teacher' ? 'أستاذ' : 'طالب'}` : `Requesting: ${userItem.role_requested}`}
+                                  </span>
+                                )}
+                                
+                                <button
+                                  onClick={() => handleApproveUser(userItem.id, (userItem.role_requested as 'student' | 'teacher') || 'student')}
+                                  className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-md shadow-emerald-500/10 cursor-pointer"
+                                >
+                                  {i18n.language === 'ar' ? "قبول وتفعيل كلي" : "Approve & Activate"}
+                                </button>
+                                
+                                <button
+                                  onClick={() => handleApproveUser(userItem.id, userItem.role_requested === 'teacher' ? 'student' : 'teacher')}
+                                  className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
+                                >
+                                  {i18n.language === 'ar' 
+                                    ? (userItem.role_requested === 'teacher' ? "تفعيل كطالب" : "تفعيل كأستاذ") 
+                                    : `As ${userItem.role_requested === 'teacher' ? 'Student' : 'Teacher'}`}
+                                </button>
 
-                              <button
-                                onClick={() => handleRejectOrDelete(userItem.id)}
-                                className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-500 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
-                              >
-                                {i18n.language === 'ar' ? "رفض وحذف" : "Reject"}
-                              </button>
-                            </div>
+                                <button
+                                  onClick={() => handleRejectOrDelete(userItem.id)}
+                                  className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-500 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
+                                >
+                                  {i18n.language === 'ar' ? "رفض وحذف" : "Reject"}
+                                </button>
+                              </div>
+                            )}
                           </div>
                         ))}
                         
@@ -1492,7 +1516,7 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                                 {userItem.role?.toLowerCase() === 'developer' || userItem.role?.toLowerCase() === 'developper' ? (i18n.language === 'ar' ? 'المطور' : 'Developer') : userItem.role?.toLowerCase() === 'teacher' ? (i18n.language === 'ar' ? 'أستاذ' : 'Teacher') : (userItem.role?.toLowerCase() === 'admin' ? 'Admin' : (i18n.language === 'ar' ? 'طالب' : 'Student'))}
                               </span>
                               
-                              {userItem.id !== profile.id && (
+                              {userItem.id !== profile.id && !isAdmin && (
                                 <>
                                   <button
                                     onClick={() => handleApproveUser(userItem.id, 'guest')}
@@ -1528,12 +1552,14 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                     className="p-6 bg-white rounded-[32px] border border-slate-100 shadow-sm hover:shadow-md transition-all group relative overflow-hidden"
                   >
                     <div className="absolute top-0 right-0 p-6 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button 
-                        onClick={() => handleDeleteRoom(room.id)}
-                        className="p-2 text-slate-300 hover:text-red-500"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      {!isAdmin && (
+                        <button 
+                          onClick={() => handleDeleteRoom(room.id)}
+                          className="p-2 text-slate-300 hover:text-red-500"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
                     </div>
                     
                     <div className="flex flex-col gap-4">

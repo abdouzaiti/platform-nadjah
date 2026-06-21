@@ -28,7 +28,7 @@ interface SidebarProps {
 export default function Sidebar({ profile, activeTab, setActiveTab, isOpen = false, onClose }: SidebarProps) {
   const { t, i18n } = useTranslation();
   const isTeacher = profile.role === "teacher";
-  const isDeveloper = ["developer", "developper"].includes(profile.role?.toString().toLowerCase()) || profile.email?.toLowerCase() === "zaitiabdou27@gmail.com";
+  const isDeveloper = ["developer", "developper", "admin"].includes(profile.role?.toString().toLowerCase()) || profile.email?.toLowerCase() === "zaitiabdou27@gmail.com";
 
   const menuItems = [];
   if (isDeveloper) {

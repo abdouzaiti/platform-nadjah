@@ -1047,7 +1047,7 @@ CREATE TABLE public.room_messages (
 
   return (
     <AnimatePresence mode="wait">
-      {["teacher", "developer"].includes(profile.role?.toString().toLowerCase()) ? (
+      {["teacher", "developer", "admin"].includes(profile.role?.toString().toLowerCase()) ? (
         <TeacherDashboard key="teacher" profile={profile} />
       ) : (
         <StudentDashboard key="student" profile={profile} />
