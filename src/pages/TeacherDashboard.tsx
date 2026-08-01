@@ -109,6 +109,7 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
   const [editingUser, setEditingUser] = React.useState<UserProfile | null>(null);
   const [editFullName, setEditFullName] = React.useState("");
   const [editUsername, setEditUsername] = React.useState("");
+  const [editPassword, setEditPassword] = React.useState("");
   const [editRole, setEditRole] = React.useState<string>("");
   const [isEditModalOpen, setIsEditModalOpen] = React.useState(false);
   const [editLoading, setEditLoading] = React.useState(false);
@@ -117,34 +118,66 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
     setEditingUser(user);
     setEditFullName(user.fullname || "");
     setEditUsername(user.username || "");
+    setEditPassword("");
     setEditRole(user.role || "student");
     setIsEditModalOpen(true);
   };
 
   const handleUpdateUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingUser || !isDeveloper) return;
+    if (!editingUser) {
+      alert("No user selected for editing");
+      return;
+    }
+    
+    if (!isDeveloper) {
+      alert(getLabel("عذراً، يجب أن تكون مطوراً للقيام بهذا الإجراء", "Désolé, vous devez être un développeur pour effectuer cette action", "Sorry, you must be a developer to perform this action"));
+      return;
+    }
     
     setEditLoading(true);
+    console.log("Starting user update for:", editingUser.id);
     try {
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          fullname: editFullName,
-          name: editFullName,
-          username: editUsername.toLowerCase().replace(/[^a-zA-Z0-9_]/g, ''),
-          role: editRole
+      const response = await fetch("/api/admin/update-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: editingUser.id,
+          developerId: profile.id,
+          password: editPassword || undefined,
+          updates: {
+            fullname: editFullName,
+            name: editFullName,
+            username: editUsername.toLowerCase().replace(/[^a-zA-Z0-9_]/g, ''),
+            role: editRole
+          }
         })
-        .eq("id", editingUser.id);
+      });
 
-      if (error) throw error;
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to update user");
+      }
       
+      console.log("Update successful");
+      alert(getLabel("تم تحديث البيانات بنجاح", "Profil mis à jour avec succès", "Profile updated successfully"));
       setIsEditModalOpen(false);
       setEditingUser(null);
       await fetchUsers();
     } catch (err: any) {
       console.error("Update user error:", err);
-      alert(err.message || "Failed to update user");
+      let errorMessage = err.message || "Failed to update user";
+      
+      // Handle Supabase weak password error
+      if (errorMessage.includes("abcdefghijklmnopqrstuvwxyz")) {
+        errorMessage = getLabel(
+          "يجب أن تحتوي كلمة المرور على أحرف كبيرة وصغيرة وأرقام",
+          "Le mot de passe doit contenir des majuscules, des minuscules et des chiffres",
+          "Password must contain uppercase, lowercase letters and numbers"
+        );
+      }
+      
+      alert(errorMessage);
     } finally {
       setEditLoading(false);
     }
@@ -1934,6 +1967,22 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                       <option value="admin">🛡️ Admin</option>
                       <option value="developer">💻 Developer</option>
                     </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-1">
+                      {getLabel("كلمة المرور الجديدة (أحرف كبيرة، صغيرة، وأرقام)", "Nouveau mot de passe (Maj, Min, Chiffres)", "New Password (Upper, Lower, Numbers)")}
+                    </label>
+                    <div className="relative">
+                      <Key className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <input 
+                        type="text"
+                        placeholder={getLabel("يجب أن تكون قوية (A-z, 0-9)", "Doit être robuste (A-z, 0-9)", "Must be strong (A-z, 0-9)")}
+                        value={editPassword}
+                        onChange={(e) => setEditPassword(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-10 pr-4 text-slate-800 text-xs focus:outline-none focus:border-brand-blue transition-all font-medium"
+                      />
+                    </div>
                   </div>
 
                   <div className="flex gap-3 pt-2">
