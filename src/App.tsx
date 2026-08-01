@@ -3,7 +3,7 @@ import { supabase, supabaseConfigured, isProperAnonKey } from "./lib/supabase";
 import { UserProfile, UserRole } from "./types";
 import TeacherDashboard from "./pages/TeacherDashboard";
 import StudentDashboard from "./pages/StudentDashboard";
-import { LogIn, GraduationCap, School, Loader2, Database, Key, CheckCircle2, Mail, ArrowRight, Video, Languages, User, Users, BookOpen, Sparkles, Calculator, Atom, Compass, Brain, Globe, Trophy, Palette, Music, Lightbulb, PenTool, FlaskConical, Ruler, Sigma } from "lucide-react";
+import { LogIn, GraduationCap, School, Loader2, Database, Key, CheckCircle2, Mail, ArrowRight, Video, Languages, User, Users, BookOpen, Sparkles, Calculator, Atom, Compass, Brain, Globe, Trophy, Palette, Music, Lightbulb, PenTool, FlaskConical, Ruler, Sigma, Eye, EyeOff } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useTranslation } from "react-i18next";
 import { cn } from "./lib/utils";
@@ -23,6 +23,7 @@ export default function App() {
   const [username, setUsername] = React.useState("");
   const [chosenRole, setChosenRole] = React.useState<UserRole>("student");
   const [password, setPassword] = React.useState("");
+  const [showPassword, setShowPassword] = React.useState(false);
   const [authLoading, setAuthLoading] = React.useState(false);
 
   const fetchProfile = React.useCallback(async (userId: string, userEmail?: string) => {
@@ -995,13 +996,20 @@ CREATE TABLE public.room_messages (
                 <div className="relative group">
                   <Key className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-blue-600 transition-colors" />
                   <input 
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     placeholder={getAuthLabel("كلمة المرور", "Password / Passcode", "Mot de passe")}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    className="w-full bg-slate-50/60 border border-slate-200/60 rounded-2xl py-4 pl-12 pr-4 text-slate-900 text-sm focus:outline-none focus:border-blue-600 focus:bg-white transition-all font-semibold shadow-inner-sm"
+                    className="w-full bg-slate-50/60 border border-slate-200/60 rounded-2xl py-4 pl-12 pr-12 text-slate-900 text-sm focus:outline-none focus:border-blue-600 focus:bg-white transition-all font-semibold shadow-inner-sm"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 hover:text-blue-600 transition-colors cursor-pointer"
+                  >
+                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </button>
                 </div>
 
                 {/* Remember and links bar */}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import ReactPlayer from "react-player";
 import { UserProfile, ChatMessageData, ClassRoom, TeacherCommunity, LiveSession } from "../types";
-import { Send, Users, Heart, Share2, MoreHorizontal, X, MessageCircle, Play, VideoOff, Save, Check, Maximize2, Minimize2, Eye, EyeOff, RefreshCw, Loader2, LogOut, Megaphone, Radio, Trash2 } from "lucide-react";
+import { Send, Users, Heart, Share2, MoreHorizontal, X, MessageCircle, Play, VideoOff, Save, Check, Maximize2, Minimize2, Eye, EyeOff, RefreshCw, Loader2, LogOut, Megaphone, Radio, Trash2, FileText, Upload, Download, File, FileIcon, Image } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { motion, AnimatePresence } from "motion/react";
 import { formatDate, cn } from "../lib/utils";
@@ -29,6 +29,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
   const [chatMessage, setChatMessage] = useState("");
   const [messages, setMessages] = useState<ChatMessageData[]>([]);
   const [recordings, setRecordings] = useState<any[]>([]);
+  const [roomFiles, setRoomFiles] = useState<ChatMessageData[]>([]);
   const [isEnding, setIsEnding] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -127,6 +128,36 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
 
     if (sidebarActiveTab === "recordings") {
       fetchRecordings();
+    }
+    
+    if (sidebarActiveTab === "files") {
+      const fetchFiles = async () => {
+        const { data, error } = await supabase
+          .from("room_messages")
+          .select("*")
+          .eq("room_id", room.id)
+          .eq("content", "file")
+          .order("created_at", { ascending: false });
+        
+        if (!error && data) {
+          setRoomFiles(data.map(m => {
+             let msgText = m.message;
+             let fileData = { name: "File", url: "", type: "" };
+             try {
+               const parsed = JSON.parse(msgText);
+               fileData = parsed;
+             } catch(e) {}
+             
+             return {
+               ...m,
+               message: fileData.name,
+               fileUrl: fileData.url,
+               fileType: fileData.type
+             };
+          }) as any[]);
+        }
+      };
+      fetchFiles();
     }
   }, [sidebarActiveTab, room.id]);
 
@@ -234,6 +265,23 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
             created_at: payload.new.created_at
           };
           
+          if (msgContent === 'file') {
+            let fileData = { name: "File", url: "", type: "" };
+            try {
+              fileData = JSON.parse(payload.new.message);
+            } catch(e) {}
+            
+            setRoomFiles(prev => {
+              if (prev.some(m => m.id === newMsg.id)) return prev;
+              return [{
+                ...newMsg,
+                message: fileData.name,
+                fileUrl: fileData.url,
+                fileType: fileData.type
+              } as any, ...prev];
+            });
+          }
+
           setMessages(prev => {
             if (prev.some(m => m.id === newMsg.id)) return prev;
             return [...prev, newMsg];
@@ -276,6 +324,13 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
               if (newMsg.content === 'private') {
                 const isRelevant = newMsg.sender_id === profile.id || newMsg.recipient_id === profile.id || isTeacherView;
                 if (!isRelevant) return;
+              }
+
+              if (newMsg.content === 'file') {
+                setRoomFiles(prev => {
+                   if (prev.some(m => m.id === newMsg.id)) return prev;
+                   return [newMsg as any, ...prev];
+                });
               }
 
               setMessages(prev => {
@@ -687,6 +742,81 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
     }
   };
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !isTeacherView) return;
+
+    setIsUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
+      const filePath = `files/${room.id}/${fileName}`;
+
+      const { data, error: uploadError } = await supabase.storage
+        .from('recordings') // Using existing bucket
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage.from('recordings').getPublicUrl(filePath);
+
+      const fileInfo = JSON.stringify({
+        name: file.name,
+        url: publicUrl,
+        type: file.type
+      });
+
+      const { data: msgData, error: msgError } = await supabase
+        .from("room_messages")
+        .insert({
+          room_id: room.id,
+          user_id: profile.id,
+          user_name: profile.fullname,
+          user_avatar: profile.avatar_url,
+          message: fileInfo,
+          content: "file"
+        })
+        .select()
+        .single();
+
+      if (msgError) throw msgError;
+
+      const newFileMsg = {
+        id: msgData.id,
+        room_id: msgData.room_id,
+        message: file.name,
+        fileUrl: publicUrl,
+        fileType: file.type,
+        sender_id: profile.id,
+        sender_name: profile.fullname,
+        created_at: msgData.created_at
+      };
+
+      setRoomFiles(prev => [newFileMsg as any, ...prev]);
+      
+      // Also notify via RTM if possible
+      if (rtmClient) {
+        rtmClient.publish(room.id, JSON.stringify({ 
+          type: "chat", 
+          payload: {
+            ...msgData,
+            message: file.name,
+            content: "file",
+            fileUrl: publicUrl,
+            fileType: file.type
+          } 
+        }));
+      }
+
+    } catch (err: any) {
+      console.error("Upload error:", err);
+      alert("Failed to upload file: " + err.message);
+    } finally {
+      setIsUploading(false);
+      if (e.target) e.target.value = "";
+    }
+  };
+
   const isLive = currentSession?.status === "live";
 
   return (
@@ -1022,6 +1152,66 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                          </div>
                        )}
                     </AnimatePresence>
+                  </div>
+                </div>
+              ) : sidebarActiveTab === "files" ? (
+                <div className="absolute inset-0 bg-white flex flex-col p-6 mt-16 pb-24 shadow-inner overflow-hidden">
+                  <div className="mb-6 flex items-end justify-between">
+                    <div>
+                      <h2 className="text-4xl font-display font-black uppercase italic tracking-tighter text-slate-900 leading-none">{t('files_docs', 'Files & Docs')}</h2>
+                      <div className="h-1.5 w-16 bg-brand-blue rounded-full mt-3"></div>
+                    </div>
+                    {isTeacherView && (
+                      <label className="flex items-center gap-2 px-4 py-2 bg-brand-blue text-white rounded-xl font-black uppercase tracking-widest text-[10px] cursor-pointer shadow-lg shadow-brand-blue/20 hover:scale-[1.02] active:scale-[0.98] transition-all">
+                        {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                        <span>{t('upload_file', 'Upload File')}</span>
+                        <input type="file" className="hidden" onChange={handleFileUpload} disabled={isUploading} />
+                      </label>
+                    )}
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto no-scrollbar pr-2">
+                    <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                      {roomFiles.map((file: any) => (
+                        <div key={file.id} className="bg-slate-50 p-4 rounded-2xl border border-slate-100 group relative">
+                          <div className="flex items-start gap-3">
+                            <div className="p-3 bg-white rounded-xl text-brand-blue shadow-sm">
+                              {file.fileType?.includes('image') ? <Image className="h-5 w-5" /> : <FileText className="h-5 w-5" />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h4 className="text-xs font-black uppercase text-slate-900 truncate mb-1" title={file.message}>{file.message}</h4>
+                              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{formatDate(file.created_at)}</p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex gap-2 mt-4">
+                            <a 
+                              href={file.fileUrl} 
+                              target="_blank" 
+                              rel="noreferrer"
+                              className="flex-1 py-2 bg-white text-slate-900 border border-slate-200 rounded-lg text-[9px] font-black uppercase tracking-widest text-center hover:bg-slate-100 transition-all flex items-center justify-center gap-1"
+                            >
+                              <Download className="h-3 w-3" /> {t('download', 'Download')}
+                            </a>
+                            {isTeacherView && (
+                              <button 
+                                onClick={() => handleDeleteMessage(file.id)}
+                                className="p-2 text-slate-400 hover:text-red-500 transition-colors"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                      
+                      {roomFiles.length === 0 && (
+                        <div className="col-span-full py-20 flex flex-col items-center justify-center text-center space-y-4 opacity-50">
+                          <FileText className="h-12 w-12 text-slate-200" />
+                          <p className="text-xs font-black uppercase tracking-widest text-slate-400 italic">{t('no_files_yet', 'No files shared yet')}</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               ) : sidebarActiveTab === "recordings" ? (

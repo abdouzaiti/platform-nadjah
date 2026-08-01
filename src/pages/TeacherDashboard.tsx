@@ -3,10 +3,10 @@ import { UserProfile, TeacherCommunity, ClassRoom, RoomType, LiveSession } from 
 import Sidebar from "../components/Sidebar";
 import SettingsView from "../components/SettingsView";
 import { supabase, createAdminAuthClient } from "../lib/supabase";
-import { Plus, Video, Trash2, Edit3, Loader2, Play, Users, Menu, X, Database, MessageSquare, Megaphone, FileText, Settings, Hash, Radio, Key, Mail, Phone, LogOut } from "lucide-react";
+import { Plus, Video, Trash2, Edit3, Loader2, Play, Users, Menu, X, Database, MessageSquare, Megaphone, FileText, Settings, Hash, Radio, Key, Mail, Phone, LogOut, RefreshCw } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import StreamPlayer from "../components/StreamPlayer";
-import { cn } from "../lib/utils";
+import { cn, formatDate } from "../lib/utils";
 import { useTranslation } from "react-i18next";
 
 interface TeacherDashboardProps {
@@ -104,6 +104,51 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
   const [regLoading, setRegLoading] = React.useState(false);
   const [regError, setRegError] = React.useState<string | null>(null);
   const [regSuccess, setRegSuccess] = React.useState<string | null>(null);
+
+  // Edit User State
+  const [editingUser, setEditingUser] = React.useState<UserProfile | null>(null);
+  const [editFullName, setEditFullName] = React.useState("");
+  const [editUsername, setEditUsername] = React.useState("");
+  const [editRole, setEditRole] = React.useState<string>("");
+  const [isEditModalOpen, setIsEditModalOpen] = React.useState(false);
+  const [editLoading, setEditLoading] = React.useState(false);
+
+  const handleOpenEditModal = (user: UserProfile) => {
+    setEditingUser(user);
+    setEditFullName(user.fullname || "");
+    setEditUsername(user.username || "");
+    setEditRole(user.role || "student");
+    setIsEditModalOpen(true);
+  };
+
+  const handleUpdateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser || !isDeveloper) return;
+    
+    setEditLoading(true);
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          fullname: editFullName,
+          name: editFullName,
+          username: editUsername.toLowerCase().replace(/[^a-zA-Z0-9_]/g, ''),
+          role: editRole
+        })
+        .eq("id", editingUser.id);
+
+      if (error) throw error;
+      
+      setIsEditModalOpen(false);
+      setEditingUser(null);
+      await fetchUsers();
+    } catch (err: any) {
+      console.error("Update user error:", err);
+      alert(err.message || "Failed to update user");
+    } finally {
+      setEditLoading(false);
+    }
+  };
 
   const handleRegisterUser = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -227,7 +272,7 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
   };
 
   React.useEffect(() => {
-    if (activeTab === "manage-users") {
+    if (activeTab === "manage-users" || activeTab === "all-profiles") {
       fetchUsers();
       fetchRegistrationRequests();
 
@@ -590,6 +635,168 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
               </button>
             </div>
             <SettingsView profile={profile} />
+          </div>
+        ) : activeTab === "all-profiles" && isManager ? (
+          <div className="space-y-6">
+             {/* Mobile Header Bar */}
+             <div className="flex lg:hidden items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 shadow-sm">
+              <button 
+                onClick={() => setIsSidebarOpen(true)}
+                className="p-2 bg-brand-blue/5 rounded-xl text-brand-blue border border-brand-blue/10 active:scale-95 transition-all cursor-pointer"
+              >
+                <Menu className="h-5 w-5" />
+              </button>
+              
+              <span className="font-sans font-black text-xs uppercase tracking-wider text-slate-800">
+                {getLabel("دليل المستخدمين", "Dossiers Utilisateurs", "User Profiles")}
+              </span>
+
+              <button
+                onClick={async () => {
+                  window.dispatchEvent(new Event("dev-logout"));
+                  await supabase.auth.signOut();
+                }}
+                className="p-2 bg-red-50 hover:bg-red-100 rounded-xl text-red-500 border border-red-100 active:scale-95 transition-all cursor-pointer flex items-center justify-center"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm space-y-8">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-2xl font-black font-display uppercase italic tracking-tighter text-slate-900 leading-none">
+                    {getLabel("دليل المستخدمين وكلمات المرور", "Annuaire & Passcodes", "User Directory & Passcodes")}
+                  </h3>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">
+                    {getLabel(
+                      "تحتوي هذه القائمة على جميع الحسابات المسجلة مع كلمات المرور الافتراضية الخاصة بهم.",
+                      "Liste complète des comptes avec leurs mots de passe par défaut.",
+                      "Complete list of all registered accounts with their default passcodes."
+                    )}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                   <div className="px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-[10px] font-black uppercase text-slate-500">
+                      {usersList.length} {getLabel("حساب", "Profils", "Profiles")}
+                   </div>
+                   <button 
+                    onClick={() => fetchUsers()}
+                    className="p-2 bg-brand-blue text-white rounded-xl shadow-lg shadow-blue-500/20 active:scale-95 transition-all"
+                   >
+                     <RefreshCw className="h-4 w-4" />
+                   </button>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto no-scrollbar">
+                <table className="w-full text-left rtl:text-right">
+                  <thead>
+                    <tr className="border-b border-slate-50">
+                      <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-400 px-2">{getLabel("المستخدم", "Utilisateur", "User")}</th>
+                      <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-400 px-2">{getLabel("البريد الإلكتروني", "Email", "Email")}</th>
+                      <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-400 px-2">{getLabel("اسم المستخدم", "Username", "Username")}</th>
+                      <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-400 px-2">{getLabel("الصفة", "Rôle", "Role")}</th>
+                      <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-400 px-2">
+                        <div className="flex items-center gap-1.5">
+                          <Key className="h-3 w-3" />
+                          <span>{getLabel("كلمة السر (افتراضية)", "Pass (Défaut)", "Passcode (Default)")}</span>
+                        </div>
+                      </th>
+                      <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-400 px-2 text-center">{getLabel("إجراءات", "Actions", "Actions")}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {usersList.map((user) => {
+                      const email = user.email || "";
+                      const prefixClean = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '');
+                      const defaultPass = (() => {
+                        if (prefixClean.length >= 3) {
+                          const capitalized = prefixClean.charAt(0).toUpperCase() + prefixClean.slice(1).toLowerCase();
+                          return `${capitalized}2026`;
+                        }
+                        return "Nadjah2026";
+                      })();
+
+                      return (
+                        <tr key={user.id} className="group hover:bg-slate-50/50 transition-all">
+                          <td className="py-4 px-2">
+                            <div className="flex items-center gap-3">
+                              <img 
+                                src={user.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullname || user.username || "")}&background=3b82f6&color=fff`} 
+                                alt="" 
+                                className="h-8 w-8 rounded-full border border-slate-100 shadow-sm shrink-0" 
+                              />
+                              <div className="min-w-0">
+                                <p className="text-xs font-black text-slate-800 truncate uppercase tracking-tight">{user.fullname || "Anonymous"}</p>
+                                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{formatDate(user.created_at)}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-4 px-2">
+                            <span className="text-[10px] font-mono font-bold text-slate-500 lowercase">{user.email}</span>
+                          </td>
+                          <td className="py-4 px-2">
+                            <span className="text-[10px] font-black text-indigo-500 uppercase tracking-tighter">@{user.username}</span>
+                          </td>
+                          <td className="py-4 px-2">
+                            <span className={cn(
+                              "text-[8px] font-black uppercase px-2 py-0.5 rounded-full border",
+                              user.role === 'developer' || user.role === 'developper' ? "bg-indigo-50 border-indigo-100 text-indigo-600" :
+                              user.role === 'admin' ? "bg-purple-50 border-purple-100 text-purple-600" :
+                              user.role === 'teacher' ? "bg-blue-50 border-blue-100 text-blue-600" :
+                              "bg-emerald-50 border-emerald-100 text-emerald-600"
+                            )}>
+                              {user.role}
+                            </span>
+                          </td>
+                          <td className="py-4 px-2">
+                            <div className="flex items-center gap-2">
+                              <code className="bg-slate-100 px-2 py-1 rounded text-[10px] font-black text-slate-700 select-all border border-slate-200">
+                                {defaultPass}
+                              </code>
+                              <button 
+                                onClick={() => {
+                                  navigator.clipboard.writeText(defaultPass);
+                                }}
+                                className="p-1.5 text-slate-400 hover:text-brand-blue transition-colors"
+                                title="Copy Passcode"
+                              >
+                                <Key className="h-3 w-3" />
+                              </button>
+                            </div>
+                          </td>
+                          <td className="py-4 px-2">
+                             <div className="flex items-center justify-center gap-2">
+                               {user.id !== profile.id && (
+                                 <>
+                                   {isDeveloper && (
+                                     <button 
+                                       onClick={() => handleOpenEditModal(user)}
+                                       className="p-2 text-slate-300 hover:text-indigo-500 transition-colors"
+                                       title={getLabel("تعديل", "Modifier", "Edit")}
+                                     >
+                                       <Edit3 className="h-4 w-4" />
+                                     </button>
+                                   )}
+                                   <button 
+                                     onClick={() => handleRejectOrDelete(user.id)}
+                                     className="p-2 text-slate-300 hover:text-red-500 transition-colors"
+                                   >
+                                     <Trash2 className="h-4 w-4" />
+                                   </button>
+                                 </>
+                               )}
+                             </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         ) : (activeTab === "manage-users" && (isManager)) ? (
           <div className="space-y-6">
@@ -1647,6 +1854,110 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
           </div>
         )}
       </main>
+
+      {/* Edit User Modal */}
+      <AnimatePresence>
+        {isEditModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 overflow-hidden">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsEditModalOpen(false)}
+              className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-lg bg-white rounded-[32px] shadow-2xl border border-slate-100 overflow-hidden"
+            >
+              <div className="p-8 space-y-6">
+                <div className="flex items-center justify-between border-b border-slate-50 pb-5">
+                  <div>
+                    <h3 className="text-xl font-black font-display uppercase italic tracking-tighter text-slate-900 leading-none">
+                      {getLabel("تعديل بيانات المستخدم", "Modifier le profil", "Edit User Profile")}
+                    </h3>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">
+                      {editingUser?.email}
+                    </p>
+                  </div>
+                  <button 
+                    onClick={() => setIsEditModalOpen(false)}
+                    className="p-2 bg-slate-50 hover:bg-slate-100 rounded-xl text-slate-400 transition-colors"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+
+                <form onSubmit={handleUpdateUser} className="space-y-5">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-1">
+                      {getLabel("الاسم الكامل", "Nom complet", "Full Name")}
+                    </label>
+                    <input 
+                      type="text"
+                      required
+                      value={editFullName}
+                      onChange={(e) => setEditFullName(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-slate-800 text-xs focus:outline-none focus:border-brand-blue transition-all font-medium"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-1">
+                      {getLabel("اسم المستخدم", "Nom d'utilisateur", "Username")}
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs select-none">@</span>
+                      <input 
+                        type="text"
+                        required
+                        value={editUsername}
+                        onChange={(e) => setEditUsername(e.target.value.toLowerCase().replace(/[^a-zA-Z0-9_]/g, ''))}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-9 pr-4 text-slate-800 text-xs focus:outline-none focus:border-brand-blue transition-all font-medium"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-1">
+                      {getLabel("الصلاحية", "Rôle", "Role")}
+                    </label>
+                    <select 
+                      value={editRole}
+                      onChange={(e) => setEditRole(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-slate-800 text-xs focus:outline-none focus:border-brand-blue transition-all font-bold"
+                    >
+                      <option value="student">🧑‍🎓 Student</option>
+                      <option value="teacher">🧑‍🏫 Teacher</option>
+                      <option value="admin">🛡️ Admin</option>
+                      <option value="developer">💻 Developer</option>
+                    </select>
+                  </div>
+
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsEditModalOpen(false)}
+                      className="flex-1 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-[10px] uppercase tracking-widest rounded-xl transition-all"
+                    >
+                      {getLabel("إلغاء", "Annuler", "Cancel")}
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={editLoading}
+                      className="flex-2 py-3.5 bg-brand-blue hover:bg-blue-600 text-white font-black text-[10px] uppercase tracking-[0.2em] rounded-xl shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      {editLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <span>{getLabel("حفظ التغييرات", "Enregistrer", "Save Changes")}</span>}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

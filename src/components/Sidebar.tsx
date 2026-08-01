@@ -12,7 +12,8 @@ import {
   PlusCircle,
   School,
   Languages,
-  Search
+  Search,
+  Database
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { useTranslation } from "react-i18next";
@@ -33,6 +34,7 @@ export default function Sidebar({ profile, activeTab, setActiveTab, isOpen = fal
   const menuItems = [];
   if (isDeveloper) {
     menuItems.push({ id: "manage-users", icon: Users, label: i18n.language === 'ar' ? 'أعضاء المنصة والطلبات' : (i18n.language === 'fr' ? 'Membres & Approbations' : 'Students & Approvals') });
+    menuItems.push({ id: "all-profiles", icon: Database, label: i18n.language === 'ar' ? 'دليل المستخدمين' : (i18n.language === 'fr' ? 'Dossiers Utilisateurs' : 'User Profiles') });
     menuItems.push({ id: "settings", icon: Settings, label: i18n.language === 'ar' ? 'إعدادات الحساب' : (i18n.language === 'fr' ? 'Paramètres du Compte' : 'Account Settings') });
   } else if (isTeacher) {
     menuItems.push({ id: "rooms", icon: School, label: t('my_community', 'My Community') });

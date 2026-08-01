@@ -1,7 +1,7 @@
 import React from "react";
 import { cn } from "../lib/utils";
 import { motion } from "motion/react";
-import { Megaphone, Users, MessageCircle, Radio, LogOut, X, ChevronLeft, ChevronRight, Menu, Save } from "lucide-react";
+import { Megaphone, Users, MessageCircle, Radio, LogOut, X, ChevronLeft, ChevronRight, Menu, Save, FileText } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 interface RoomSidebarProps {
@@ -61,6 +61,7 @@ export default function RoomSidebar({ isOpen, onToggle, activeTab, setActiveTab,
             { id: "announcements", icon: Megaphone, label: t('announcements', 'Announcements') },
             { id: "group_chat", icon: Users, label: t('group_chat', 'Group Chat') },
             { id: "private_chat", icon: MessageCircle, label: t('private_chat', 'Ask Teacher') },
+            { id: "files", icon: FileText, label: t('files', 'Files & Docs') },
             { id: "recordings", icon: Save, label: t('recordings', 'Recordings') },
             { id: "live", icon: Radio, label: t('live', 'Live') }
           ].map(item => (
@@ -128,6 +129,7 @@ export default function RoomSidebar({ isOpen, onToggle, activeTab, setActiveTab,
           { id: "live", icon: Radio, label: t('live_nav', 'Live') },
           { id: "group_chat", icon: Users, label: t('chat_nav', 'Chat') },
           { id: "private_chat", icon: MessageCircle, label: t('private_chat', 'Ask Teacher') },
+          { id: "files", icon: FileText, label: t('files_nav', 'Files') },
           { id: "announcements", icon: Megaphone, label: t('announcements_nav', 'Announcements') },
           { id: "recordings", icon: Save, label: t('recordings', 'Recordings') }
         ].map((item) => {
