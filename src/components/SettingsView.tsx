@@ -2,7 +2,7 @@ import React from "react";
 import { supabase } from "../lib/supabase";
 import { UserProfile } from "../types";
 import { useTranslation } from "react-i18next";
-import { Key, Lock, Loader2, CheckCircle2, AlertCircle, ShieldAlert } from "lucide-react";
+import { Key, Lock, Loader2, CheckCircle2, AlertCircle, ShieldAlert, LogOut } from "lucide-react";
 import { motion } from "motion/react";
 
 interface SettingsViewProps {
@@ -396,6 +396,20 @@ export default function SettingsView({ profile }: SettingsViewProps) {
             )}
           </button>
         </form>
+
+        <div className="pt-6 border-t border-slate-100">
+          <button
+            type="button"
+            onClick={async () => {
+              window.dispatchEvent(new Event("dev-logout"));
+              await supabase.auth.signOut();
+            }}
+            className="w-full py-3 bg-red-50 hover:bg-red-100 text-red-600 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer border border-red-100"
+          >
+            <LogOut className="h-4 w-4" />
+            <span>{getLabel("تسجيل الخروج من الحساب", "Se déconnecter", "Sign Out of Account")}</span>
+          </button>
+        </div>
       </div>
     </div>
   );

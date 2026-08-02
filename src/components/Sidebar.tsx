@@ -142,7 +142,15 @@ export default function Sidebar({ profile, activeTab, setActiveTab, isOpen = fal
            </div>
         )}
 
-
+        <div className="pt-4 border-t border-slate-100">
+          <button
+            onClick={handleSignOut}
+            className="flex w-full items-center space-x-3 rtl:space-x-reverse rounded-xl px-3 py-2.5 text-xs font-bold text-red-500 hover:bg-red-50 hover:text-red-600 transition-all cursor-pointer"
+          >
+            <LogOut className="h-4 w-4" />
+            <span>{i18n.language === 'ar' ? 'تسجيل الخروج' : (i18n.language === 'fr' ? 'Déconnexion' : 'Sign Out')}</span>
+          </button>
+        </div>
       </div>
     </div>
     </>

@@ -3,7 +3,7 @@ import { UserProfile, TeacherCommunity, ClassRoom, RoomType, LiveSession } from 
 import Sidebar from "../components/Sidebar";
 import SettingsView from "../components/SettingsView";
 import { supabase, createAdminAuthClient } from "../lib/supabase";
-import { Plus, Video, Trash2, Edit3, Loader2, Play, Users, Menu, X, Database, MessageSquare, Megaphone, FileText, Settings, Hash, Radio, Key, Mail, Phone, LogOut, RefreshCw, Eye, EyeOff } from "lucide-react";
+import { Plus, Video, Trash2, Edit3, Loader2, Play, Users, Menu, X, Database, MessageSquare, Megaphone, FileText, Settings, Hash, Radio, Key, Mail, Phone, LogOut, RefreshCw, Eye, EyeOff, UserPlus, UserCheck, CheckCircle2, AlertCircle, Clock, ShieldCheck, UserX } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import StreamPlayer from "../components/StreamPlayer";
 import { cn, formatDate } from "../lib/utils";
@@ -20,6 +20,11 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
     if (i18n.language === 'ar') return ar;
     if (i18n.language === 'fr') return fr;
     return en;
+  };
+
+  const handleSignOut = async () => {
+    window.dispatchEvent(new Event("dev-logout"));
+    await supabase.auth.signOut();
   };
 
   const isDeveloper = ["developer", "developper"].includes(profile.role?.toString().toLowerCase()) || profile.email?.toLowerCase() === "zaitiabdou27@gmail.com";
@@ -424,13 +429,17 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
         .select("*")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      setRegRequests(data || []);
+      // Filter out requests that have already been approved
+      const pendingOnly = (data || []).filter((r: any) => !r.status || r.status === 'PENDING');
+      setRegRequests(pendingOnly);
     } catch (err) {
       console.error("Fetch registration requests error:", err);
     } finally {
       setRegRequestsLoading(false);
     }
   };
+
+  const [realtimeConnected, setRealtimeConnected] = React.useState(false);
 
   React.useEffect(() => {
     if (activeTab === "manage-users" || activeTab === "all-profiles") {
@@ -445,7 +454,13 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
           fetchUsers();
         })
-        .subscribe();
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            setRealtimeConnected(true);
+          } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+            setRealtimeConnected(false);
+          }
+        });
 
       return () => {
         supabase.removeChannel(userChannel);
@@ -781,46 +796,276 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
             <SettingsView profile={profile} />
           </div>
         ) : activeTab === "all-profiles" && isManager ? (
-          <div className="space-y-6">
-            <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm space-y-8">
+          <div className="space-y-8">
+            {/* Top Dashboard Header */}
+            <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm space-y-6">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                  <h3 className="text-2xl font-black font-display uppercase italic tracking-tighter text-slate-900 leading-none">
-                    {getLabel("دليل المستخدمين وكلمات المرور", "Annuaire & Passcodes", "User Directory & Passcodes")}
+                  <h3 className="text-2xl font-black font-display uppercase italic tracking-tighter text-slate-900 leading-none flex items-center gap-3">
+                    <ShieldCheck className="h-7 w-7 text-indigo-600" />
+                    <span>{getLabel("لوحة تحكم المطور والمدير - إدارة الحسابات", "Tableau de Bord Développeur & Gestion", "Developer Dashboard & User Management")}</span>
                   </h3>
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">
                     {getLabel(
-                      "تحتوي هذه القائمة على جميع الحسابات المسجلة مع كلمات المرور الافتراضية الخاصة بهم.",
-                      "Liste complète des comptes avec leurs mots de passe par défaut.",
-                      "Complete list of all registered accounts with their default passcodes."
+                      "إضافة مستخدمين جدد، قبول طلبات التسجيل المعلقة، وإدارة كافة الحسابات وكلمات المرور.",
+                      "Créer de nouveaux utilisateurs, valider les demandes d'inscription et gérer les comptes.",
+                      "Add new users, accept pending registration requests, and manage accounts and passcodes."
                     )}
                   </p>
                 </div>
 
-                <div className="flex items-center gap-3">
-                   <div className="px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-[10px] font-black uppercase text-slate-500">
-                      {usersList.length} {getLabel("حساب", "Profils", "Profiles")}
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                   <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 border border-slate-100 rounded-xl text-[10px] font-black uppercase text-slate-600">
+                      {usersList.length} {getLabel("حساب مسجل", "Profils Enregistrés", "Registered Profiles")}
+                   </div>
+                   {regRequests.length > 0 && (
+                     <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-700 rounded-xl text-[10px] font-black uppercase animate-pulse">
+                        {regRequests.length} {getLabel("طلب معلق", "Demandes En Attente", "Pending Requests")}
+                     </div>
+                   )}
+                   <div className={cn(
+                     "flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-wider transition-all",
+                     realtimeConnected ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-slate-50 border-slate-200 text-slate-500"
+                   )}>
+                     <span className={cn("h-2 w-2 rounded-full", realtimeConnected ? "bg-emerald-500 animate-pulse" : "bg-slate-400")}></span>
+                     <span>{realtimeConnected ? getLabel("مباشر Realtime", "Direct (En direct)", "Realtime Live") : getLabel("جاري الاتصال...", "Connexion...", "Connecting...")}</span>
                    </div>
                    <button 
-                    onClick={() => fetchUsers()}
-                    className="p-2 bg-brand-blue text-white rounded-xl shadow-lg shadow-blue-500/20 active:scale-95 transition-all"
+                    onClick={() => {
+                      fetchUsers();
+                      fetchRegistrationRequests();
+                    }}
+                    className="p-2.5 bg-brand-blue text-white rounded-xl shadow-lg shadow-blue-500/20 active:scale-95 transition-all cursor-pointer"
+                    title={getLabel("تحديث البيانات", "Rafraîchir", "Refresh Data")}
                    >
                      <RefreshCw className="h-4 w-4" />
                    </button>
+                   <button 
+                    onClick={handleSignOut}
+                    className="flex items-center gap-2 px-3.5 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 rounded-xl font-black uppercase tracking-widest text-[10px] transition-all cursor-pointer shadow-sm"
+                   >
+                     <LogOut className="h-4 w-4" />
+                     <span>{getLabel("تسجيل الخروج", "Déconnexion", "Sign Out")}</span>
+                   </button>
                 </div>
+              </div>
+            </div>
+
+            {/* SECTION 1: Pending Registration Requests */}
+            <div className="bg-gradient-to-br from-amber-50/60 to-orange-50/30 p-8 rounded-[32px] border border-amber-200/60 shadow-sm space-y-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-amber-500 text-white rounded-2xl shadow-md">
+                    <Clock className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-black font-display uppercase italic tracking-tight text-slate-900 leading-none">
+                      {getLabel("طلبات التسجيل المعلقة والقبول", "Demandes d'Inscription à Valider", "Pending Registration Requests & Approvals")}
+                    </h4>
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">
+                      {getLabel("راجع واقبل أو ارفض طلبات الانضمام الجديدة للمنصة", "Validez ou refusez les nouvelles demandes de création de compte", "Review and accept or reject new registration requests")}
+                    </p>
+                  </div>
+                </div>
+                <span className="px-3 py-1 bg-amber-100 text-amber-800 text-[10px] font-black rounded-full uppercase tracking-widest border border-amber-200">
+                  {regRequests.length} {getLabel("طلبات", "Demandes", "Requests")}
+                </span>
+              </div>
+
+              {regRequestsLoading ? (
+                <div className="py-8 text-center text-slate-400">
+                  <Loader2 className="h-6 w-6 animate-spin mx-auto text-amber-500" />
+                  <p className="text-xs font-bold uppercase tracking-widest mt-2">{getLabel("جاري تحميل الطلبات...", "Chargement...", "Loading requests...")}</p>
+                </div>
+              ) : regRequests.length === 0 ? (
+                <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-amber-100 text-center space-y-2">
+                  <CheckCircle2 className="h-8 w-8 text-emerald-500 mx-auto" />
+                  <p className="text-xs font-black uppercase text-slate-700 tracking-tight">
+                    {getLabel("لا توجد طلبات تسجيل معلقة حالياً", "Aucune demande d'inscription en attente", "No pending registration requests")}
+                  </p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    {getLabel("جميع طلبات التسجيل تمت معالجتها وقبولها.", "Toutes les demandes ont été traitées.", "All registration requests have been processed.")}
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {regRequests.map((req) => (
+                    <div key={req.id} className="bg-white p-5 rounded-2xl border border-amber-100 shadow-sm space-y-4 hover:shadow-md transition-all flex flex-col justify-between">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <h5 className="text-sm font-black text-slate-900 uppercase tracking-tight truncate">{req.full_name || "New Applicant"}</h5>
+                          <p className="text-[11px] font-mono text-slate-500 lowercase mt-0.5 truncate">{req.email}</p>
+                          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                            {formatDate(req.created_at)}
+                          </p>
+                        </div>
+                        <span className="px-2.5 py-1 bg-indigo-50 border border-indigo-100 text-indigo-700 text-[9px] font-black rounded-full uppercase tracking-widest shrink-0">
+                          {req.role || 'STUDENT'}
+                        </span>
+                      </div>
+
+                      <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 pt-3 border-t border-slate-100">
+                        <button
+                          disabled={actingRegId === req.id}
+                          onClick={() => handleApproveRegistrationRequest(req, 'student')}
+                          className="flex-1 py-2 px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1 shadow-sm transition-all cursor-pointer disabled:opacity-50"
+                        >
+                          {actingRegId === req.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <>
+                              <UserCheck className="h-3.5 w-3.5" />
+                              <span className="truncate">{getLabel("طالب", "Élève", "Student")}</span>
+                            </>
+                          )}
+                        </button>
+                        <button
+                          disabled={actingRegId === req.id}
+                          onClick={() => handleApproveRegistrationRequest(req, 'teacher')}
+                          className="flex-1 py-2 px-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1 shadow-sm transition-all cursor-pointer disabled:opacity-50"
+                        >
+                          {actingRegId === req.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <>
+                              <ShieldCheck className="h-3.5 w-3.5" />
+                              <span className="truncate">{getLabel("أستاذ", "Professeur", "Teacher")}</span>
+                            </>
+                          )}
+                        </button>
+                        <button
+                          disabled={actingRegId === req.id}
+                          onClick={() => handleRejectRegistrationRequest(req.id)}
+                          className="p-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 rounded-xl text-[10px] font-black transition-all cursor-pointer shrink-0"
+                          title={getLabel("رفض الطلب", "Refuser", "Reject Request")}
+                        >
+                          <UserX className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* SECTION 2: Add New Account Form */}
+            <div className="bg-white p-6 sm:p-8 rounded-[32px] border border-slate-100 shadow-sm space-y-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-indigo-600 text-white rounded-2xl shadow-md">
+                  <UserPlus className="h-5 w-5" />
+                </div>
+                <div>
+                  <h4 className="text-lg font-black font-display uppercase italic tracking-tight text-slate-900 leading-none">
+                    {getLabel("إضافة مستخدم جديد تلقائياً", "Créer un Nouveau Compte", "Create New User Account")}
+                  </h4>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                    {getLabel("أدخل بيانات الاسم والبريد وسيتم توليد كلمة مرور افتراضية له وتفعيل حسابه فوراً", "Créez un compte directement avec un mot de passe généré automatiquement", "Add user details to generate password and activate account instantly")}
+                  </p>
+                </div>
+              </div>
+
+              {regSuccess && (
+                <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl text-xs font-bold flex items-center gap-3">
+                  <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+                  <span>{regSuccess}</span>
+                </div>
+              )}
+
+              {regError && (
+                <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-2xl text-xs font-bold flex items-center gap-3">
+                  <AlertCircle className="h-5 w-5 text-red-600 shrink-0" />
+                  <span>{regError}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleRegisterUser} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-600">
+                    {getLabel("الاسم الكامل", "Nom Complet", "Full Name")}
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={regFullName}
+                    onChange={(e) => setRegFullName(e.target.value)}
+                    placeholder={getLabel("مثال: أحمد عبد الله", "Ex: Ahmed Abdallah", "e.g. Ahmed Abdallah")}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-600">
+                    {getLabel("البريد الإلكتروني", "Adresse Email", "Email Address")}
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={regEmail}
+                    onChange={(e) => setRegEmail(e.target.value)}
+                    placeholder="user@example.com"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-600">
+                    {getLabel("صفة الحساب", "Rôle du Compte", "Account Role")}
+                  </label>
+                  <select
+                    value={regRole}
+                    onChange={(e) => setRegRole(e.target.value as "student" | "teacher")}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer"
+                  >
+                    <option value="student">{getLabel("طالب (Student)", "Élève (Student)", "Student")}</option>
+                    <option value="teacher">{getLabel("أستاذ (Teacher)", "Enseignant (Teacher)", "Teacher")}</option>
+                  </select>
+                </div>
+
+                <div>
+                  <button
+                    type="submit"
+                    disabled={regLoading}
+                    className="w-full py-3 px-6 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/20 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    {regLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <>
+                        <UserPlus className="h-4 w-4" />
+                        <span>{getLabel("إضافة الحساب الآن", "Ajouter le Compte", "Add User Account")}</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            {/* SECTION 3: User Directory & Passcodes Table */}
+            <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm space-y-6">
+              <div>
+                <h4 className="text-lg font-black font-display uppercase italic tracking-tight text-slate-900 leading-none">
+                  {getLabel("دليل جميع المستخدمين وكلمات المرور", "Annuaire des Utilisateurs", "All Registered Users & Passcodes")}
+                </h4>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                  {getLabel(
+                    "تحتوي هذه القائمة على جميع الحسابات المسجلة مع كلمات المرور الافتراضية الخاصة بهم.",
+                    "Liste complète des comptes avec leurs mots de passe par défaut.",
+                    "Complete list of all registered accounts with their default passcodes."
+                  )}
+                </p>
               </div>
 
               <div className="overflow-x-auto no-scrollbar">
                 <table className="w-full text-left rtl:text-right">
                   <thead>
-                    <tr className="border-b border-slate-50">
+                    <tr className="border-b border-slate-100">
                       <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-400 px-2">{getLabel("المستخدم", "Utilisateur", "User")}</th>
                       <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-400 px-2">{getLabel("البريد الإلكتروني", "Email", "Email")}</th>
                       <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-400 px-2">{getLabel("اسم المستخدم", "Username", "Username")}</th>
                       <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-400 px-2">{getLabel("الصفة", "Rôle", "Role")}</th>
                       <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-400 px-2">
                         <div className="flex items-center gap-1.5">
-                          <Key className="h-3 w-3" />
+                          <Key className="h-3 w-3 text-indigo-500" />
                           <span>{getLabel("كلمة السر (افتراضية)", "Pass (Défaut)", "Passcode (Default)")}</span>
                         </div>
                       </th>
@@ -859,7 +1104,7 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                           </td>
                           <td className="py-4 px-2">
                             <span className={cn(
-                              "text-[8px] font-black uppercase px-2 py-0.5 rounded-full border",
+                              "text-[8px] font-black uppercase px-2.5 py-1 rounded-full border",
                               user.role === 'developer' || user.role === 'developper' ? "bg-indigo-50 border-indigo-100 text-indigo-600" :
                               user.role === 'admin' ? "bg-purple-50 border-purple-100 text-purple-600" :
                               user.role === 'teacher' ? "bg-blue-50 border-blue-100 text-blue-600" :
@@ -870,17 +1115,17 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                           </td>
                           <td className="py-4 px-2">
                             <div className="flex items-center gap-2">
-                              <code className="bg-slate-100 px-2 py-1 rounded text-[10px] font-black text-slate-700 select-all border border-slate-200">
+                              <code className="bg-slate-100 px-2.5 py-1 rounded-lg text-[10px] font-black text-slate-700 select-all border border-slate-200">
                                 {displayPass}
                               </code>
                               <button 
                                 onClick={() => {
                                   navigator.clipboard.writeText(displayPass);
                                 }}
-                                className="p-1.5 text-slate-400 hover:text-brand-blue transition-colors"
+                                className="p-1.5 text-slate-400 hover:text-brand-blue transition-colors cursor-pointer"
                                 title="Copy Passcode"
                               >
-                                <Key className="h-3 w-3" />
+                                <Key className="h-3.5 w-3.5" />
                               </button>
                             </div>
                           </td>
@@ -891,7 +1136,7 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                                    {isDeveloper && (
                                      <button 
                                        onClick={() => handleOpenEditModal(user)}
-                                       className="p-2 text-slate-300 hover:text-indigo-500 transition-colors"
+                                       className="p-2 text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer"
                                        title={getLabel("تعديل", "Modifier", "Edit")}
                                      >
                                        <Edit3 className="h-4 w-4" />
@@ -899,7 +1144,8 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                                    )}
                                    <button 
                                      onClick={() => handleRejectOrDelete(user.id)}
-                                     className="p-2 text-slate-300 hover:text-red-500 transition-colors"
+                                     className="p-2 text-slate-400 hover:text-red-600 transition-colors cursor-pointer"
+                                     title={getLabel("حذف الحساب", "Supprimer", "Delete Account")}
                                    >
                                      <Trash2 className="h-4 w-4" />
                                    </button>
@@ -993,17 +1239,24 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                       <p className="text-slate-400 font-bold tracking-widest text-[8px] sm:text-[10px] uppercase">@{community.community_username} • {rooms.length} {t('rooms', 'Rooms')}</p>
                   </div>
                 </div>
-            {!isAdmin && (
               <div className="flex items-center gap-3">
+                {!isAdmin && (
+                  <button 
+                    onClick={() => setActiveTab("create-room")}
+                    className="flex items-center gap-2 bg-brand-blue text-white px-6 py-3 rounded-xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-blue-500/10 hover:bg-blue-600 transition-all"
+                  >
+                    <Plus className="h-4 w-4" />
+                    {t('add_room', 'Add Room')}
+                  </button>
+                )}
                 <button 
-                  onClick={() => setActiveTab("create-room")}
-                  className="flex items-center gap-2 bg-brand-blue text-white px-6 py-3 rounded-xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-blue-500/10 hover:bg-blue-600 transition-all"
+                  onClick={handleSignOut}
+                  className="flex items-center gap-2 px-4 py-3 bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 rounded-xl font-black uppercase tracking-widest text-[10px] transition-all cursor-pointer shadow-sm"
                 >
-                  <Plus className="h-4 w-4" />
-                  {t('add_room', 'Add Room')}
+                  <LogOut className="h-4 w-4" />
+                  <span>{getLabel("تسجيل الخروج", "Déconnexion", "Sign Out")}</span>
                 </button>
               </div>
-            )}
             {isAdmin && (
               <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 border border-amber-100 rounded-xl text-amber-600 font-bold text-[10px] uppercase tracking-widest shadow-sm">
                 <Key className="h-3.5 w-3.5" />
