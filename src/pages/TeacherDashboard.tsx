@@ -211,7 +211,7 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
 
       // Fallback if API route is not available (e.g. static hosting on Vercel)
       if (!apiSuccess) {
-        const profileUpdates: any = {
+        let profileUpdates: Record<string, any> = {
           fullname: editFullName,
           name: editFullName,
           username: editUsername.toLowerCase(),
@@ -222,22 +222,43 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
           profileUpdates.password = editPassword;
         }
 
-        let { error: directError } = await supabase
-          .from("profiles")
-          .update(profileUpdates)
-          .eq("id", editingUser.id);
-
-        // If the 'password' column is missing from the database schema
-        if (directError && directError.message?.includes("password")) {
-          delete profileUpdates.password;
-          const { error: retryError } = await supabase
+        let updateErr: any = null;
+        for (let attempt = 0; attempt < 5; attempt++) {
+          const { error } = await supabase
             .from("profiles")
             .update(profileUpdates)
             .eq("id", editingUser.id);
-          
-          if (retryError) throw retryError;
-        } else if (directError) {
-          throw directError;
+
+          if (!error) {
+            updateErr = null;
+            break;
+          }
+
+          updateErr = error;
+          const msg = error.message || "";
+          const match = msg.match(/Could not find the '([^']+)' column/i) || 
+                        msg.match(/column "([^"]+)"/i) ||
+                        msg.match(/column ([^\s]+) does not exist/i);
+
+          if (match && match[1] && profileUpdates[match[1]] !== undefined) {
+            delete profileUpdates[match[1]];
+            continue;
+          }
+
+          if (msg.includes("password") && profileUpdates.password) {
+            delete profileUpdates.password;
+            continue;
+          }
+          if (msg.includes("updated_at") && profileUpdates.updated_at) {
+            delete profileUpdates.updated_at;
+            continue;
+          }
+
+          break;
+        }
+
+        if (updateErr) {
+          throw updateErr;
         }
       }
 
