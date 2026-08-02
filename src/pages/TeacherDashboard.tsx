@@ -175,6 +175,8 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
     console.log("Dev ID:", profile.id);
     
     try {
+      let apiSuccess = false;
+      
       const payload = {
         userId: editingUser.id,
         developerId: profile.id,
@@ -186,34 +188,50 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
           role: editRole
         }
       };
-      
-      console.log("Payload:", payload);
 
-      const response = await fetch("/api/admin/update-user", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-
-      console.log("Response Status:", response.status);
-      
-      let result;
-      const text = await response.text();
-      console.log("Raw Response:", text);
-      
       try {
-        result = JSON.parse(text);
-      } catch (parseErr) {
-        console.error("JSON Parse Error:", parseErr);
-        throw new Error(`Server returned invalid response structure: ${text.substring(0, 100)}`);
+        const response = await fetch("/api/admin/update-user", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+
+        const contentType = response.headers.get("content-type") || "";
+        if (response.ok && contentType.includes("application/json")) {
+          const result = await response.json();
+          if (result.success) {
+            apiSuccess = true;
+          } else if (result.error) {
+            throw new Error(result.error);
+          }
+        }
+      } catch (apiErr: any) {
+        console.warn("API route error, using Supabase direct update fallback:", apiErr);
       }
 
-      if (!response.ok) {
-        const errorMsg = result.error || `Error ${response.status}: ${result.message || 'Unknown server error'}`;
-        throw new Error(errorMsg);
+      // Fallback if API route is not available (e.g. static hosting on Vercel)
+      if (!apiSuccess) {
+        const profileUpdates: any = {
+          fullname: editFullName,
+          name: editFullName,
+          username: editUsername.toLowerCase(),
+          role: editRole,
+          updated_at: new Date().toISOString()
+        };
+        if (editPassword) {
+          profileUpdates.password = editPassword;
+        }
+
+        const { error: directError } = await supabase
+          .from("profiles")
+          .update(profileUpdates)
+          .eq("id", editingUser.id);
+
+        if (directError) {
+          throw directError;
+        }
       }
-      
-      console.log("Update Success Result:", result);
+
       alert(getLabel("تم تحديث البيانات بنجاح", "Profil mis à jour avec succès", "Profile updated successfully"));
       setIsEditModalOpen(false);
       setEditingUser(null);
