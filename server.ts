@@ -128,6 +128,199 @@ app.post("/api/admin/update-user", async (req, res) => {
   }
 });
 
+app.post("/api/admin/create-user", async (req, res) => {
+  console.log("--- Admin Create User Request ---");
+  const { email, fullname, role, developerId, customPassword } = req.body;
+
+  if (!email || !fullname || !developerId) {
+    return res.status(400).json({ error: "Missing required fields: email, fullname, or developerId" });
+  }
+
+  try {
+    const admin = getSupabaseAdmin();
+
+    const { data: devProfile } = await admin
+      .from("profiles")
+      .select("role, email")
+      .eq("id", developerId)
+      .maybeSingle();
+
+    let authEmail = devProfile?.email;
+    if (!authEmail) {
+      const { data: devAuth } = await admin.auth.admin.getUserById(developerId);
+      authEmail = devAuth?.user?.email;
+    }
+
+    const r = devProfile?.role?.toLowerCase();
+    const isDev = r === "developer" || r === "developper" || r === "admin" || 
+                  authEmail?.toLowerCase() === "zaitiabdou27@gmail.com";
+
+    if (!isDev) {
+      return res.status(403).json({ error: "Unauthorized. Developer or Admin permissions required." });
+    }
+
+    const rawInput = email.trim();
+    const cleanEmail = rawInput.includes("@") ? rawInput : `${rawInput.toLowerCase()}@ecolenadjah.local`;
+    const usernameToSet = rawInput.split("@")[0].toLowerCase().replace(/[^a-zA-Z0-9_]/g, "");
+
+    const prefixClean = cleanEmail.split("@")[0].replace(/[^a-zA-Z0-9]/g, "");
+    let base = "User";
+    if (prefixClean.length >= 3) {
+      const lettersOnly = prefixClean.replace(/[^a-zA-Z]/g, "");
+      if (lettersOnly.length >= 3) base = lettersOnly;
+    }
+    const capitalized = base.charAt(0).toUpperCase() + base.slice(1).toLowerCase();
+    const finalPassword = customPassword || `${capitalized}2026`;
+
+    let userId: string;
+    const { data: { users } } = await admin.auth.admin.listUsers();
+    const existingAuthUser = users.find((u: any) => u.email?.toLowerCase() === cleanEmail.toLowerCase());
+
+    if (existingAuthUser) {
+      userId = existingAuthUser.id;
+      const { error: updateErr } = await admin.auth.admin.updateUserById(userId, {
+        password: finalPassword,
+        email_confirm: true,
+        user_metadata: { fullname: fullname.trim(), password: finalPassword }
+      });
+      if (updateErr) throw updateErr;
+    } else {
+      const { data: createData, error: createErr } = await admin.auth.admin.createUser({
+        email: cleanEmail,
+        password: finalPassword,
+        email_confirm: true,
+        user_metadata: { fullname: fullname.trim(), password: finalPassword }
+      });
+      if (createErr) throw createErr;
+      userId = createData.user.id;
+    }
+
+    const targetRole = (role || "student").toLowerCase();
+    const { error: profileErr } = await admin
+      .from("profiles")
+      .upsert({
+        id: userId,
+        email: cleanEmail,
+        fullname: fullname.trim(),
+        name: fullname.trim(),
+        username: usernameToSet,
+        role: targetRole,
+        password: finalPassword,
+        role_requested: null,
+        updated_at: new Date().toISOString()
+      });
+
+    if (profileErr) console.error("Profile upsert error:", profileErr);
+
+    return res.json({ success: true, password: finalPassword, userId, email: cleanEmail });
+  } catch (err: any) {
+    console.error("Create user API error:", err);
+    return res.status(500).json({ error: err.message || "Failed to create user" });
+  }
+});
+
+app.post("/api/admin/approve-user", async (req, res) => {
+  console.log("--- Admin Approve User Request ---");
+  const { requestId, targetRole, developerId } = req.body;
+
+  if (!requestId || !developerId) {
+    return res.status(400).json({ error: "Missing required fields: requestId or developerId" });
+  }
+
+  try {
+    const admin = getSupabaseAdmin();
+
+    const { data: devProfile } = await admin
+      .from("profiles")
+      .select("role, email")
+      .eq("id", developerId)
+      .maybeSingle();
+
+    let authEmail = devProfile?.email;
+    if (!authEmail) {
+      const { data: devAuth } = await admin.auth.admin.getUserById(developerId);
+      authEmail = devAuth?.user?.email;
+    }
+
+    const r = devProfile?.role?.toLowerCase();
+    const isDev = r === "developer" || r === "developper" || r === "admin" || 
+                  authEmail?.toLowerCase() === "zaitiabdou27@gmail.com";
+
+    if (!isDev) {
+      return res.status(403).json({ error: "Unauthorized. Developer or Admin permissions required." });
+    }
+
+    const { data: reqData, error: reqErr } = await admin
+      .from("registration_requests")
+      .select("*")
+      .eq("id", requestId)
+      .maybeSingle();
+
+    if (reqErr || !reqData) {
+      return res.status(404).json({ error: "Registration request not found" });
+    }
+
+    const emailToSignUp = reqData.email.trim();
+    const fullNameToSignUp = reqData.full_name.trim();
+    const cleanEmail = emailToSignUp.includes("@") ? emailToSignUp : `${emailToSignUp.toLowerCase()}@ecolenadjah.local`;
+    const usernameToSet = emailToSignUp.split("@")[0].toLowerCase().replace(/[^a-zA-Z0-9_]/g, "");
+
+    const prefixClean = cleanEmail.split("@")[0].replace(/[^a-zA-Z0-9]/g, "");
+    let base = "User";
+    if (prefixClean.length >= 3) {
+      const lettersOnly = prefixClean.replace(/[^a-zA-Z]/g, "");
+      if (lettersOnly.length >= 3) base = lettersOnly;
+    }
+    const capitalized = base.charAt(0).toUpperCase() + base.slice(1).toLowerCase();
+    const finalPassword = reqData.password || `${capitalized}2026`;
+
+    let userId: string;
+    const { data: { users } } = await admin.auth.admin.listUsers();
+    const existingAuthUser = users.find((u: any) => u.email?.toLowerCase() === cleanEmail.toLowerCase());
+
+    if (existingAuthUser) {
+      userId = existingAuthUser.id;
+      await admin.auth.admin.updateUserById(userId, {
+        password: finalPassword,
+        email_confirm: true,
+        user_metadata: { fullname: fullNameToSignUp, password: finalPassword }
+      });
+    } else {
+      const { data: createData, error: createErr } = await admin.auth.admin.createUser({
+        email: cleanEmail,
+        password: finalPassword,
+        email_confirm: true,
+        user_metadata: { fullname: fullNameToSignUp, password: finalPassword }
+      });
+      if (createErr) throw createErr;
+      userId = createData.user.id;
+    }
+
+    const chosenRole = (targetRole || reqData.role || "student").toLowerCase();
+    await admin.from("profiles").upsert({
+      id: userId,
+      email: cleanEmail,
+      fullname: fullNameToSignUp,
+      name: fullNameToSignUp,
+      username: usernameToSet,
+      role: chosenRole,
+      password: finalPassword,
+      role_requested: null,
+      updated_at: new Date().toISOString()
+    });
+
+    await admin
+      .from("registration_requests")
+      .update({ status: "APPROVED" })
+      .eq("id", requestId);
+
+    return res.json({ success: true, password: finalPassword, userId, fullName: fullNameToSignUp });
+  } catch (err: any) {
+    console.error("Approve user API error:", err);
+    return res.status(500).json({ error: err.message || "Failed to approve request" });
+  }
+});
+
 app.get("/api/admin/list-users", async (req, res) => {
   const { developerId } = req.query;
 

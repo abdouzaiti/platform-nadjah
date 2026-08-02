@@ -314,76 +314,96 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
     }
 
     try {
-      // 1. Initialize isolated auth client
-      const adminAuth = createAdminAuthClient();
-      
-      // Generate standard, easy-to-remember password satisfying the security policy (uppercase, lowercase, number)
-      const prefixClean = emailToSignUp.split('@')[0].replace(/[^a-zA-Z0-9]/g, '');
-      const dynamicPass = (() => {
-        let base = "User";
-        if (prefixClean.length >= 3) {
-          // Extract only letters for the base to ensure we have letters to capitalize
-          const lettersOnly = prefixClean.replace(/[^a-zA-Z]/g, '');
-          if (lettersOnly.length >= 3) {
-            base = lettersOnly;
-          }
-        }
-        const capitalized = base.charAt(0).toUpperCase() + base.slice(1).toLowerCase();
-        return `${capitalized}2026`; // e.g., "Abdou2026", "User2026"
-      })();
-      
-      // 2. Register the user with compliant password
-      const { data: signUpData, error: signUpError } = await adminAuth.auth.signUp({
-        email: emailToSignUp,
-        password: dynamicPass,
-        options: {
-          data: {
+      let createdPasscode = "";
+      let apiSuccess = false;
+
+      // 1. Try server-side API for robust user creation & password confirmation
+      try {
+        const response = await fetch("/api/admin/create-user", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: emailToSignUp,
             fullname: fullNameToSignUp,
-            password: dynamicPass,
-            full_name: fullNameToSignUp,
-          }
-        }
-      });
-
-      if (signUpError) throw signUpError;
-
-      if (signUpData.user) {
-        const newUserId = signUpData.user.id;
-        
-        const usernameToSet = emailToSignUp.split('@')[0].toLowerCase().replace(/[^a-zA-Z0-9_]/g, '');
-
-        // 3. Immediately activate / update their role to the selected role
-        // Instead of GUEST, they directly become Student or Teacher!
-        const { error: profileError } = await supabase
-          .from("profiles")
-          .update({
-            fullname: fullNameToSignUp,
-            password: dynamicPass,
-            name: fullNameToSignUp,
-            username: usernameToSet,
-            role: regRole, // directly 'student' or 'teacher'
-            role_requested: null
+            role: regRole,
+            developerId: profile.id
           })
-          .eq("id", newUserId);
+        });
 
-        if (profileError) {
-          console.error("Profile role activation error:", profileError);
+        if (response.ok) {
+          const resData = await response.json();
+          if (resData.success) {
+            apiSuccess = true;
+            createdPasscode = resData.password;
+          } else if (resData.error) {
+            throw new Error(resData.error);
+          }
         }
-
-        setRegSuccess(
-          i18n.language === 'ar'
-            ? `تم تسجيل الحساب (${fullNameToSignUp}) بنجاح! كلمة السر الافتراضية للولوج هي: ${dynamicPass} (يمكن للطالب تغييرها من الإعدادات)`
-            : `Success! Account (${fullNameToSignUp}) registered. The login passcode is set to: ${dynamicPass} (the student can customize it in Account Settings anytime).`
-        );
-
-        // Reset form fields
-        setRegFullName("");
-        setRegEmail("");
-        setRegRole("student");
-        
-        // Refresh users list
-        await fetchUsers();
+      } catch (apiErr) {
+        console.warn("Server API create-user fallback to client adminAuth:", apiErr);
       }
+
+      // 2. Client fallback if server API route unavailable
+      if (!apiSuccess) {
+        const adminAuth = createAdminAuthClient();
+        const prefixClean = emailToSignUp.split('@')[0].replace(/[^a-zA-Z0-9]/g, '');
+        const dynamicPass = (() => {
+          let base = "User";
+          if (prefixClean.length >= 3) {
+            const lettersOnly = prefixClean.replace(/[^a-zA-Z]/g, '');
+            if (lettersOnly.length >= 3) base = lettersOnly;
+          }
+          const capitalized = base.charAt(0).toUpperCase() + base.slice(1).toLowerCase();
+          return `${capitalized}2026`;
+        })();
+        createdPasscode = dynamicPass;
+
+        const cleanEmail = emailToSignUp.includes('@') ? emailToSignUp : `${emailToSignUp.toLowerCase()}@ecolenadjah.local`;
+
+        const { data: signUpData, error: signUpError } = await adminAuth.auth.signUp({
+          email: cleanEmail,
+          password: dynamicPass,
+          options: {
+            data: {
+              fullname: fullNameToSignUp,
+              password: dynamicPass,
+            }
+          }
+        });
+
+        if (signUpError) throw signUpError;
+
+        if (signUpData.user) {
+          const newUserId = signUpData.user.id;
+          const usernameToSet = emailToSignUp.split('@')[0].toLowerCase().replace(/[^a-zA-Z0-9_]/g, '');
+
+          await supabase
+            .from("profiles")
+            .update({
+              fullname: fullNameToSignUp,
+              password: dynamicPass,
+              name: fullNameToSignUp,
+              username: usernameToSet,
+              role: regRole,
+              role_requested: null
+            })
+            .eq("id", newUserId);
+        }
+      }
+
+      setRegSuccess(
+        i18n.language === 'ar'
+          ? `تم تسجيل الحساب (${fullNameToSignUp}) بنجاح! كلمة السر الافتراضية للولوج هي: ${createdPasscode} (يمكن للطالب تغييرها من الإعدادات)`
+          : `Success! Account (${fullNameToSignUp}) registered. The login passcode is set to: ${createdPasscode} (the student can customize it in Account Settings anytime).`
+      );
+
+      // Reset form fields
+      setRegFullName("");
+      setRegEmail("");
+      setRegRole("student");
+      
+      // Refresh users list
+      await fetchUsers();
     } catch (err: any) {
       console.error("Register student error:", err);
       // Clean display of signup error
@@ -475,99 +495,114 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
       const fullNameToSignUp = request.full_name.trim();
       const targetRole = (finalRole || request.role || 'STUDENT').toLowerCase() as 'student' | 'teacher';
 
-      // 1. Initialize admin auth client
-      const adminAuth = createAdminAuthClient();
-      
-      // Generate standard passcode satisfying password policy
-      const prefixClean = emailToSignUp.split('@')[0].replace(/[^a-zA-Z0-9]/g, '');
-      const dynamicPass = (() => {
-        let base = "User";
-        if (prefixClean.length >= 3) {
-          const lettersOnly = prefixClean.replace(/[^a-zA-Z]/g, '');
-          if (lettersOnly.length >= 3) {
-            base = lettersOnly;
-          }
-        }
-        const capitalized = base.charAt(0).toUpperCase() + base.slice(1).toLowerCase();
-        return `${capitalized}2026`;
-      })();
+      let approvedPasscode = "";
+      let apiSuccess = false;
 
-      // 2. See if profile already exists in public.profiles
-      const { data: searchProfile } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("email", emailToSignUp)
-        .maybeSingle();
-
-      let targetUserId: string | null = null;
-
-      if (searchProfile?.id) {
-        targetUserId = searchProfile.id;
-        const usernameToSet = emailToSignUp.split('@')[0].toLowerCase().replace(/[^a-zA-Z0-9_]/g, '');
-        const { error: profileError } = await supabase
-          .from("profiles")
-          .update({
-            fullname: fullNameToSignUp,
-            password: dynamicPass,
-            name: fullNameToSignUp,
-            username: usernameToSet,
-            role: targetRole,
-            role_requested: null
+      // 1. Try server-side API for robust user creation & password confirmation
+      try {
+        const response = await fetch("/api/admin/approve-user", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            requestId: request.id,
+            targetRole: targetRole,
+            developerId: profile.id
           })
-          .eq("id", targetUserId);
-
-        if (profileError) throw profileError;
-      } else {
-        // Create userauth and update role
-        const { data: signUpData, error: signUpError } = await adminAuth.auth.signUp({
-          email: emailToSignUp,
-          password: dynamicPass,
-          options: {
-            data: {
-              fullname: fullNameToSignUp,
-            password: dynamicPass,
-              full_name: fullNameToSignUp,
-            }
-          }
         });
 
-        if (signUpError) throw signUpError;
+        if (response.ok) {
+          const resData = await response.json();
+          if (resData.success) {
+            apiSuccess = true;
+            approvedPasscode = resData.password;
+          } else if (resData.error) {
+            throw new Error(resData.error);
+          }
+        }
+      } catch (apiErr) {
+        console.warn("Server API approve-user fallback to client adminAuth:", apiErr);
+      }
 
-        if (signUpData.user) {
-          targetUserId = signUpData.user.id;
+      // 2. Client fallback
+      if (!apiSuccess) {
+        const adminAuth = createAdminAuthClient();
+        const prefixClean = emailToSignUp.split('@')[0].replace(/[^a-zA-Z0-9]/g, '');
+        const dynamicPass = (() => {
+          let base = "User";
+          if (prefixClean.length >= 3) {
+            const lettersOnly = prefixClean.replace(/[^a-zA-Z]/g, '');
+            if (lettersOnly.length >= 3) base = lettersOnly;
+          }
+          const capitalized = base.charAt(0).toUpperCase() + base.slice(1).toLowerCase();
+          return `${capitalized}2026`;
+        })();
+        approvedPasscode = dynamicPass;
+
+        const cleanEmail = emailToSignUp.includes('@') ? emailToSignUp : `${emailToSignUp.toLowerCase()}@ecolenadjah.local`;
+
+        const { data: searchProfile } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("email", cleanEmail)
+          .maybeSingle();
+
+        let targetUserId: string | null = null;
+
+        if (searchProfile?.id) {
+          targetUserId = searchProfile.id;
           const usernameToSet = emailToSignUp.split('@')[0].toLowerCase().replace(/[^a-zA-Z0-9_]/g, '');
-          const { error: profileError } = await supabase
+          await supabase
             .from("profiles")
             .update({
               fullname: fullNameToSignUp,
-            password: dynamicPass,
+              password: dynamicPass,
               name: fullNameToSignUp,
               username: usernameToSet,
               role: targetRole,
               role_requested: null
             })
             .eq("id", targetUserId);
+        } else {
+          const { data: signUpData, error: signUpError } = await adminAuth.auth.signUp({
+            email: cleanEmail,
+            password: dynamicPass,
+            options: {
+              data: {
+                fullname: fullNameToSignUp,
+                password: dynamicPass,
+              }
+            }
+          });
 
-          if (profileError) {
-            console.error("Profile role activation error in auto-approve:", profileError);
+          if (signUpError) throw signUpError;
+
+          if (signUpData.user) {
+            targetUserId = signUpData.user.id;
+            const usernameToSet = emailToSignUp.split('@')[0].toLowerCase().replace(/[^a-zA-Z0-9_]/g, '');
+            await supabase
+              .from("profiles")
+              .update({
+                fullname: fullNameToSignUp,
+                password: dynamicPass,
+                name: fullNameToSignUp,
+                username: usernameToSet,
+                role: targetRole,
+                role_requested: null
+              })
+              .eq("id", targetUserId);
           }
         }
-      }
 
-      // 3. Mark approved or remove from temporary registration table
-      const { error: updateReqError } = await supabase
-        .from("registration_requests")
-        .update({ status: 'APPROVED' })
-        .eq("id", request.id);
-
-      if (updateReqError) {
-        console.error("Error updating request status:", updateReqError);
+        await supabase
+          .from("registration_requests")
+          .update({ status: 'APPROVED' })
+          .eq("id", request.id);
       }
 
       alert(
         i18n.language === 'ar'
-          ? `تم تفعيل حساب (${fullNameToSignUp}) بنجاح كـ ${targetRole === 'teacher' ? 'أستاذ' : 'طالب'}! كلمة المرور: ${dynamicPass}`
-          : `Success! Created account for (${fullNameToSignUp}) as ${targetRole}. Passcode: ${dynamicPass}`
+          ? `تم تفعيل حساب (${fullNameToSignUp}) بنجاح كـ ${targetRole === 'teacher' ? 'أستاذ' : 'طالب'}! كلمة المرور: ${approvedPasscode}`
+          : `Success! Created account for (${fullNameToSignUp}) as ${targetRole}. Passcode: ${approvedPasscode}`
       );
 
       await fetchUsers();

@@ -210,29 +210,43 @@ export default function App() {
     try {
       if (authMode === "signin") {
         if (!email || !password) return;
-        let loginEmail = email.trim();
+        const rawInput = email.trim();
         
-        // Try to see if this corresponds to a USERNAME in profiles to allow "username login"
+        // Query profile by username, email, or fullname
         const { data: profileObj } = await supabase
           .from("profiles")
-          .select("email")
-          .eq("username", loginEmail.toLowerCase())
+          .select("email, username")
+          .or(`username.ilike.${rawInput},email.ilike.${rawInput},fullname.ilike.${rawInput}`)
           .maybeSingle();
-            
-        if (profileObj?.email) {
-          loginEmail = profileObj.email;
-        } else if (!loginEmail.includes("@")) {
-          // If no profile found and no "@", treat it as a virtual email (free instant accounts)
-          loginEmail = `${loginEmail.toLowerCase()}@ecolenadjah.local`;
-        }
+
+        const emailsToTry: string[] = [];
+        if (profileObj?.email) emailsToTry.push(profileObj.email);
         
-        const { error } = await supabase.auth.signInWithPassword({
-          email: loginEmail,
-          password,
-        });
-        if (error) {
-          // If the profile holds a different email pattern we didn't search properly, bypass if it fails
-          throw error;
+        if (rawInput.includes("@")) {
+          if (!emailsToTry.includes(rawInput)) emailsToTry.push(rawInput);
+        } else {
+          const virtualEmail = `${rawInput.toLowerCase()}@ecolenadjah.local`;
+          if (!emailsToTry.includes(virtualEmail)) emailsToTry.push(virtualEmail);
+        }
+
+        let authenticated = false;
+        let lastError: any = null;
+
+        for (const loginEmail of emailsToTry) {
+          const { error } = await supabase.auth.signInWithPassword({
+            email: loginEmail,
+            password: password,
+          });
+          if (!error) {
+            authenticated = true;
+            break;
+          } else {
+            lastError = error;
+          }
+        }
+
+        if (!authenticated && lastError) {
+          throw lastError;
         }
       } else {
         // Sign Up Mode
