@@ -222,12 +222,21 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
           profileUpdates.password = editPassword;
         }
 
-        const { error: directError } = await supabase
+        let { error: directError } = await supabase
           .from("profiles")
           .update(profileUpdates)
           .eq("id", editingUser.id);
 
-        if (directError) {
+        // If the 'password' column is missing from the database schema
+        if (directError && directError.message?.includes("password")) {
+          delete profileUpdates.password;
+          const { error: retryError } = await supabase
+            .from("profiles")
+            .update(profileUpdates)
+            .eq("id", editingUser.id);
+          
+          if (retryError) throw retryError;
+        } else if (directError) {
           throw directError;
         }
       }
