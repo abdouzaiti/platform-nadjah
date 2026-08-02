@@ -33,7 +33,6 @@ export default function Sidebar({ profile, activeTab, setActiveTab, isOpen = fal
 
   const menuItems = [];
   if (isDeveloper) {
-    menuItems.push({ id: "manage-users", icon: Users, label: i18n.language === 'ar' ? 'أعضاء المنصة والطلبات' : (i18n.language === 'fr' ? 'Membres & Approbations' : 'Students & Approvals') });
     menuItems.push({ id: "all-profiles", icon: Database, label: i18n.language === 'ar' ? 'دليل المستخدمين' : (i18n.language === 'fr' ? 'Dossiers Utilisateurs' : 'User Profiles') });
     menuItems.push({ id: "settings", icon: Settings, label: i18n.language === 'ar' ? 'إعدادات الحساب' : (i18n.language === 'fr' ? 'Paramètres du Compte' : 'Account Settings') });
   } else if (isTeacher) {
@@ -72,12 +71,6 @@ export default function Sidebar({ profile, activeTab, setActiveTab, isOpen = fal
       )}>
         <div className="flex h-20 items-center justify-between px-6 border-b border-slate-100">
           <div className="flex items-center space-x-3 rtl:space-x-reverse">
-            <div className="flex h-10 w-10 items-center justify-center">
-              <img src="/logo.png" alt="Logo" className="h-full w-full object-contain" />
-            </div>
-            <span className="text-xl font-black tracking-tighter uppercase text-slate-900">
-              {i18n.language === 'ar' ? t('app_name').split(' ')[0] : 'Nadjah'} <span className="text-brand-blue">{i18n.language === 'ar' ? t('app_name').split(' ')[1] : 'Live'}</span>
-            </span>
           </div>
           {/* Close button for mobile */}
           <button 
@@ -150,33 +143,6 @@ export default function Sidebar({ profile, activeTab, setActiveTab, isOpen = fal
         )}
 
 
-      </div>
-
-      <div className="border-t border-slate-100 p-4 space-y-4">
-        <div className="flex items-center space-x-3 rtl:space-x-reverse px-2 py-2">
-            <img src={profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.fullname)}&background=3b82f6&color=fff`} alt="" className="h-10 w-10 rounded-full border-2 border-white shadow-md" />
-            <div className="flex-1 overflow-hidden">
-                <p className="truncate text-xs font-black text-slate-900 uppercase tracking-tight">{profile.fullname}</p>
-                <div className="flex items-center gap-1.5 rtl:space-x-reverse">
-                  <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
-                  <p className="text-[9px] font-black text-brand-blue uppercase tracking-widest">
-                    {profile.role === 'developer' || profile.role === 'developper'
-                      ? (i18n.language === 'ar' ? 'المطور' : (i18n.language === 'fr' ? 'Développeur' : 'Developer'))
-                      : profile.role === 'teacher'
-                        ? (i18n.language === 'ar' ? 'أستاذ' : (i18n.language === 'fr' ? 'Professeur' : 'Professor'))
-                        : (profile.role === 'admin' ? 'Admin' : (i18n.language === 'ar' ? 'طالب' : (i18n.language === 'fr' ? 'Élève' : 'Student')))}
-                  </p>
-                </div>
-            </div>
-        </div>
-
-        <button
-          onClick={handleSignOut}
-          className="flex w-full items-center space-x-3 rtl:space-x-reverse rounded-lg px-3 py-2 text-xs font-bold text-slate-400 transition-all hover:bg-red-50 hover:text-red-600"
-        >
-          <LogOut className="h-4 w-4" />
-          <span>{t('sign_out')}</span>
-        </button>
       </div>
     </div>
     </>

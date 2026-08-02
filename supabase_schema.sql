@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   avatar_url text,
   role text CHECK (role IN ('admin', 'teacher', 'student', 'ADMIN', 'TEACHER', 'STUDENT', 'GUEST', 'developer', 'DEVELOPER', 'developper', 'DEVELOPPER')) NOT NULL DEFAULT 'GUEST',
   role_requested text,
+  password text,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now()
 );

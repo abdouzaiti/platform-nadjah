@@ -557,19 +557,8 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
                         style={{ borderLeftWidth: i18n.language === 'ar' ? '1px' : '4px', borderLeftColor: i18n.language === 'ar' ? undefined : '#f43f5e', borderRightWidth: i18n.language === 'ar' ? '4px' : '1px', borderRightColor: i18n.language === 'ar' ? '#f43f5e' : undefined }}
                       >
                         <div className="flex flex-col gap-1 items-start text-left rtl:text-right">
-                          <div className="inline-flex items-center gap-1 bg-red-50 border border-red-100 px-2.5 py-0.5 rounded-full text-[9px] font-extrabold text-red-500 tracking-wider">
-                            LIVE <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                          </div>
                           <h4 className="text-base font-extrabold text-slate-800 leading-tight mt-1">{room.room_name}</h4>
                           <p className="text-[10px] font-bold text-slate-400">{t('today_at_18')}</p>
-                        </div>
-
-                        <div className="relative">
-                          <img 
-                            src={room.teacherProfile?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(room.community.community_name)}&background=3b82f6&color=fff`} 
-                            alt="Teacher" 
-                            className="h-14 w-14 rounded-full border-2 border-white shadow-md object-cover" 
-                          />
                         </div>
                       </motion.div>
                     ))}
@@ -581,19 +570,8 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
                         style={{ borderLeftWidth: i18n.language === 'ar' ? '1px' : '4px', borderLeftColor: i18n.language === 'ar' ? undefined : '#f43f5e', borderRightWidth: i18n.language === 'ar' ? '4px' : '1px', borderRightColor: i18n.language === 'ar' ? '#f43f5e' : undefined }}
                       >
                         <div className="flex flex-col gap-1 items-start text-left rtl:text-right">
-                          <div className="inline-flex items-center gap-1 bg-red-50 border border-red-100 px-2.5 py-0.5 rounded-full text-[9px] font-extrabold text-red-500 tracking-wider">
-                            LIVE <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                          </div>
                           <h4 className="text-base font-extrabold text-slate-800 leading-tight mt-1">{t('math_demo')}</h4>
                           <p className="text-[10px] font-bold text-slate-400">{t('today_at_18')}</p>
-                        </div>
-
-                        <div className="relative">
-                          <img 
-                            src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80" 
-                            alt="Teacher" 
-                            className="h-14 w-14 rounded-full border-2 border-white shadow-md object-cover" 
-                          />
                         </div>
                       </motion.div>
                     )}

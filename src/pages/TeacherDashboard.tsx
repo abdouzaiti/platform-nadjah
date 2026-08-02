@@ -3,7 +3,7 @@ import { UserProfile, TeacherCommunity, ClassRoom, RoomType, LiveSession } from 
 import Sidebar from "../components/Sidebar";
 import SettingsView from "../components/SettingsView";
 import { supabase, createAdminAuthClient } from "../lib/supabase";
-import { Plus, Video, Trash2, Edit3, Loader2, Play, Users, Menu, X, Database, MessageSquare, Megaphone, FileText, Settings, Hash, Radio, Key, Mail, Phone, LogOut, RefreshCw } from "lucide-react";
+import { Plus, Video, Trash2, Edit3, Loader2, Play, Users, Menu, X, Database, MessageSquare, Megaphone, FileText, Settings, Hash, Radio, Key, Mail, Phone, LogOut, RefreshCw, Eye, EyeOff } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import StreamPlayer from "../components/StreamPlayer";
 import { cn, formatDate } from "../lib/utils";
@@ -25,7 +25,7 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
   const isDeveloper = ["developer", "developper"].includes(profile.role?.toString().toLowerCase()) || profile.email?.toLowerCase() === "zaitiabdou27@gmail.com";
   const isAdmin = profile.role?.toString().toLowerCase() === "admin";
   const isManager = isDeveloper || isAdmin;
-  const [activeTab, setActiveTab] = React.useState(isManager ? "manage-users" : "rooms");
+  const [activeTab, setActiveTab] = React.useState(isManager ? "all-profiles" : "rooms");
   const [community, setCommunity] = React.useState<TeacherCommunity | null>(null);
   const [rooms, setRooms] = React.useState<ClassRoom[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -110,15 +110,18 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
   const [editFullName, setEditFullName] = React.useState("");
   const [editUsername, setEditUsername] = React.useState("");
   const [editPassword, setEditPassword] = React.useState("");
+  const [confirmEditPassword, setConfirmEditPassword] = React.useState("");
   const [editRole, setEditRole] = React.useState<string>("");
   const [isEditModalOpen, setIsEditModalOpen] = React.useState(false);
   const [editLoading, setEditLoading] = React.useState(false);
+  const [showEditPassword, setShowEditPassword] = React.useState(false);
 
   const handleOpenEditModal = (user: UserProfile) => {
     setEditingUser(user);
     setEditFullName(user.fullname || "");
     setEditUsername(user.username || "");
     setEditPassword("");
+    setConfirmEditPassword("");
     setEditRole(user.role || "student");
     setIsEditModalOpen(true);
   };
@@ -129,47 +132,104 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
       alert("No user selected for editing");
       return;
     }
-    
-    if (!isDeveloper) {
-      alert(getLabel("عذراً، يجب أن تكون مطوراً للقيام بهذا الإجراء", "Désolé, vous devez être un développeur pour effectuer cette action", "Sorry, you must be a developer to perform this action"));
+
+    if (!profile || !profile.id) {
+      alert("Current profile not loaded. Please wait.");
       return;
     }
     
+    if (!isManager) {
+      alert(getLabel("عذراً، يجب أن تكون مطوراً للقيام بهذا الإجراء", "Désolé, vous devez être un développeur pour effectuer cette action", "Sorry, you must be a developer to perform this action"));
+      return;
+    }
+
+    if (!editFullName.trim()) {
+      alert("Full name is required");
+      return;
+    }
+
+    if (!editUsername.trim()) {
+      alert("Username is required");
+      return;
+    }
+    
+    if (editPassword) {
+      if (editPassword.length < 6) {
+        alert(getLabel(
+          "يجب أن تتكون كلمة المرور من 6 أحرف على الأقل.",
+          "Le mot de passe doit contenir au moins 6 caractères.",
+          "Password must be at least 6 characters long."
+        ));
+        return;
+      }
+
+      if (editPassword !== confirmEditPassword) {
+        alert(getLabel("كلمات المرور غير متطابقة", "Les mots de passe ne correspondent pas", "Passwords do not match"));
+        return;
+      }
+    }
+    
     setEditLoading(true);
-    console.log("Starting user update for:", editingUser.id);
+    console.log("--- Frontend Update Start ---");
+    console.log("Target User ID:", editingUser.id);
+    console.log("Dev ID:", profile.id);
+    
     try {
+      const payload = {
+        userId: editingUser.id,
+        developerId: profile.id,
+        password: editPassword || undefined,
+        updates: {
+          fullname: editFullName,
+          name: editFullName,
+          username: editUsername.toLowerCase(),
+          role: editRole
+        }
+      };
+      
+      console.log("Payload:", payload);
+
       const response = await fetch("/api/admin/update-user", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: editingUser.id,
-          developerId: profile.id,
-          password: editPassword || undefined,
-          updates: {
-            fullname: editFullName,
-            name: editFullName,
-            username: editUsername.toLowerCase().replace(/[^a-zA-Z0-9_]/g, ''),
-            role: editRole
-          }
-        })
+        body: JSON.stringify(payload)
       });
 
-      const result = await response.json();
+      console.log("Response Status:", response.status);
+      
+      let result;
+      const text = await response.text();
+      console.log("Raw Response:", text);
+      
+      try {
+        result = JSON.parse(text);
+      } catch (parseErr) {
+        console.error("JSON Parse Error:", parseErr);
+        throw new Error(`Server returned invalid response structure: ${text.substring(0, 100)}`);
+      }
+
       if (!response.ok) {
-        throw new Error(result.error || "Failed to update user");
+        const errorMsg = result.error || `Error ${response.status}: ${result.message || 'Unknown server error'}`;
+        throw new Error(errorMsg);
       }
       
-      console.log("Update successful");
+      console.log("Update Success Result:", result);
       alert(getLabel("تم تحديث البيانات بنجاح", "Profil mis à jour avec succès", "Profile updated successfully"));
       setIsEditModalOpen(false);
       setEditingUser(null);
+      setEditPassword("");
+      setConfirmEditPassword("");
       await fetchUsers();
     } catch (err: any) {
-      console.error("Update user error:", err);
+      console.error("Critical Update Error:", err);
       let errorMessage = err.message || "Failed to update user";
       
-      // Handle Supabase weak password error
-      if (errorMessage.includes("abcdefghijklmnopqrstuvwxyz")) {
+      // Handle Supabase weak password error variants
+      const lowerErr = errorMessage.toLowerCase();
+      if (lowerErr.includes("abcdefghijklmnopqrstuvwxyz") || 
+          lowerErr.includes("weak_password") || 
+          lowerErr.includes("at least one character") ||
+          lowerErr.includes("should contain")) {
         errorMessage = getLabel(
           "يجب أن تحتوي كلمة المرور على أحرف كبيرة وصغيرة وأرقام",
           "Le mot de passe doit contenir des majuscules, des minuscules et des chiffres",
@@ -180,6 +240,7 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
       alert(errorMessage);
     } finally {
       setEditLoading(false);
+      console.log("--- Frontend Update End ---");
     }
   };
 
@@ -206,11 +267,16 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
       // Generate standard, easy-to-remember password satisfying the security policy (uppercase, lowercase, number)
       const prefixClean = emailToSignUp.split('@')[0].replace(/[^a-zA-Z0-9]/g, '');
       const dynamicPass = (() => {
+        let base = "User";
         if (prefixClean.length >= 3) {
-          const capitalized = prefixClean.charAt(0).toUpperCase() + prefixClean.slice(1).toLowerCase();
-          return `${capitalized}2026`; // e.g., "Abdou2026"
+          // Extract only letters for the base to ensure we have letters to capitalize
+          const lettersOnly = prefixClean.replace(/[^a-zA-Z]/g, '');
+          if (lettersOnly.length >= 3) {
+            base = lettersOnly;
+          }
         }
-        return "Nadjah2026";
+        const capitalized = base.charAt(0).toUpperCase() + base.slice(1).toLowerCase();
+        return `${capitalized}2026`; // e.g., "Abdou2026", "User2026"
       })();
       
       // 2. Register the user with compliant password
@@ -220,6 +286,7 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
         options: {
           data: {
             fullname: fullNameToSignUp,
+            password: dynamicPass,
             full_name: fullNameToSignUp,
           }
         }
@@ -238,6 +305,7 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
           .from("profiles")
           .update({
             fullname: fullNameToSignUp,
+            password: dynamicPass,
             name: fullNameToSignUp,
             username: usernameToSet,
             role: regRole, // directly 'student' or 'teacher'
@@ -275,12 +343,24 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
   const fetchUsers = async () => {
     setUsersLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      setUsersList((data || []) as UserProfile[]);
+      // Use the admin list-users API to get passwords from metadata
+      const response = await fetch(`/api/admin/list-users?developerId=${profile.id}&t=${Date.now()}`, {
+        cache: 'no-store'
+      });
+      if (!response.ok) {
+        // Fallback to direct supabase fetch if API fails or unauthorized
+        console.warn("API fetch failed, falling back to direct supabase fetch");
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("*")
+          .order("created_at", { ascending: false });
+        if (error) throw error;
+        setUsersList((data || []) as UserProfile[]);
+        return;
+      }
+      
+      const data = await response.json();
+      setUsersList(data as UserProfile[]);
     } catch (err) {
       console.error("Fetch users error:", err);
     } finally {
@@ -338,11 +418,15 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
       // Generate standard passcode satisfying password policy
       const prefixClean = emailToSignUp.split('@')[0].replace(/[^a-zA-Z0-9]/g, '');
       const dynamicPass = (() => {
+        let base = "User";
         if (prefixClean.length >= 3) {
-          const capitalized = prefixClean.charAt(0).toUpperCase() + prefixClean.slice(1).toLowerCase();
-          return `${capitalized}2026`;
+          const lettersOnly = prefixClean.replace(/[^a-zA-Z]/g, '');
+          if (lettersOnly.length >= 3) {
+            base = lettersOnly;
+          }
         }
-        return "Nadjah2026";
+        const capitalized = base.charAt(0).toUpperCase() + base.slice(1).toLowerCase();
+        return `${capitalized}2026`;
       })();
 
       // 2. See if profile already exists in public.profiles
@@ -361,6 +445,7 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
           .from("profiles")
           .update({
             fullname: fullNameToSignUp,
+            password: dynamicPass,
             name: fullNameToSignUp,
             username: usernameToSet,
             role: targetRole,
@@ -377,6 +462,7 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
           options: {
             data: {
               fullname: fullNameToSignUp,
+            password: dynamicPass,
               full_name: fullNameToSignUp,
             }
           }
@@ -391,6 +477,7 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
             .from("profiles")
             .update({
               fullname: fullNameToSignUp,
+            password: dynamicPass,
               name: fullNameToSignUp,
               username: usernameToSet,
               role: targetRole,
@@ -643,58 +730,10 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
       <main className="flex-1 overflow-y-auto p-4 md:p-8 no-scrollbar bg-slate-50/50">
         {activeTab === "settings" ? (
           <div className="space-y-6">
-            {/* Mobile Header Bar */}
-            <div className="flex lg:hidden items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 shadow-sm">
-              <button 
-                onClick={() => setIsSidebarOpen(true)}
-                className="p-2 bg-brand-blue/5 rounded-xl text-brand-blue border border-brand-blue/10 active:scale-95 transition-all cursor-pointer"
-              >
-                <Menu className="h-5 w-5" />
-              </button>
-              
-              <span className="font-sans font-black text-xs uppercase tracking-wider text-slate-800">
-                {getLabel("إعدادات الحساب", "Paramètres du Compte", "Account Settings")}
-              </span>
-
-              <button
-                onClick={async () => {
-                  window.dispatchEvent(new Event("dev-logout"));
-                  await supabase.auth.signOut();
-                }}
-                className="p-2 bg-red-50 hover:bg-red-100 rounded-xl text-red-500 border border-red-100 active:scale-95 transition-all cursor-pointer flex items-center justify-center"
-                title={getLabel("تسجيل الخروج", "Déconnexion", "Sign Out")}
-              >
-                <LogOut className="h-4 w-4" />
-              </button>
-            </div>
             <SettingsView profile={profile} />
           </div>
         ) : activeTab === "all-profiles" && isManager ? (
           <div className="space-y-6">
-             {/* Mobile Header Bar */}
-             <div className="flex lg:hidden items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 shadow-sm">
-              <button 
-                onClick={() => setIsSidebarOpen(true)}
-                className="p-2 bg-brand-blue/5 rounded-xl text-brand-blue border border-brand-blue/10 active:scale-95 transition-all cursor-pointer"
-              >
-                <Menu className="h-5 w-5" />
-              </button>
-              
-              <span className="font-sans font-black text-xs uppercase tracking-wider text-slate-800">
-                {getLabel("دليل المستخدمين", "Dossiers Utilisateurs", "User Profiles")}
-              </span>
-
-              <button
-                onClick={async () => {
-                  window.dispatchEvent(new Event("dev-logout"));
-                  await supabase.auth.signOut();
-                }}
-                className="p-2 bg-red-50 hover:bg-red-100 rounded-xl text-red-500 border border-red-100 active:scale-95 transition-all cursor-pointer flex items-center justify-center"
-              >
-                <LogOut className="h-4 w-4" />
-              </button>
-            </div>
-
             <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm space-y-8">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
@@ -752,15 +791,12 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                         return "Nadjah2026";
                       })();
 
+                      const displayPass = user.password || defaultPass;
+
                       return (
                         <tr key={user.id} className="group hover:bg-slate-50/50 transition-all">
                           <td className="py-4 px-2">
                             <div className="flex items-center gap-3">
-                              <img 
-                                src={user.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullname || user.username || "")}&background=3b82f6&color=fff`} 
-                                alt="" 
-                                className="h-8 w-8 rounded-full border border-slate-100 shadow-sm shrink-0" 
-                              />
                               <div className="min-w-0">
                                 <p className="text-xs font-black text-slate-800 truncate uppercase tracking-tight">{user.fullname || "Anonymous"}</p>
                                 <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{formatDate(user.created_at)}</p>
@@ -787,11 +823,11 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                           <td className="py-4 px-2">
                             <div className="flex items-center gap-2">
                               <code className="bg-slate-100 px-2 py-1 rounded text-[10px] font-black text-slate-700 select-all border border-slate-200">
-                                {defaultPass}
+                                {displayPass}
                               </code>
                               <button 
                                 onClick={() => {
-                                  navigator.clipboard.writeText(defaultPass);
+                                  navigator.clipboard.writeText(displayPass);
                                 }}
                                 className="p-1.5 text-slate-400 hover:text-brand-blue transition-colors"
                                 title="Copy Passcode"
@@ -831,490 +867,6 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
               </div>
             </div>
           </div>
-        ) : (activeTab === "manage-users" && (isManager)) ? (
-          <div className="space-y-6">
-            {/* Mobile Header Bar */}
-            <div className="flex lg:hidden items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 shadow-sm">
-              <button 
-                onClick={() => setIsSidebarOpen(true)}
-                className="p-2 bg-brand-blue/5 rounded-xl text-brand-blue border border-brand-blue/10 active:scale-95 transition-all cursor-pointer"
-              >
-                <Menu className="h-5 w-5" />
-              </button>
-              
-              <span className="font-sans font-black text-xs uppercase tracking-wider text-slate-800">
-                {getLabel(
-                  isAdmin ? "لوحة المدير" : "مركز التحكم للمطور",
-                  isAdmin ? "Console Administrateur" : "Console Développeur",
-                  isAdmin ? "Admin Console" : "Developer Console"
-                )}
-              </span>
-
-              <button
-                onClick={async () => {
-                  window.dispatchEvent(new Event("dev-logout"));
-                  await supabase.auth.signOut();
-                }}
-                className="p-2 bg-red-50 hover:bg-red-100 rounded-xl text-red-500 border border-red-100 active:scale-95 transition-all cursor-pointer flex items-center justify-center"
-                title={getLabel("تسجيل الخروج", "Déconnexion", "Sign Out")}
-              >
-                <LogOut className="h-4 w-4" />
-              </button>
-            </div>
-
-            {/* Intro Card */}
-            <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className={cn(
-                    "text-white text-[8px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full shadow-md",
-                    isAdmin ? "bg-amber-500 shadow-amber-500/10" : "bg-indigo-500 shadow-indigo-500/10"
-                  )}>
-                    {isAdmin ? "🛡️ Admin Console" : "💻 Developer Console"}
-                  </span>
-                </div>
-                <h3 className="text-xl font-black font-display uppercase tracking-tight text-slate-900 mt-1">
-                  {getLabel(
-                    isAdmin ? "لوحة المدير" : "لوحة المطور: التحكم والقبول",
-                    isAdmin ? "Console Administrateur" : "Console Développeur: Contrôle & Approbations",
-                    isAdmin ? "Admin Console" : "Ultimate Developer Console"
-                  )}
-                </h3>
-                <p className="text-xs text-slate-400 font-medium">
-                  {getLabel(
-                    isAdmin 
-                      ? "بصفتك المسير، يمكنك متابعة قائمة الطلاب والأساتذة والطلبات الواردة (للعرض فقط)."
-                      : "بصفتك المطور الرئيسي للمنصة، لك الصلاحية الكاملة لتسجيل الطلاب والأساتذة وإدارتهم مباشرة.",
-                    isAdmin
-                      ? "En tant que gérant, vous pouvez consulter la liste des étudiants, enseignants et demandes (lecture seule)."
-                      : "En tant que développeur principal de la plateforme, vous disposez des privilèges absolus pour inscrire et autoriser les étudiants et enseignants.",
-                    isAdmin
-                      ? "As a manager, you can monitor the list of students, teachers, and incoming requests (read-only)."
-                      : "As the lead platform developer, you hold absolute master privileges to register and authorize both students and teachers."
-                  )}
-                </p>
-              </div>
-              
-              {community && isDeveloper && (
-                <div className="bg-brand-blue/5 border border-brand-blue/10 p-4 rounded-2xl flex items-center gap-3 shrink-0">
-                  <Key className="h-5 w-5 text-brand-blue" />
-                  <div>
-                    <p className="text-[10px] font-black uppercase text-brand-blue">
-                      {getLabel(
-                        "مفتاح التسجيل لطلابك",
-                        "ID d'inscription étudiant",
-                        "Your Community ID"
-                      )}
-                    </p>
-                    <p className="text-xs font-mono font-black text-slate-700">
-                      @{community.community_username}
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Fast-Track Academic Registration Widget */}
-            {isDeveloper && (
-              <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm space-y-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-indigo-500/10 text-indigo-500 rounded-xl">
-                    <Plus className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-black text-slate-800 uppercase tracking-wide">
-                      {getLabel(
-                        "تسجيل طالب أو أستاذ جديد تلقائياً",
-                        "Enregistrement rapide d'utilisateur",
-                        "Fast-Track User Registration"
-                      )}
-                    </h4>
-                    <p className="text-[10px] font-semibold text-slate-400">
-                      {getLabel(
-                        "سجل العضو ببريده الإلكتروني مباشرة وستكون كلمة المرور هي بادئة بريده الإلكتروني بحرف كبير مع كلمة 2026 لتستوفي المعايير الأمنية.",
-                        "Créez le profil d'un membre avec son e-mail. Le mot de passe initial sera le début de l'e-mail avec une majuscule suivi de 2026.",
-                        "Register a user with their email. The initial passcode will be generated with a capitalized prefix and '2026' to meet security rules."
-                      )}
-                    </p>
-                  </div>
-                </div>
-
-                {regError && (
-                  <div className="bg-red-50 text-red-600 border border-red-100 rounded-xl p-3 text-xs font-semibold flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
-                    <span>{regError}</span>
-                  </div>
-                )}
-
-                {regSuccess && (
-                  <div className="bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-xl p-3 text-xs font-semibold flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                    <span>{regSuccess}</span>
-                  </div>
-                )}
-
-                <form onSubmit={handleRegisterUser} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                  <div className="space-y-1.5 text-left rtl:text-right md:col-span-1">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-1">
-                      {getLabel("الاسم الكامل للعضو", "Nom complet du membre", "Full Name")}
-                    </label>
-                    <input 
-                      type="text"
-                      required
-                      placeholder={getLabel("مثل: محمد علي", "Ex: Jean Dupont", "e.g. Jean Dupont")}
-                      value={regFullName}
-                      onChange={(e) => setRegFullName(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-slate-800 text-xs focus:outline-none focus:border-brand-blue transition-all font-medium"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5 text-left rtl:text-right md:col-span-1">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-1">
-                      {getLabel("البريد الإلكتروني", "Adresse e-mail", "Email Address")}
-                    </label>
-                    <input 
-                      type="email"
-                      required
-                      placeholder="student@example.com"
-                      value={regEmail}
-                      onChange={(e) => setRegEmail(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-slate-800 text-xs focus:outline-none focus:border-brand-blue transition-all font-medium"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5 text-left rtl:text-right md:col-span-1">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-1">
-                      {getLabel("الصفة / الحساب", "Rôle / Fonction", "Role / Position")}
-                    </label>
-                    <select 
-                      value={regRole}
-                      onChange={(e) => setRegRole(e.target.value as any)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-slate-800 text-xs focus:outline-none focus:border-brand-blue transition-all font-bold"
-                    >
-                      <option value="student">{getLabel("🧑‍🎓 طالب (Student)", "🧑‍🎓 Étudiant", "Student")}</option>
-                      <option value="teacher">{getLabel("🧑‍🏫 أستاذ (Teacher)", "🧑‍🏫 Enseignant", "Teacher")}</option>
-                    </select>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={regLoading}
-                    className="w-full py-3 bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 text-white font-black text-[10px] uppercase tracking-[0.1em] rounded-xl shadow-lg shadow-indigo-500/15 flex items-center justify-center gap-2 cursor-pointer h-10"
-                  >
-                    {regLoading ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <span>{getLabel("تسجيل وتفعيل العضو", "Créer et activer le membre", "Create Account")}</span>
-                    )}
-                  </button>
-                </form>
-              </div>
-            )}
-
-            {usersLoading ? (
-              <div className="flex justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-brand-blue" />
-              </div>
-            ) : (
-              <div className="grid gap-6 grid-cols-1">
-                {/* Statistics Box */}
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="p-4 bg-white rounded-2xl border border-slate-100 shadow-sm">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">
-                      {getLabel("قيد الانتظار", "En attente d'approbation", "Pending Approval")}
-                    </p>
-                    <p className="text-xl font-black text-amber-500">
-                      {usersList.filter(u => u.role?.toLowerCase() === 'guest').length}
-                    </p>
-                  </div>
-                  <div className="p-4 bg-white rounded-2xl border border-slate-100 shadow-sm">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">
-                      {getLabel("الطلاب النشطين", "Étudiants actifs", "Active Students")}
-                    </p>
-                    <p className="text-xl font-black text-emerald-500">
-                      {usersList.filter(u => u.role?.toLowerCase() === 'student').length}
-                    </p>
-                  </div>
-                  <div className="p-4 bg-white rounded-2xl border border-slate-100 shadow-sm">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">
-                      {getLabel("الأساتذة والمدراء", "Corps enseignant", "Active Faculty")}
-                    </p>
-                    <p className="text-xl font-black text-blue-500">
-                      {usersList.filter(u => ['teacher', 'admin', 'developer', 'developper'].includes(u.role?.toLowerCase())).length}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Left/Right layout for pending and active */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Pending Request Queue */}
-                  <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm space-y-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-50 pb-3 gap-2">
-                      <div className="space-y-0.5">
-                        <h4 className="text-xs font-black uppercase tracking-widest text-slate-400">
-                          {getLabel("مركز طلبات الانتساب والتسجيل", "Centre d'admissions & Inscriptions", "Admissions & Inscriptions Queue")}
-                        </h4>
-                        <p className="text-[10px] text-slate-400 font-medium font-sans">
-                          {getLabel(
-                            "إدارة جميع طلبات التسجيل من استمارات الموقع الخارجي وحسابات المنصة.",
-                            "Gerez les demandes d'inscription issues des formulaires et des comptes.",
-                            "Manage admissions from enrollment forms and app accounts."
-                          )}
-                        </p>
-                      </div>
-                      <span className="shrink-0 px-2.5 py-1 bg-amber-500/10 text-amber-600 rounded-full text-[10px] font-black uppercase self-start sm:self-center font-mono">
-                        {(regRequests.filter(r => r.status?.toUpperCase() === 'PENDING' || !r.status).length + usersList.filter(u => u.role?.toLowerCase() === 'guest').length)} {getLabel("طلب جديد", "Demandes", "Pending Total")}
-                      </span>
-                    </div>
-
-                    {/* Sub-tab selection pill buttons */}
-                    <div className="flex bg-slate-50 p-1.5 rounded-xl border border-slate-100/50 gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => setPendingSubTab("forms")}
-                        className={cn(
-                          "flex-1 text-center py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer",
-                          pendingSubTab === "forms"
-                            ? "bg-white text-indigo-600 shadow-sm border border-slate-100 font-extrabold"
-                            : "text-slate-400 hover:text-slate-600 font-medium"
-                        )}
-                      >
-                        📬 {getLabel("رسائل التسجيل (موقع)", "Formulaires du site web", "Form registrations")}
-                        <span className={cn(
-                          "px-1.5 py-0.5 text-[8px] rounded-full font-bold font-mono",
-                          pendingSubTab === "forms" ? "bg-indigo-600 text-white" : "bg-slate-200 text-slate-500"
-                        )}>
-                          {regRequests.filter(r => r.status?.toUpperCase() === 'PENDING' || !r.status).length}
-                        </span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setPendingSubTab("guests")}
-                        className={cn(
-                          "flex-1 text-center py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer",
-                          pendingSubTab === "guests"
-                            ? "bg-white text-indigo-600 shadow-sm border border-slate-100 font-extrabold"
-                            : "text-slate-400 hover:text-slate-600 font-medium"
-                        )}
-                      >
-                        🧑‍💻 {getLabel("حسابات قيد التفعيل", "Profils GUEST", "Guest Profiles")}
-                        <span className={cn(
-                          "px-1.5 py-0.5 text-[8px] rounded-full font-bold font-mono",
-                          pendingSubTab === "guests" ? "bg-indigo-600 text-white" : "bg-slate-200 text-slate-500"
-                        )}>
-                          {usersList.filter(u => u.role?.toLowerCase() === 'guest').length}
-                        </span>
-                      </button>
-                    </div>
-
-                    <div className="space-y-3 max-h-[350px] overflow-y-auto no-scrollbar pt-1">
-                      {regRequestsLoading ? (
-                        <div className="flex justify-center py-8">
-                          <Loader2 className="h-6 w-6 animate-spin text-brand-blue" />
-                        </div>
-                      ) : pendingSubTab === "forms" ? (
-                        <>
-                          {regRequests.filter(r => r.status?.toUpperCase() === 'PENDING' || !r.status).map((req) => {
-                            const isTeacherRole = (req.role || '').toUpperCase() === 'TEACHER';
-                            const selfRoleClean = isTeacherRole ? 'teacher' : 'student';
-                            const otherRoleClean = isTeacherRole ? 'student' : 'teacher';
-                            const isCurrentlyProcessing = actingRegId === req.id;
-
-                            return (
-                              <div key={req.id} className="p-4 bg-slate-50 rounded-[18px] border border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all hover:border-slate-200 hover:shadow-sm">
-                                <div className="space-y-1.5 flex-1 min-w-0">
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <p className="text-xs font-black text-slate-800 truncate">{req.full_name}</p>
-                                    <span className={cn(
-                                      "text-[8px] font-black uppercase px-2 py-0.5 rounded-full tracking-wider border font-mono",
-                                      isTeacherRole 
-                                        ? "bg-blue-50 text-blue-600 border-blue-100" 
-                                        : "bg-emerald-50 text-emerald-600 border-emerald-100"
-                                    )}>
-                                      {isTeacherRole 
-                                        ? getLabel("أستاذ", "Enseignant", "Teacher") 
-                                        : getLabel("طالب", "Étudiant", "Student")}
-                                    </span>
-                                  </div>
-
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-1 text-[9px] text-slate-400 font-semibold font-mono">
-                                    <span className="flex items-center gap-1 truncate text-slate-500">
-                                      <Mail className="h-3 w-3 text-slate-400 shrink-0" />
-                                      {req.email}
-                                    </span>
-                                    {req.phone && (
-                                      <span className="flex items-center gap-1 text-slate-500">
-                                        <Phone className="h-3 w-3 text-slate-400 shrink-0" />
-                                        {req.phone}
-                                      </span>
-                                    )}
-                                    {req.parent_phone && (
-                                      <span className="flex items-center gap-1 text-slate-400">
-                                        📱 {getLabel(`ولي الأمر: `, "Parent: ", "Parent: ")} {req.parent_phone}
-                                      </span>
-                                    )}
-                                    {req.subject_name && (
-                                      <span className="flex items-center gap-1 text-indigo-500 font-bold truncate">
-                                        📚 {getLabel(`المادة: `, "Matiere: ", "Subject: ")} {req.subject_name}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-
-                                <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
-                                  <button
-                                    onClick={() => handleApproveRegistrationRequest(req, selfRoleClean)}
-                                    disabled={isCurrentlyProcessing}
-                                    className="px-2.5 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-md shadow-emerald-500/15 flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50 h-7"
-                                    title={getLabel("قبول كـطلب العضو الأصلي وهيكلة حسابه", "Approuver avec role demande", "Approve requested role")}
-                                  >
-                                    {isCurrentlyProcessing ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : "💡"} 
-                                    {getLabel("تفعيل الطلب", "Approuver", "Approve")}
-                                  </button>
-                                  
-                                  <button
-                                    onClick={() => handleApproveRegistrationRequest(req, otherRoleClean)}
-                                    disabled={isCurrentlyProcessing}
-                                    className="px-2.5 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer disabled:opacity-50 h-7"
-                                    title={getLabel(`تغيير وتفعيل كـ ${isTeacherRole ? 'طالب' : 'أستاذ'}`, `Inverser le role`, `Swap role and approve`)}
-                                  >
-                                    🔄 {isTeacherRole 
-                                      ? getLabel("طالب", "Étudiant", "Student") 
-                                      : getLabel("أستاذ", "Enseignant", "Teacher")}
-                                  </button>
-
-                                  <button
-                                    onClick={() => handleRejectRegistrationRequest(req.id)}
-                                    disabled={isCurrentlyProcessing}
-                                    className="p-1.5 bg-red-50 hover:bg-red-100 text-red-500 rounded-lg transition-all cursor-pointer disabled:opacity-50 h-7 w-7 flex items-center justify-center"
-                                    title={getLabel("رفض وحذف استمارة التسجيل", "Rejeter & Supprimer", "Reject & Delete")}
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </button>
-                                </div>
-                              </div>
-                            );
-                          })}
-
-                          {regRequests.filter(r => r.status?.toUpperCase() === 'PENDING' || !r.status).length === 0 && (
-                            <div className="text-center py-8 text-slate-400 text-[10px] font-bold uppercase font-sans">
-                              ☘️ {i18n.language === 'ar' ? "لا توجد رسائل تسجيل معلقة في قاعدة البيانات" : "No pending registration database rows found!"}
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        <>
-                          {usersList.filter(u => u.role?.toLowerCase() === 'guest').map((userItem) => (
-                            <div key={userItem.id} className="p-4 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between gap-4">
-                              <div>
-                                <p className="text-xs font-bold text-slate-800">{userItem.fullname}</p>
-                                <p className="text-[9px] text-slate-400 font-mono">@{userItem.username} • {userItem.email}</p>
-                                {userItem.role_requested && (
-                                  <p className="text-[9px] font-black text-amber-500 uppercase mt-1 font-mono">
-                                    {getLabel(
-                                      `طلب صفة: ${userItem.role_requested === 'teacher' ? 'أستاذ' : 'طالب'}`,
-                                      `Role demande: ${userItem.role_requested === 'teacher' ? 'Enseignant' : 'Étudiant'}`,
-                                      `Requesting: ${userItem.role_requested}`
-                                    )}
-                                  </p>
-                                )}
-                              </div>
-
-                              <div className="flex items-center gap-2 text-right rtl:text-left shrink-0">
-                                <button
-                                  onClick={() => handleApproveUser(userItem.id, (userItem.role_requested as 'student' | 'teacher') || 'student')}
-                                  className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-md shadow-emerald-500/15 flex items-center justify-center gap-1 cursor-pointer h-7"
-                                >
-                                  💡 {getLabel("تعيين مباشر", "Approuver", "Approve")}
-                                </button>
-                                <button
-                                  onClick={() => handleApproveUser(userItem.id, userItem.role_requested === 'teacher' ? 'student' : 'teacher')}
-                                  className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer h-7"
-                                >
-                                  {getLabel(
-                                    userItem.role_requested === 'teacher' ? "طالب" : "أستاذ",
-                                    userItem.role_requested === 'teacher' ? "Activer Étudiant" : "Activer Enseignant",
-                                    `As ${userItem.role_requested === 'teacher' ? 'Student' : 'Teacher'}`
-                                  )}
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-
-                          {usersList.filter(u => u.role?.toLowerCase() === 'guest').length === 0 && (
-                            <div className="text-center py-8 text-slate-400 text-[10px] font-bold uppercase font-sans">
-                              ☘️ {i18n.language === 'ar' ? "لا توجد طلبات معلقة حالياً" : "All users are authorized!"}
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Active Registered Members database */}
-                  <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm space-y-4">
-                    <div className="flex items-center justify-between border-b border-slate-50 pb-3">
-                      <h4 className="text-xs font-black uppercase tracking-widest text-slate-400">
-                        {getLabel("قاعدة بيانات الأعضاء المسجّلين", "Base de données des membres actifs", "Registered Active Members")}
-                      </h4>
-                      <span className="px-2 py-0.5 bg-blue-50 text-blue-500 rounded text-[9px] font-black uppercase">
-                        {usersList.filter(u => u.role?.toLowerCase() !== 'guest').length} {getLabel("عضو", "Membres", "Members")}
-                      </span>
-                    </div>
-
-                    <div className="space-y-3 max-h-[350px] overflow-y-auto no-scrollbar">
-                      {usersList.filter(u => u.role?.toLowerCase() !== 'guest').map((userItem) => (
-                        <div key={userItem.id} className="p-4 bg-slate-50/50 rounded-xl border border-slate-100 flex items-center justify-between gap-4">
-                          <div className="overflow-hidden">
-                            <div className="flex items-center gap-2">
-                              <p className="text-xs font-black text-slate-800 truncate">{userItem.fullname}</p>
-                              {userItem.email === "zaitiabdou27@gmail.com" && (
-                                <span className="bg-indigo-500 text-white text-[8px] font-black uppercase px-2 py-0.5 rounded">DEV</span>
-                              )}
-                            </div>
-                            <p className="text-[9px] text-slate-400 truncate font-mono mt-0.5">@{userItem.username} • {userItem.email}</p>
-                          </div>
-                          
-                          <div className="flex items-center gap-2 shrink-0">
-                            <span className={cn(
-                              "text-[8px] font-black uppercase px-2.5 py-1 rounded-full",
-                              userItem.role?.toLowerCase() === 'developer' || userItem.role?.toLowerCase() === 'developper' ? "bg-indigo-500/10 text-indigo-500" : userItem.role?.toLowerCase() === 'teacher' ? "bg-blue-500/10 text-blue-500" : (userItem.role?.toLowerCase() === 'admin' ? "bg-purple-500/10 text-purple-500" : "bg-emerald-500/10 text-emerald-500")
-                            )}>
-                              {userItem.role?.toLowerCase() === 'developer' || userItem.role?.toLowerCase() === 'developper' 
-                                ? getLabel('المطور', 'Développeur', 'Developer') 
-                                : userItem.role?.toLowerCase() === 'teacher' 
-                                  ? getLabel('أستاذ', 'Professeur', 'Teacher') 
-                                  : (userItem.role?.toLowerCase() === 'admin' ? 'Admin' : getLabel('طالب', 'Élève', 'Student'))}
-                            </span>
-                            
-                            {userItem.id !== profile.id && (
-                              <>
-                                <button
-                                  onClick={() => handleApproveUser(userItem.id, 'guest')}
-                                  className="px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all border border-amber-500/10 cursor-pointer"
-                                  title={getLabel("تجميد الحساب وإرساله لقائمة الانتظار", "Désactiver le compte vers la liste d'attente", "Deactivate accounts to pending state")}
-                                >
-                                  🔒 {getLabel("تجميد الحساب", "Désactiver", "Freeze")}
-                                </button>
-                                
-                                <button
-                                  onClick={() => handleRejectOrDelete(userItem.id)}
-                                  className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-500 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
-                                >
-                                  🗑️ {getLabel("حذف", "Supprimer", "Delete")}
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
         ) : !community ? (
           <div className="mx-auto max-w-2xl mt-10">
             <button 
@@ -1335,28 +887,28 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
 
               <form onSubmit={handleCreateCommunity} className="bg-white p-10 rounded-[40px] border border-slate-100 shadow-2xl shadow-blue-500/5 space-y-6 text-left">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">{t('community_name', 'Community Name')}</label>
+                  <label className="text-xs font-semibold text-slate-500 ml-2">{t('community_name', 'Community Name')}</label>
                   <input 
                     required
                     value={commName}
                     onChange={(e) => setCommName(e.target.value)}
                     placeholder={t('community_name_placeholder', "Prof. Ahmed's Academy")}
-                    className={cn("w-full bg-slate-50 border border-slate-100 p-4 rounded-2xl font-bold outline-none focus:border-brand-blue transition-all", i18n.language === 'ar' ? 'text-right' : 'text-left')}
+                    className={cn("w-full bg-slate-50 border border-slate-100 p-4 rounded-2xl outline-none focus:border-brand-blue transition-all font-medium", i18n.language === 'ar' ? 'text-right' : 'text-left')}
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">{t('community_username', 'Community Username')}</label>
+                  <label className="text-xs font-semibold text-slate-500 ml-2">{t('community_username', 'Community Username')}</label>
                   <input 
                     required
                     value={commUsername}
-                    onChange={(e) => setCommUsername(e.target.value.toLowerCase().replace(/\s/g, ''))}
+                    onChange={(e) => setCommUsername(e.target.value)}
                     placeholder={t('community_username_placeholder', "ahmed_academy")}
                     className={cn("w-full bg-slate-50 border border-slate-100 p-4 rounded-2xl font-mono text-sm outline-none focus:border-brand-blue transition-all", i18n.language === 'ar' ? 'text-right' : 'text-left')}
                   />
-                  <p className="text-[10px] text-slate-400 italic">{t('community_username_hint', 'This will be used for students to find your server.')}</p>
+                  <p className="text-[10px] text-slate-400 font-medium ml-2">{t('community_username_hint', 'This will be used for students to find your server.')}</p>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">{t('community_password', 'Community Password')}</label>
+                  <label className="text-xs font-semibold text-slate-500 ml-2">{t('community_password', 'Community Password')}</label>
                   <input 
                     required
                     type="password"
@@ -1365,17 +917,9 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                     placeholder={t('community_password_placeholder', "Enter a secure password")}
                     className={cn("w-full bg-slate-50 border border-slate-100 p-4 rounded-2xl font-mono text-sm outline-none focus:border-brand-blue transition-all", i18n.language === 'ar' ? 'text-right' : 'text-left')}
                   />
-                  <p className="text-[10px] text-slate-400 italic">{t('community_password_hint', 'Students will need this password to join your community.')}</p>
+                  <p className="text-[10px] text-slate-400 font-medium ml-2">{t('community_password_hint', 'Students will need this password to join your community.')}</p>
                 </div>
-                {schemaError && (
-                  <div className="bg-red-50 p-4 rounded-xl border border-red-200 space-y-2">
-                    <p className="text-red-600 text-xs font-bold">Database Error:</p>
-                    <p className="text-red-500 text-[10px]">Please run this in your Supabase SQL Editor to add the missing password column:</p>
-                    <pre className="text-[10px] bg-white p-2 rounded border border-red-100 overflow-x-auto text-red-600 font-mono">
-                      {schemaError}
-                    </pre>
-                  </div>
-                )}
+
                 <button 
                   disabled={loading}
                   type="submit"
@@ -1426,27 +970,18 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
               <div className="max-w-xl mx-auto py-10">
                 <div className="space-y-6 bg-white p-8 rounded-[32px] border border-slate-100 shadow-xl shadow-blue-500/5">
                   <div className="text-center space-y-2">
-                    <h3 className="text-2xl font-black font-display uppercase italic text-slate-900">{t('new_room', 'New Room')}</h3>
+                    <h3 className="text-2xl font-black font-display uppercase italic text-slate-900">{t('new_room', 'قسم جديد')}</h3>
                     <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{t('room_hint', 'Create a channel for your community.')}</p>
                   </div>
                   <form onSubmit={handleCreateRoom} className="space-y-6">
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase text-slate-400 ml-2">{t('room_name', 'Room Name')}</label>
+                      <label className="text-[10px] font-black uppercase text-slate-400 ml-2">{t('room_name', 'إسم القسم')}</label>
                       <input 
                         required
                         value={roomName}
                         onChange={(e) => setRoomName(e.target.value)}
-                        placeholder={t('room_name_placeholder', "Live Class BAC")}
+                        placeholder={t('room_name_placeholder', "سنة أولى")}
                         className="w-full bg-slate-50 border border-slate-100 p-4 rounded-2xl font-bold outline-none focus:border-brand-blue transition-all"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase text-slate-400 ml-2">{t('room_username_optional', 'Room Username (Optional)')}</label>
-                      <input 
-                        value={roomUsername}
-                        onChange={(e) => setRoomUsername(e.target.value.toLowerCase().replace(/\s/g, ''))}
-                        placeholder={t('room_username_placeholder_default', "live_class_bac")}
-                        className="w-full bg-slate-50 border border-slate-100 p-4 rounded-2xl font-mono text-sm outline-none focus:border-brand-blue transition-all"
                       />
                     </div>
                     <div className="space-y-2">
@@ -1459,26 +994,7 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                         className="w-full bg-slate-50 border border-slate-100 p-4 rounded-2xl font-mono text-sm outline-none focus:border-brand-blue transition-all"
                       />
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      {(['live', 'chat', 'announcements', 'files'] as RoomType[]).map((type) => (
-                        <button
-                          key={type}
-                          type="button"
-                          onClick={() => setRoomType(type)}
-                          className={cn(
-                            "flex items-center gap-3 p-4 rounded-2xl border transition-all text-left",
-                            roomType === type 
-                              ? "bg-brand-blue border-brand-blue text-white shadow-lg shadow-blue-500/20" 
-                              : "bg-slate-50 border-slate-100 text-slate-500 hover:bg-white"
-                          )}
-                        >
-                          <div className={cn("p-2 rounded-lg", roomType === type ? "bg-white/20" : "bg-white shadow-sm")}>
-                            {getRoomIcon(type)}
-                          </div>
-                          <span className="text-[10px] font-black uppercase tracking-wider">{type}</span>
-                        </button>
-                      ))}
-                    </div>
+                    {/* Room type selection removed as requested */}
                     <div className="flex gap-4">
                       <button 
                         type="button"
@@ -1498,321 +1014,8 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                   </form>
                 </div>
               </div>
-            ) : false ? (
-              <div className="space-y-6">
-                {/* Intro Card */}
-                {isDeveloper && (
-                  <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-                    <div className="space-y-1">
-                      <h3 className="text-xl font-bold font-display uppercase tracking-tight text-slate-900">
-                        {i18n.language === 'ar' ? "التحكم في العضويات والقبول" : "Members Administration"}
-                      </h3>
-                      <p className="text-xs text-slate-400 font-medium">
-                        {i18n.language === 'ar' 
-                          ? "قم بتفعيل حسابات طلابك الجدد يدوياً أو تجميد الحسابات الوهمية لتجنب الاكتظاظ."
-                          : "Verify and activate new student accounts manually, or suspend inactive accounts."}
-                      </p>
-                    </div>
-                    
-                    <div className="bg-brand-blue/5 border border-brand-blue/10 p-4 rounded-2xl flex items-center gap-3 shrink-0">
-                      <Key className="h-5 w-5 text-brand-blue" />
-                      <div>
-                        <p className="text-[10px] font-black uppercase text-brand-blue">
-                          {i18n.language === 'ar' ? "مفتاح التسجيل لطلابك" : "Your Community ID"}
-                        </p>
-                        <p className="text-xs font-mono font-black text-slate-700">
-                          @{community.community_username}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Fast-Track Academic Registration Widget */}
-                {isDeveloper && (
-                  <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm space-y-4">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2.5 bg-brand-blue/10 text-brand-blue rounded-xl">
-                        <Plus className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-black text-slate-800 uppercase tracking-wide">
-                          {i18n.language === 'ar' ? "تسجيل طالب أو أستاذ جديد تلقائياً" : "Fast-Track User Registration"}
-                        </h4>
-                        <p className="text-[10px] font-semibold text-slate-400">
-                          {i18n.language === 'ar' 
-                            ? "سجل العضو ببريده الإلكتروني مباشرة وستكون كلمة المرور هي بادئة بريده الإلكتروني بحرف كبير مع كلمة 2026 لتستوفي المعايير الأمنية." 
-                            : "Register a user with their email. The initial passcode will be generated with a capitalized prefix and '2026' to meet security rules."}
-                        </p>
-                      </div>
-                    </div>
-
-                    {regError && (
-                      <div className="bg-red-50 text-red-600 border border-red-100 rounded-xl p-3 text-xs font-semibold flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
-                        <span>{regError}</span>
-                      </div>
-                    )}
-
-                    {regSuccess && (
-                      <div className="bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-xl p-3 text-xs font-semibold flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                        <span>{regSuccess}</span>
-                      </div>
-                    )}
-
-                      <form onSubmit={handleRegisterUser} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                        <div className="space-y-1.5 text-left rtl:text-right md:col-span-1">
-                          <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-1">
-                            {i18n.language === 'ar' ? "الاسم الكامل للعضو" : "Full Name"}
-                          </label>
-                          <input 
-                            type="text"
-                            required
-                            disabled={isAdmin}
-                            placeholder={i18n.language === 'ar' ? "مثل: محمد علي" : "e.g. Jean Dupont"}
-                            value={regFullName}
-                            onChange={(e) => setRegFullName(e.target.value)}
-                            className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-slate-800 text-xs focus:outline-none focus:border-brand-blue transition-all font-medium disabled:opacity-50"
-                          />
-                        </div>
-
-                        <div className="space-y-1.5 text-left rtl:text-right md:col-span-1">
-                          <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-1">
-                            {i18n.language === 'ar' ? "البريد الإلكتروني" : "Email Address"}
-                          </label>
-                          <input 
-                            type="email"
-                            required
-                            disabled={isAdmin}
-                            placeholder={i18n.language === 'ar' ? "student@example.com" : "student@example.com"}
-                            value={regEmail}
-                            onChange={(e) => setRegEmail(e.target.value)}
-                            className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-slate-800 text-xs focus:outline-none focus:border-brand-blue transition-all font-medium disabled:opacity-50"
-                          />
-                        </div>
-
-                        <div className="space-y-1.5 text-left rtl:text-right md:col-span-1">
-                          <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-1">
-                            {i18n.language === 'ar' ? "الصفة / الحساب" : "Role / Position"}
-                          </label>
-                          <select 
-                            value={regRole}
-                            disabled={isAdmin}
-                            onChange={(e) => setRegRole(e.target.value as any)}
-                            className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-slate-800 text-xs focus:outline-none focus:border-brand-blue transition-all font-bold disabled:opacity-50"
-                          >
-                            <option value="student">{i18n.language === 'ar' ? "🧑‍🎓 طالب (Student)" : "Student"}</option>
-                            <option value="teacher">{i18n.language === 'ar' ? "🧑‍🏫 أستاذ (Teacher)" : "Teacher"}</option>
-                          </select>
-                        </div>
-
-                        <button
-                          type="submit"
-                          disabled={regLoading || isAdmin}
-                          className="w-full py-3 bg-brand-blue hover:bg-blue-600 disabled:opacity-50 text-white font-black text-[10px] uppercase tracking-[0.1em] rounded-xl shadow-lg shadow-blue-500/15 flex items-center justify-center gap-2 cursor-pointer h-10"
-                        >
-                          {regLoading ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <span>{i18n.language === 'ar' ? "تسجيل وتفعيل العضو" : "Create Account"}</span>
-                          )}
-                        </button>
-                      </form>
-                  </div>
-                )}
-
-                {usersLoading ? (
-                  <div className="flex justify-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin text-brand-blue" />
-                  </div>
-                ) : (
-                  <div className="space-y-6">
-                    {/* Stats Counter */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      <div className="bg-white p-5 rounded-2xl border border-slate-100 flex items-center justify-between">
-                        <div>
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                            {i18n.language === 'ar' ? "قيد الانتظار" : "Pending Approvals"}
-                          </p>
-                          <p className="text-3xl font-black text-amber-500 mt-1">
-                            {usersList.filter(u => u.role?.toLowerCase() === 'guest').length}
-                          </p>
-                        </div>
-                        <div className="p-3 bg-amber-500/10 text-amber-500 rounded-xl">
-                          <Users className="h-5 w-5 animate-pulse" />
-                        </div>
-                      </div>
-
-                      <div className="bg-white p-5 rounded-2xl border border-slate-100 flex items-center justify-between">
-                        <div>
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                            {i18n.language === 'ar' ? "الطلاب النشطين" : "Active Students"}
-                          </p>
-                          <p className="text-3xl font-black text-emerald-500 mt-1">
-                            {usersList.filter(u => u.role?.toLowerCase() === 'student').length}
-                          </p>
-                        </div>
-                        <div className="p-3 bg-emerald-500/10 text-emerald-500 rounded-xl">
-                          <Users className="h-5 w-5" />
-                        </div>
-                      </div>
-
-                      <div className="bg-white p-5 rounded-2xl border border-slate-100 flex items-center justify-between">
-                        <div>
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                            {i18n.language === 'ar' ? "الأساتذة والمدراء" : "Teachers & Admins"}
-                          </p>
-                          <p className="text-3xl font-black text-brand-blue mt-1">
-                            {usersList.filter(u => ['teacher', 'admin', 'developer', 'developper'].includes(u.role?.toLowerCase())).length}
-                          </p>
-                        </div>
-                        <div className="p-3 bg-brand-blue/10 text-brand-blue rounded-xl">
-                          <Users className="h-5 w-5" />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Pending Request Area */}
-                    <div className="bg-white rounded-[32px] border border-slate-100 overflow-hidden shadow-sm">
-                      <div className="px-6 py-4 border-b border-slate-50 flex items-center justify-between bg-slate-50/50">
-                        <h4 className="text-xs font-black uppercase tracking-widest text-slate-500">
-                          {i18n.language === 'ar' ? "طلبات الانضمام المعلقة" : "Pending Registration Requests"}
-                        </h4>
-                        <span className="bg-amber-100 text-amber-800 text-[9px] font-black uppercase px-2 py-0.5 rounded-full">
-                          {usersList.filter(u => u.role?.toLowerCase() === 'guest').length} {i18n.language === 'ar' ? "طلبات" : "Requests"}
-                        </span>
-                      </div>
-                      
-                      <div className="divide-y divide-slate-50 max-h-[300px] overflow-y-auto no-scrollbar">
-                        {usersList.filter(u => u.role?.toLowerCase() === 'guest').map((userItem) => (
-                          <div key={userItem.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50/50 transition-all">
-                            <div className="flex items-center gap-3">
-                              <img 
-                                src={userItem.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(userItem.fullname)}&background=f59e0b&color=fff`} 
-                                alt="" 
-                                className="h-10 w-10 rounded-full shadow-sm" 
-                              />
-                              <div>
-                                <p className="text-xs font-black uppercase text-slate-800">{userItem.fullname}</p>
-                                <p className="text-[10px] font-mono text-slate-400">@{userItem.username}</p>
-                              </div>
-                            </div>
-                            
-                            {!isAdmin && (
-                              <div className="flex items-center gap-2">
-                                {userItem.role_requested && (
-                                  <span className="text-[8px] font-black uppercase bg-slate-100 text-slate-500 px-2.5 py-1 rounded-full mr-2">
-                                    {i18n.language === 'ar' ? `طلب صفة: ${userItem.role_requested === 'teacher' ? 'أستاذ' : 'طالب'}` : `Requesting: ${userItem.role_requested}`}
-                                  </span>
-                                )}
-                                
-                                <button
-                                  onClick={() => handleApproveUser(userItem.id, (userItem.role_requested as 'student' | 'teacher') || 'student')}
-                                  className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all shadow-md shadow-emerald-500/10 cursor-pointer"
-                                >
-                                  {i18n.language === 'ar' ? "قبول وتفعيل كلي" : "Approve & Activate"}
-                                </button>
-                                
-                                <button
-                                  onClick={() => handleApproveUser(userItem.id, userItem.role_requested === 'teacher' ? 'student' : 'teacher')}
-                                  className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
-                                >
-                                  {i18n.language === 'ar' 
-                                    ? (userItem.role_requested === 'teacher' ? "تفعيل كطالب" : "تفعيل كأستاذ") 
-                                    : `As ${userItem.role_requested === 'teacher' ? 'Student' : 'Teacher'}`}
-                                </button>
-
-                                <button
-                                  onClick={() => handleRejectOrDelete(userItem.id)}
-                                  className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-500 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
-                                >
-                                  {i18n.language === 'ar' ? "رفض وحذف" : "Reject"}
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                        
-                        {usersList.filter(u => u.role?.toLowerCase() === 'guest').length === 0 && (
-                          <div className="p-12 text-center text-slate-400">
-                            <p className="text-xs font-black uppercase tracking-wider">{i18n.language === 'ar' ? "لا يوجد أي طلبات معلقة" : "No pending requests"}</p>
-                            <p className="text-[9px] font-medium mt-1">{i18n.language === 'ar' ? "سيصلك إشعار هنا عند قيام طلاب جدد بالتسجيل في المنصة." : "New students registration will manifest here for approval."}</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Active Accounts Area */}
-                    <div className="bg-white rounded-[32px] border border-slate-100 overflow-hidden shadow-sm">
-                      <div className="px-6 py-4 border-b border-slate-50 flex items-center justify-between bg-slate-50/50">
-                        <h4 className="text-xs font-black uppercase tracking-widest text-slate-500">
-                          {i18n.language === 'ar' ? "الأعضاء المسجلين والطلاب النشطين" : "Active School Database Profiles"}
-                        </h4>
-                        <span className="bg-brand-blue/15 text-brand-blue text-[9px] font-black uppercase px-2 py-0.5 rounded-full">
-                          {usersList.filter(u => u.role?.toLowerCase() !== 'guest').length} {i18n.language === 'ar' ? "عضو" : "Members"}
-                        </span>
-                      </div>
-                      
-                      <div className="divide-y divide-slate-50 max-h-[350px] overflow-y-auto no-scrollbar">
-                        {usersList.filter(u => u.role?.toLowerCase() !== 'guest').map((userItem) => (
-                          <div key={userItem.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50/50 transition-all">
-                            <div className="flex items-center gap-3">
-                              <img 
-                                src={userItem.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(userItem.fullname)}&background=3b82f6&color=fff`} 
-                                alt="" 
-                                className="h-10 w-10 rounded-full shadow-sm" 
-                              />
-                              <div>
-                                <div className="flex items-center gap-2">
-                                  <p className="text-xs font-black uppercase text-slate-800">{userItem.fullname}</p>
-                                  {userItem.id === profile.id && (
-                                    <span className="bg-brand-blue/10 text-brand-blue text-[8px] font-black uppercase px-1.5 py-0.5 rounded">
-                                      {i18n.language === 'ar' ? "أنت" : "You"}
-                                    </span>
-                                  )}
-                                </div>
-                                <p className="text-[10px] font-mono text-slate-400">@{userItem.username}</p>
-                              </div>
-                            </div>
-                            
-                            <div className="flex items-center gap-2">
-                              <span className={cn(
-                                "text-[8px] font-black uppercase px-2.5 py-1 rounded-full",
-                                userItem.role?.toLowerCase() === 'developer' || userItem.role?.toLowerCase() === 'developper' ? "bg-indigo-500/10 text-indigo-500" : userItem.role?.toLowerCase() === 'teacher' ? "bg-blue-500/10 text-blue-500" : (userItem.role?.toLowerCase() === 'admin' ? "bg-purple-500/10 text-purple-500" : "bg-emerald-500/10 text-emerald-500")
-                              )}>
-                                {userItem.role?.toLowerCase() === 'developer' || userItem.role?.toLowerCase() === 'developper' ? (i18n.language === 'ar' ? 'المطور' : 'Developer') : userItem.role?.toLowerCase() === 'teacher' ? (i18n.language === 'ar' ? 'أستاذ' : 'Teacher') : (userItem.role?.toLowerCase() === 'admin' ? 'Admin' : (i18n.language === 'ar' ? 'طالب' : 'Student'))}
-                              </span>
-                              
-                              {userItem.id !== profile.id && !isAdmin && (
-                                <>
-                                  <button
-                                    onClick={() => handleApproveUser(userItem.id, 'guest')}
-                                    className="px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all border border-amber-500/10 cursor-pointer"
-                                    title={i18n.language === 'ar' ? "تجميد الحساب وإرساله لقائمة الانتظار" : "Deactivate accounts to pending state"}
-                                  >
-                                    🔒 {i18n.language === 'ar' ? "تجميد الحساب" : "Freeze"}
-                                  </button>
-                                  
-                                  <button
-                                    onClick={() => handleRejectOrDelete(userItem.id)}
-                                    className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-500 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
-                                  >
-                                    🗑️ {i18n.language === 'ar' ? "حذف نهائي" : "Delete"}
-                                  </button>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
             ) : (
-              <>
-                <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+              <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
                 {rooms.map((room) => (
                   <motion.div 
                     key={room.id}
@@ -1882,7 +1085,6 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                   </div>
                 )}
               </div>
-              </>
             )}
           </div>
         )}
@@ -1930,7 +1132,6 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                     </label>
                     <input 
                       type="text"
-                      required
                       value={editFullName}
                       onChange={(e) => setEditFullName(e.target.value)}
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-slate-800 text-xs focus:outline-none focus:border-brand-blue transition-all font-medium"
@@ -1945,9 +1146,8 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                       <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs select-none">@</span>
                       <input 
                         type="text"
-                        required
                         value={editUsername}
-                        onChange={(e) => setEditUsername(e.target.value.toLowerCase().replace(/[^a-zA-Z0-9_]/g, ''))}
+                        onChange={(e) => setEditUsername(e.target.value)}
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-9 pr-4 text-slate-800 text-xs focus:outline-none focus:border-brand-blue transition-all font-medium"
                       />
                     </div>
@@ -1969,19 +1169,51 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                     </select>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-1">
-                      {getLabel("كلمة المرور الجديدة (أحرف كبيرة، صغيرة، وأرقام)", "Nouveau mot de passe (Maj, Min, Chiffres)", "New Password (Upper, Lower, Numbers)")}
-                    </label>
-                    <div className="relative">
-                      <Key className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                      <input 
-                        type="text"
-                        placeholder={getLabel("يجب أن تكون قوية (A-z, 0-9)", "Doit être robuste (A-z, 0-9)", "Must be strong (A-z, 0-9)")}
-                        value={editPassword}
-                        onChange={(e) => setEditPassword(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-10 pr-4 text-slate-800 text-xs focus:outline-none focus:border-brand-blue transition-all font-medium"
-                      />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-1">
+                        {getLabel("كلمة المرور الجديدة", "Nouveau mot de passe", "New Password")}
+                      </label>
+                      <div className="relative">
+                        <Key className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                        <input 
+                          type={showEditPassword ? "text" : "password"}
+                          placeholder={getLabel("A-z, 0-9", "A-z, 0-9", "A-z, 0-9")}
+                          value={editPassword}
+                          onChange={(e) => setEditPassword(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-10 pr-10 text-slate-800 text-xs focus:outline-none focus:border-brand-blue transition-all font-medium"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowEditPassword(!showEditPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-slate-600 rounded-lg transition-colors"
+                        >
+                          {showEditPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-1">
+                        {getLabel("تأكيد كلمة المرور", "Confirmer", "Confirm")}
+                      </label>
+                      <div className="relative">
+                        <Key className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                        <input 
+                          type={showEditPassword ? "text" : "password"}
+                          placeholder="..."
+                          value={confirmEditPassword}
+                          onChange={(e) => setConfirmEditPassword(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-10 pr-10 text-slate-800 text-xs focus:outline-none focus:border-brand-blue transition-all font-medium"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowEditPassword(!showEditPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-slate-600 rounded-lg transition-colors"
+                        >
+                          {showEditPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
                     </div>
                   </div>
 

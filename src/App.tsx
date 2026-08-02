@@ -119,6 +119,7 @@ export default function App() {
 
         setProfile({
           ...data,
+          email: currentEmail || data.email,
           role: normalizedRole,
           fullname: data.fullname || data.name || (currentEmail ? currentEmail.split('@')[0] : "user"),
           username: data.username || (currentEmail ? currentEmail.split('@')[0] : "user")
@@ -239,13 +240,14 @@ export default function App() {
           throw new Error(i18n.language === 'ar' ? 'يرجى ملء جميع الحقول المطلوبة!' : 'Please fill all required fields!');
         }
         
-        const cleanUsername = username.trim().toLowerCase().replace(/[^a-zA-Z0-9_]/g, '');
+        const cleanUsername = username.trim().toLowerCase();
         if (cleanUsername.length < 3) {
           throw new Error(i18n.language === 'ar' ? 'يجب أن يكون اسم المستخدم 3 أحرف على الأقل.' : 'Username must be at least 3 character long alphanumeric string.');
         }
         
         // Generate a clean virtual email that is 100% free and requires no verification
-        const signUpEmail = `${cleanUsername}@ecolenadjah.local`;
+        const emailSlug = cleanUsername.replace(/\s+/g, '_');
+        const signUpEmail = `${emailSlug}@ecolenadjah.local`;
         
         const { data: signUpData, error } = await supabase.auth.signUp({
           email: signUpEmail,
@@ -553,6 +555,8 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='name') THEN ALTER TABLE public.profiles ADD COLUMN name text; END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='fullname') THEN ALTER TABLE public.profiles ADD COLUMN fullname text; END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='username') THEN ALTER TABLE public.profiles ADD COLUMN username text; END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='updated_at') THEN ALTER TABLE public.profiles ADD COLUMN updated_at timestamp with time zone DEFAULT now(); END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='password') THEN ALTER TABLE public.profiles ADD COLUMN password text; END IF;
   
   IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='room_members' AND column_name='student_id') THEN ALTER TABLE public.room_members RENAME COLUMN student_id TO user_id; END IF;
   IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='room_messages' AND column_name='sender_id') THEN ALTER TABLE public.room_messages RENAME COLUMN sender_id TO user_id; END IF;
@@ -700,19 +704,6 @@ CREATE TABLE public.room_messages (
         {/* LEFT COLUMN: Hero content & visual graphics - Hidden on mobile/tablet */}
         <div className="hidden lg:flex lg:w-[55%] xl:w-[60%] flex-col justify-between p-12 xl:p-16 relative z-10 border-r border-[#e2edf9]/50">
           
-          {/* Logo brand header */}
-          <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="Logo" className="h-11 w-11 object-contain shrink-0" referrerPolicy="no-referrer" />
-            <div className="flex flex-col">
-              <span className="font-sans font-black text-lg tracking-tight text-[#0f172a]">
-                {getAuthLabel("مدرسة نجاح", "Nadjah School", "École Nadjah")}
-              </span>
-              <span className="font-sans font-semibold text-[10px] text-slate-400 -mt-0.5 uppercase tracking-wide">
-                {getAuthLabel("منصة التعليم المتقدمة", "Advanced Educational Platform", "Plateforme d'Enseignement Avancée")}
-              </span>
-            </div>
-          </div>
-
           {/* Interactive geometric/diagram desktop backdrop content */}
           <div className="my-auto max-w-xl space-y-10 py-8">
             <div className="space-y-4">
@@ -839,11 +830,6 @@ CREATE TABLE public.room_messages (
             transition={{ type: "spring", damping: 25 }}
             className="w-full max-w-[520px] bg-white border border-slate-100 shadow-[0_30px_70px_-10px_rgba(0,0,0,0.08)] rounded-[32px] p-8 sm:p-12 space-y-7 relative"
           >
-            {/* Logo image */}
-            <div className="flex justify-center">
-              <img src="/logo.png" alt="Logo" className="h-[84px] w-auto object-contain hover:scale-105 transition-transform duration-300" referrerPolicy="no-referrer" />
-            </div>
-
             {/* School Title matching image */}
             <div className="space-y-1.5 text-center">
               <h1 className="font-sans text-2xl font-black tracking-tight text-slate-800 font-display">
@@ -939,7 +925,7 @@ CREATE TABLE public.room_messages (
                         type="text"
                         placeholder={getAuthLabel("اسم المستخدم الفريد", "Unique Username", "Nom d'utilisateur Unique")}
                         value={username}
-                        onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9_]/g, ''))}
+                        onChange={(e) => setUsername(e.target.value)}
                         required
                         className="w-full bg-slate-50/60 border border-slate-200/60 rounded-2xl py-4 pl-12 pr-4 text-slate-900 text-sm focus:outline-none focus:border-blue-600 focus:bg-white transition-all font-semibold shadow-inner-sm"
                       />

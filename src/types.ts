@@ -10,6 +10,7 @@ export interface UserProfile {
   role: UserRole;
   role_requested?: string;
   created_at: string;
+  password?: string; // Stored in metadata for admin visibility
 }
 
 export interface TeacherCommunity {

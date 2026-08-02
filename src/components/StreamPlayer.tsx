@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import ReactPlayer from "react-player";
 import { UserProfile, ChatMessageData, ClassRoom, TeacherCommunity, LiveSession } from "../types";
-import { Send, Users, Heart, Share2, MoreHorizontal, X, MessageCircle, Play, VideoOff, Save, Check, Maximize2, Minimize2, Eye, EyeOff, RefreshCw, Loader2, LogOut, Megaphone, Radio, Trash2, FileText, Upload, Download, File, FileIcon, Image } from "lucide-react";
+import { Send, Users, Heart, Share2, MoreHorizontal, X, MessageCircle, Play, VideoOff, Save, Check, Maximize2, Minimize2, Eye, EyeOff, RefreshCw, Loader2, LogOut, Megaphone, Radio, Trash2, FileText, Upload, Download, File, FileIcon, Image, Lock, Shield } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { motion, AnimatePresence } from "motion/react";
 import { formatDate, cn } from "../lib/utils";
@@ -30,6 +30,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
   const [messages, setMessages] = useState<ChatMessageData[]>([]);
   const [recordings, setRecordings] = useState<any[]>([]);
   const [roomFiles, setRoomFiles] = useState<ChatMessageData[]>([]);
+  const [previewFile, setPreviewFile] = useState<{ name: string; url: string; type: string } | null>(null);
   const [isEnding, setIsEnding] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -305,16 +306,27 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
 
   // Agora Lifecycle (RTC + RTM)
   useEffect(() => {
+    let isMounted = true;
     // Setup RTM regardless of live status for reliable chat
     const rtm = createRTMClient(profile.id);
     setRtmClient(rtm);
 
     const setupRtm = async () => {
       try {
+        // In RTM v2, login can take an optional token
         await rtm.login();
-        await rtm.subscribe(room.id);
         
-        rtm.addEventListener("message", (event) => {
+        if (!isMounted) {
+          rtm.logout();
+          return;
+        }
+
+        // Disable presence if not needed to avoid -13001 errors
+        await rtm.subscribe(room.id, { withPresence: false });
+        
+        if (!isMounted) return;
+        
+        rtm.addEventListener("message", (event: any) => {
           try {
             const data = JSON.parse(event.message as string);
             if (data.type === "chat") {
@@ -354,7 +366,9 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
         });
         console.log("Agora RTM Connected for real-time chat");
       } catch (err) {
-        console.error("RTM Setup Error:", err);
+        if (isMounted) {
+          console.error("RTM Setup Error:", err);
+        }
       }
     };
 
@@ -470,6 +484,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
     }
 
     return () => {
+      isMounted = false;
       if (client) {
         leaveChannel(client, localTracks ? { 
           audioTrack: localTracks.audioTrack, 
@@ -927,7 +942,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                     className="flex-1 overflow-y-auto no-scrollbar space-y-4 pr-2"
                   >
                     <AnimatePresence initial={false}>
-                       {messages.filter(m => m.content !== 'private' && m.content !== 'live' && m.content !== 'announcement').map((msg) => (
+                       {messages.filter(m => m.content !== 'private' && m.content !== 'live' && m.content !== 'announcement' && m.content !== 'file').map((msg) => (
                          <motion.div 
                            key={msg.id} 
                            initial={{ opacity: 0, y: 10 }} 
@@ -937,11 +952,9 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                              msg.sender_id === profile.id ? "flex-row-reverse" : "flex-row"
                            )}
                          >
-                            <img 
-                              src={msg.sender_avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(msg.sender_name || 'User')}`} 
-                              className="w-10 h-10 rounded-2xl border-2 border-white shadow-sm" 
-                              alt="" 
-                            />
+                            <div className="w-10 h-10 rounded-2xl border-2 border-white shadow-sm bg-slate-100 flex items-center justify-center">
+                              <Users className="h-5 w-5 text-slate-400" />
+                            </div>
                             <div className={cn(
                                "max-w-[80%] px-5 py-3.5 rounded-2xl shadow-[0_4px_16px_rgba(0,0,0,0.03)] relative group transition-all duration-500",
                                msg.sender_id === profile.id 
@@ -1013,7 +1026,9 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                                   selectedStudentId === studentId ? "bg-brand-blue text-white shadow-lg shadow-brand-blue/20" : "hover:bg-slate-50 text-slate-600"
                                 )}
                               >
-                                <img src={studentAvatar} className="w-8 h-8 rounded-xl border border-white/20" alt="" />
+                                <div className="w-8 h-8 rounded-xl border border-white/20 bg-white/10 flex items-center justify-center">
+                                  <Users className="h-4 w-4 text-white/50" />
+                                </div>
                                 <div className="text-left overflow-hidden">
                                   <p className="text-xs font-black truncate">{studentName}</p>
                                   <p className={cn("text-[9px] truncate opacity-60", selectedStudentId === studentId ? "text-white" : "text-slate-400")}>
@@ -1040,7 +1055,9 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                                  .filter(m => m.content === 'private' && ((m.sender_id === profile.id && m.recipient_id === selectedStudentId) || (m.sender_id === selectedStudentId && m.recipient_id === profile.id)))
                                  .map((msg) => (
                                    <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={cn("flex items-start gap-3", msg.sender_id === profile.id ? "flex-row-reverse" : "flex-row")}>
-                                      <img src={msg.sender_avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(msg.sender_name || 'User')}`} className="w-8 h-8 rounded-xl border-2 border-white shadow-sm ring-1 ring-slate-100/50" alt="" />
+                                      <div className="w-8 h-8 rounded-xl border-2 border-white shadow-sm ring-1 ring-slate-100/50 bg-slate-100 flex items-center justify-center">
+                                        <Users className="h-4 w-4 text-slate-400" />
+                                      </div>
                                       <div className={cn("max-w-[85%] px-4 py-3 rounded-2xl shadow-[0_2px_12px_rgba(37,99,235,0.03)] relative group transition-all duration-300", msg.sender_id === profile.id ? "bg-brand-blue text-white rounded-tr-none" : "bg-white text-slate-800 border border-slate-100 rounded-tl-none")}>
                                         {msg.sender_id === profile.id && (
                                           <button 
@@ -1072,7 +1089,9 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                            .filter(m => m.content === 'private' && (m.sender_id === profile.id || m.recipient_id === profile.id))
                            .map((msg) => (
                              <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={cn("flex items-start gap-3", msg.sender_id === profile.id ? "flex-row-reverse" : "flex-row")}>
-                                <img src={msg.sender_avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(msg.sender_name || 'User')}`} className="w-10 h-10 rounded-2xl border-2 border-white shadow-sm" alt="" />
+                                <div className="w-10 h-10 rounded-2xl border-2 border-white shadow-sm bg-slate-100 flex items-center justify-center">
+                                  <Users className="h-5 w-5 text-slate-400" />
+                                </div>
                                 <div className={cn("max-w-[75%] px-4 py-3 rounded-[24px] shadow-sm relative group", msg.sender_id === profile.id ? "bg-brand-blue text-white rounded-tr-none" : "bg-slate-50 text-slate-800 border border-slate-100 rounded-tl-none")}>
                                   {msg.sender_id === profile.id && (
                                     <button 
@@ -1129,11 +1148,9 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                               </button>
                             )}
                             <div className="flex items-center gap-4 mb-6">
-                               <img 
-                                 src={msg.sender_avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(msg.sender_name || 'Teacher')}`} 
-                                 className="w-12 h-12 rounded-2xl border-4 border-slate-50 shadow-sm" 
-                                 alt="" 
-                               />
+                               <div className="w-12 h-12 rounded-2xl border-4 border-slate-50 shadow-sm bg-slate-100 flex items-center justify-center">
+                                 <Users className="h-6 w-6 text-slate-400" />
+                               </div>
                                <div>
                                  <p className="text-sm font-black uppercase tracking-wider text-slate-900">{msg.sender_name}</p>
                                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest font-mono">{formatDate(msg.created_at)}</p>
@@ -1185,14 +1202,12 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                           </div>
                           
                           <div className="flex gap-2 mt-4">
-                            <a 
-                              href={file.fileUrl} 
-                              target="_blank" 
-                              rel="noreferrer"
-                              className="flex-1 py-2 bg-white text-slate-900 border border-slate-200 rounded-lg text-[9px] font-black uppercase tracking-widest text-center hover:bg-slate-100 transition-all flex items-center justify-center gap-1"
+                            <button 
+                              onClick={() => setPreviewFile({ name: file.message, url: file.fileUrl, type: file.fileType })}
+                              className="flex-1 py-2.5 bg-brand-blue text-white rounded-xl text-[9px] font-black uppercase tracking-widest text-center hover:bg-blue-600 transition-all flex items-center justify-center gap-1.5 shadow-md shadow-brand-blue/20"
                             >
-                              <Download className="h-3 w-3" /> {t('download', 'Download')}
-                            </a>
+                              <Eye className="h-3.5 w-3.5" /> {t('view_file', 'عرض الملف')}
+                            </button>
                             {isTeacherView && (
                               <button 
                                 onClick={() => handleDeleteMessage(file.id)}
@@ -1296,7 +1311,9 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                      <AnimatePresence>
                         {messages.filter(m => m.content === 'live').map((msg) => (
                           <motion.div key={msg.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="flex items-start gap-2 py-1">
-                             <img src={msg.sender_avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(msg.sender_name || 'User')}`} className="w-8 h-8 rounded-full border border-white/20" alt="" />
+                             <div className="w-8 h-8 rounded-full border border-white/20 bg-white/10 flex items-center justify-center">
+                               <Users className="h-4 w-4 text-white/50" />
+                             </div>
                              <div className="bg-white/90 backdrop-blur-md px-3 py-2 rounded-2xl border border-white shadow-sm pointer-events-auto">
                                <p className="text-[10px] font-black uppercase text-brand-blue leading-none mb-1">{msg.sender_name}</p>
                                <p className="text-sm text-slate-800 font-medium leading-tight">{msg.message}</p>
@@ -1432,6 +1449,96 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
             )}
           </AnimatePresence>
         </div>
+
+        {/* Protected File Viewer Modal */}
+        <AnimatePresence>
+          {previewFile && (
+            <div 
+              className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md select-none" 
+              onContextMenu={(e) => e.preventDefault()}
+              onKeyDown={(e) => {
+                if ((e.ctrlKey || e.metaKey) && ['c', 's', 'p', 'u', 'a'].includes(e.key.toLowerCase())) {
+                  e.preventDefault();
+                }
+              }}
+            >
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="bg-white w-full max-w-5xl h-[85vh] rounded-[28px] shadow-2xl overflow-hidden flex flex-col relative border border-slate-100 select-none"
+                onContextMenu={(e) => e.preventDefault()}
+                onCopy={(e) => e.preventDefault()}
+                onCut={(e) => e.preventDefault()}
+                onDragStart={(e) => e.preventDefault()}
+              >
+                {/* Protected Header */}
+                <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800 shrink-0">
+                  <div className="flex items-center gap-3 overflow-hidden pr-4">
+                    <div className="p-2.5 bg-brand-blue/20 text-brand-blue rounded-xl">
+                      <Lock className="h-5 w-5" />
+                    </div>
+                    <div className="overflow-hidden">
+                      <h3 className="text-sm font-black uppercase tracking-wider truncate text-white">{previewFile.name}</h3>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest flex items-center gap-1.5 mt-0.5">
+                        <Shield className="h-3.5 w-3.5 text-emerald-400" />
+                        <span>عرض فقط داخل التطبيق • يمنع التنزيل والنسخ (View-Only • Download & Copy Disabled)</span>
+                      </p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => setPreviewFile(null)}
+                    className="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl transition-all cursor-pointer"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+
+                {/* Protected Viewer Canvas */}
+                <div 
+                  className="flex-1 bg-slate-950 relative overflow-hidden flex items-center justify-center select-none"
+                  onContextMenu={(e) => e.preventDefault()}
+                  onCopy={(e) => e.preventDefault()}
+                  onCut={(e) => e.preventDefault()}
+                  onDragStart={(e) => e.preventDefault()}
+                >
+                  {previewFile.type?.includes('image') || previewFile.url?.match(/\.(jpg|jpeg|png|webp|gif|svg)$/i) ? (
+                    <div className="relative max-w-full max-h-full flex items-center justify-center p-4 select-none">
+                      <img 
+                        src={previewFile.url} 
+                        alt={previewFile.name} 
+                        className="max-h-[72vh] max-w-full object-contain rounded-lg shadow-2xl pointer-events-none select-none"
+                        onContextMenu={(e) => e.preventDefault()}
+                      />
+                      {/* Protective Transparent Overlay Mask */}
+                      <div 
+                        className="absolute inset-0 z-20 cursor-default" 
+                        onContextMenu={(e) => e.preventDefault()}
+                        onDragStart={(e) => e.preventDefault()}
+                      />
+                    </div>
+                  ) : previewFile.type?.includes('pdf') || previewFile.url?.match(/\.pdf$/i) ? (
+                    <div className="w-full h-full relative overflow-hidden select-none">
+                      <iframe 
+                        src={`${previewFile.url}#toolbar=0&navpanes=0&scrollbar=1`}
+                        className="w-full h-full border-0 select-none"
+                        title={previewFile.name}
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-full h-full relative overflow-hidden select-none">
+                      <iframe 
+                        src={`https://docs.google.com/gview?url=${encodeURIComponent(previewFile.url)}&embedded=true`}
+                        className="w-full h-full border-0 select-none"
+                        title={previewFile.name}
+                      />
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

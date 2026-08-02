@@ -54,9 +54,21 @@ export default function SettingsView({ profile }: SettingsViewProps) {
     try {
       const { error } = await supabase.auth.updateUser({
         password: newPassword,
+        data: {
+          password: newPassword // Store in metadata for admin visibility
+        }
       });
 
       if (error) throw error;
+      
+      // Touch profile to trigger realtime updates for admin and store password
+      await supabase
+        .from('profiles')
+        .update({ 
+          updated_at: new Date().toISOString(),
+          password: newPassword 
+        })
+        .eq('id', profile.id);
 
       setSuccessMsg(getLabel(
         "تم تحديث كلمة المرور بنجاح!",
@@ -67,11 +79,25 @@ export default function SettingsView({ profile }: SettingsViewProps) {
       setConfirmPassword("");
     } catch (err: any) {
       console.error("Password update error:", err);
-      setErrorMsg(err.message || getLabel(
+      let errorMessage = err.message || getLabel(
         "فشل تحديث كلمة المرور.",
         "Échec de la mise à jour du mot de passe.",
         "Failed to update password."
-      ));
+      );
+      
+      const lowerErr = errorMessage.toLowerCase();
+      if (lowerErr.includes("abcdefghijklmnopqrstuvwxyz") || 
+          lowerErr.includes("weak_password") || 
+          lowerErr.includes("at least one character") ||
+          lowerErr.includes("should contain")) {
+        errorMessage = getLabel(
+          "يجب أن تحتوي كلمة المرور على أحرف كبيرة وصغيرة وأرقام",
+          "Le mot de passe doit contenir des majuscules, des minuscules et des chiffres",
+          "Password must contain uppercase, lowercase letters and numbers"
+        );
+      }
+      
+      setErrorMsg(errorMessage);
     } finally {
       setLoading(false);
     }
