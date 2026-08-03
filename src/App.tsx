@@ -232,16 +232,48 @@ export default function App() {
         let authenticated = false;
         let lastError: any = null;
 
-        for (const loginEmail of emailsToTry) {
-          const { error } = await supabase.auth.signInWithPassword({
-            email: loginEmail,
-            password: password,
+        // 1. Try server API verification first to check profile's password column & sync auth user
+        try {
+          const apiRes = await fetch("/api/auth/verify-profile-login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              identifier: rawInput,
+              password: password
+            })
           });
-          if (!error) {
-            authenticated = true;
-            break;
-          } else {
-            lastError = error;
+
+          if (apiRes.ok) {
+            const apiData = await apiRes.json();
+            if (apiData.success && apiData.email) {
+              const { error: signInErr } = await supabase.auth.signInWithPassword({
+                email: apiData.email,
+                password: password,
+              });
+              if (!signInErr) {
+                authenticated = true;
+              } else {
+                lastError = signInErr;
+              }
+            }
+          }
+        } catch (apiErr) {
+          console.warn("verify-profile-login API route unavailable, using direct auth fallback:", apiErr);
+        }
+
+        // 2. Direct client fallback if server verification was not used
+        if (!authenticated) {
+          for (const loginEmail of emailsToTry) {
+            const { error } = await supabase.auth.signInWithPassword({
+              email: loginEmail,
+              password: password,
+            });
+            if (!error) {
+              authenticated = true;
+              break;
+            } else {
+              lastError = error;
+            }
           }
         }
 

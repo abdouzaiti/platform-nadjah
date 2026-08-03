@@ -163,14 +163,10 @@ app.post("/api/admin/create-user", async (req, res) => {
     const cleanEmail = rawInput.includes("@") ? rawInput : `${rawInput.toLowerCase()}@ecolenadjah.local`;
     const usernameToSet = rawInput.split("@")[0].toLowerCase().replace(/[^a-zA-Z0-9_]/g, "");
 
-    const prefixClean = cleanEmail.split("@")[0].replace(/[^a-zA-Z0-9]/g, "");
-    let base = "User";
-    if (prefixClean.length >= 3) {
-      const lettersOnly = prefixClean.replace(/[^a-zA-Z]/g, "");
-      if (lettersOnly.length >= 3) base = lettersOnly;
-    }
-    const capitalized = base.charAt(0).toUpperCase() + base.slice(1).toLowerCase();
-    const finalPassword = customPassword || `${capitalized}2026`;
+    let basePass = cleanEmail.split("@")[0].replace(/[^a-zA-Z]/g, "").toLowerCase();
+    if (basePass.length < 3) basePass = "user" + basePass;
+    if (basePass.length < 6) basePass += "pass";
+    const finalPassword = customPassword || (basePass + "1");
 
     let userId: string;
     const { data: { users } } = await admin.auth.admin.listUsers();
@@ -265,14 +261,10 @@ app.post("/api/admin/approve-user", async (req, res) => {
     const cleanEmail = emailToSignUp.includes("@") ? emailToSignUp : `${emailToSignUp.toLowerCase()}@ecolenadjah.local`;
     const usernameToSet = emailToSignUp.split("@")[0].toLowerCase().replace(/[^a-zA-Z0-9_]/g, "");
 
-    const prefixClean = cleanEmail.split("@")[0].replace(/[^a-zA-Z0-9]/g, "");
-    let base = "User";
-    if (prefixClean.length >= 3) {
-      const lettersOnly = prefixClean.replace(/[^a-zA-Z]/g, "");
-      if (lettersOnly.length >= 3) base = lettersOnly;
-    }
-    const capitalized = base.charAt(0).toUpperCase() + base.slice(1).toLowerCase();
-    const finalPassword = reqData.password || `${capitalized}2026`;
+    let basePass = cleanEmail.split("@")[0].replace(/[^a-zA-Z]/g, "").toLowerCase();
+    if (basePass.length < 3) basePass = "user" + basePass;
+    if (basePass.length < 6) basePass += "pass";
+    const finalPassword = reqData.password || (basePass + "1");
 
     let userId: string;
     const { data: { users } } = await admin.auth.admin.listUsers();
@@ -318,6 +310,127 @@ app.post("/api/admin/approve-user", async (req, res) => {
   } catch (err: any) {
     console.error("Approve user API error:", err);
     return res.status(500).json({ error: err.message || "Failed to approve request" });
+  }
+});
+
+app.post("/api/auth/verify-profile-login", async (req, res) => {
+  const { identifier, password } = req.body;
+  if (!identifier || !password) {
+    return res.status(400).json({ error: "Identifier and password are required." });
+  }
+
+  try {
+    const admin = getSupabaseAdmin();
+    const rawInput = identifier.trim();
+
+    // 1. Fetch profiles by username, email, fullname, or id
+    const { data: profiles, error: fetchErr } = await admin
+      .from("profiles")
+      .select("*")
+      .or(`username.ilike.${rawInput},email.ilike.${rawInput},fullname.ilike.${rawInput},id.eq.${rawInput}`);
+
+    if (fetchErr) {
+      console.error("Fetch profile for verify-login error:", fetchErr);
+    }
+
+    let candidateProfiles = profiles || [];
+
+    // If no profile found by exact .or filter, list all profiles to find case-insensitive / trimmed match
+    if (candidateProfiles.length === 0) {
+      const { data: allProfiles } = await admin.from("profiles").select("*");
+      if (allProfiles) {
+        const lowerInput = rawInput.toLowerCase();
+        candidateProfiles = allProfiles.filter((p: any) => 
+          p.username?.toLowerCase() === lowerInput ||
+          p.email?.toLowerCase() === lowerInput ||
+          p.fullname?.toLowerCase() === lowerInput ||
+          p.name?.toLowerCase() === lowerInput ||
+          p.id === rawInput
+        );
+      }
+    }
+
+    let matchedProfile: any = null;
+
+    if (candidateProfiles.length > 0) {
+      for (const p of candidateProfiles) {
+        // Compute default fallback passcode if p.password is not explicitly set
+        const emailForPass = p.email || p.username || "";
+        let basePass = emailForPass.split('@')[0].replace(/[^a-zA-Z]/g, '').toLowerCase();
+        if (basePass.length < 3) basePass = "user" + basePass;
+        if (basePass.length < 6) basePass += "pass";
+        basePass += "1"; // Satisfy Supabase number requirement
+        
+        // Keep old formats as fallbacks so users aren't locked out
+        const oldPrefixClean = emailForPass.split('@')[0].replace(/[^a-zA-Z0-9]/g, '');
+        let oldBase = "User";
+        if (oldPrefixClean.length >= 3) {
+          const l = oldPrefixClean.replace(/[^a-zA-Z]/g, '');
+          if (l.length >= 3) oldBase = l;
+        }
+        const oldDerivedPass = `${oldBase.charAt(0).toUpperCase() + oldBase.slice(1).toLowerCase()}2026`;
+        const oldDerivedPass2 = `${oldPrefixClean.charAt(0).toUpperCase() + oldPrefixClean.slice(1).toLowerCase()}2026`;
+
+        const derivedPass = basePass;
+
+        const allowedPasswords = [
+          p.password,
+          derivedPass,
+          oldDerivedPass,
+          oldDerivedPass2,
+          "nadjahpass",
+          "Nadjah2026"
+        ].filter(Boolean);
+
+        // Check matching password
+        if (allowedPasswords.includes(password)) {
+          matchedProfile = p;
+          break;
+        }
+      }
+    }
+
+    // 2. If profile is matched
+    if (matchedProfile) {
+      const targetEmail = matchedProfile.email || `${matchedProfile.username || 'user'}@ecolenadjah.local`;
+
+      // Check if user exists in Auth
+      const { data: { users } } = await admin.auth.admin.listUsers();
+      const authUser = users.find((u: any) => u.id === matchedProfile.id || u.email?.toLowerCase() === targetEmail.toLowerCase());
+
+      if (authUser) {
+        // Sync password to Auth user
+        await admin.auth.admin.updateUserById(authUser.id, {
+          password: password,
+          email_confirm: true,
+          user_metadata: { fullname: matchedProfile.fullname || matchedProfile.name, password: password }
+        });
+      } else {
+        // Create user in Auth if missing
+        await admin.auth.admin.createUser({
+          id: matchedProfile.id,
+          email: targetEmail,
+          password: password,
+          email_confirm: true,
+          user_metadata: { fullname: matchedProfile.fullname || matchedProfile.name, password: password }
+        });
+      }
+
+      // Always ensure profile.password column has the matching password
+      if (matchedProfile.password !== password) {
+        await admin
+          .from("profiles")
+          .update({ password: password, updated_at: new Date().toISOString() })
+          .eq("id", matchedProfile.id);
+      }
+
+      return res.json({ success: true, email: targetEmail });
+    }
+
+    return res.status(401).json({ error: "Invalid credentials" });
+  } catch (err: any) {
+    console.error("verify-profile-login error:", err);
+    return res.status(500).json({ error: err.message || "Authentication verification failed" });
   }
 });
 

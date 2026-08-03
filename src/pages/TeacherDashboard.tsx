@@ -346,15 +346,11 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
       // 2. Client fallback if server API route unavailable
       if (!apiSuccess) {
         const adminAuth = createAdminAuthClient();
-        const prefixClean = emailToSignUp.split('@')[0].replace(/[^a-zA-Z0-9]/g, '');
         const dynamicPass = (() => {
-          let base = "User";
-          if (prefixClean.length >= 3) {
-            const lettersOnly = prefixClean.replace(/[^a-zA-Z]/g, '');
-            if (lettersOnly.length >= 3) base = lettersOnly;
-          }
-          const capitalized = base.charAt(0).toUpperCase() + base.slice(1).toLowerCase();
-          return `${capitalized}2026`;
+          let basePass = emailToSignUp.split('@')[0].replace(/[^a-zA-Z]/g, '').toLowerCase();
+          if (basePass.length < 3) basePass = "user" + basePass;
+          if (basePass.length < 6) basePass += "pass";
+          return basePass + "1";
         })();
         createdPasscode = dynamicPass;
 
@@ -526,15 +522,11 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
       // 2. Client fallback
       if (!apiSuccess) {
         const adminAuth = createAdminAuthClient();
-        const prefixClean = emailToSignUp.split('@')[0].replace(/[^a-zA-Z0-9]/g, '');
         const dynamicPass = (() => {
-          let base = "User";
-          if (prefixClean.length >= 3) {
-            const lettersOnly = prefixClean.replace(/[^a-zA-Z]/g, '');
-            if (lettersOnly.length >= 3) base = lettersOnly;
-          }
-          const capitalized = base.charAt(0).toUpperCase() + base.slice(1).toLowerCase();
-          return `${capitalized}2026`;
+          let basePass = emailToSignUp.split('@')[0].replace(/[^a-zA-Z]/g, '').toLowerCase();
+          if (basePass.length < 3) basePass = "user" + basePass;
+          if (basePass.length < 6) basePass += "pass";
+          return basePass + "1";
         })();
         approvedPasscode = dynamicPass;
 
@@ -1110,13 +1102,11 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                   <tbody className="divide-y divide-slate-50">
                     {usersList.map((user) => {
                       const email = user.email || "";
-                      const prefixClean = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '');
                       const defaultPass = (() => {
-                        if (prefixClean.length >= 3) {
-                          const capitalized = prefixClean.charAt(0).toUpperCase() + prefixClean.slice(1).toLowerCase();
-                          return `${capitalized}2026`;
-                        }
-                        return "Nadjah2026";
+                        let basePass = email.split('@')[0].replace(/[^a-zA-Z]/g, '').toLowerCase();
+                        if (basePass.length < 3) basePass = "user" + basePass;
+                        if (basePass.length < 6) basePass += "pass";
+                        return basePass + "1";
                       })();
 
                       const displayPass = user.password || defaultPass;
