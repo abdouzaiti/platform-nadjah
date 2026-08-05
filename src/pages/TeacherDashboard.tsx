@@ -350,7 +350,7 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
           let basePass = emailToSignUp.split('@')[0].replace(/[^a-zA-Z]/g, '').toLowerCase();
           if (basePass.length < 3) basePass = "user" + basePass;
           if (basePass.length < 6) basePass += "pass";
-          return basePass + "1";
+          return basePass;
         })();
         createdPasscode = dynamicPass;
 
@@ -358,7 +358,7 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
 
         const { data: signUpData, error: signUpError } = await adminAuth.auth.signUp({
           email: cleanEmail,
-          password: dynamicPass,
+          password: dynamicPass + "A1",
           options: {
             data: {
               fullname: fullNameToSignUp,
@@ -526,7 +526,7 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
           let basePass = emailToSignUp.split('@')[0].replace(/[^a-zA-Z]/g, '').toLowerCase();
           if (basePass.length < 3) basePass = "user" + basePass;
           if (basePass.length < 6) basePass += "pass";
-          return basePass + "1";
+          return basePass;
         })();
         approvedPasscode = dynamicPass;
 
@@ -557,7 +557,7 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
         } else {
           const { data: signUpData, error: signUpError } = await adminAuth.auth.signUp({
             email: cleanEmail,
-            password: dynamicPass,
+            password: dynamicPass + "A1",
             options: {
               data: {
                 fullname: fullNameToSignUp,
@@ -1090,13 +1090,17 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                       <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-400 px-2">{getLabel("البريد الإلكتروني", "Email", "Email")}</th>
                       <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-400 px-2">{getLabel("اسم المستخدم", "Username", "Username")}</th>
                       <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-400 px-2">{getLabel("الصفة", "Rôle", "Role")}</th>
-                      <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-400 px-2">
-                        <div className="flex items-center gap-1.5">
-                          <Key className="h-3 w-3 text-indigo-500" />
-                          <span>{getLabel("كلمة السر (افتراضية)", "Pass (Défaut)", "Passcode (Default)")}</span>
-                        </div>
-                      </th>
-                      <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-400 px-2 text-center">{getLabel("إجراءات", "Actions", "Actions")}</th>
+                      {isDeveloper && (
+                        <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-400 px-2">
+                          <div className="flex items-center gap-1.5">
+                            <Key className="h-3 w-3 text-indigo-500" />
+                            <span>{getLabel("كلمة السر", "Mot de passe", "Password")}</span>
+                          </div>
+                        </th>
+                      )}
+                      {isDeveloper && (
+                        <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-slate-400 px-2 text-center">{getLabel("إجراءات", "Actions", "Actions")}</th>
+                      )}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
@@ -1106,7 +1110,7 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                         let basePass = email.split('@')[0].replace(/[^a-zA-Z]/g, '').toLowerCase();
                         if (basePass.length < 3) basePass = "user" + basePass;
                         if (basePass.length < 6) basePass += "pass";
-                        return basePass + "1";
+                        return basePass;
                       })();
 
                       const displayPass = user.password || defaultPass;
@@ -1138,27 +1142,29 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                               {user.role}
                             </span>
                           </td>
-                          <td className="py-4 px-2">
-                            <div className="flex items-center gap-2">
-                              <code className="bg-slate-100 px-2.5 py-1 rounded-lg text-[10px] font-black text-slate-700 select-all border border-slate-200">
-                                {displayPass}
-                              </code>
-                              <button 
-                                onClick={() => {
-                                  navigator.clipboard.writeText(displayPass);
-                                }}
-                                className="p-1.5 text-slate-400 hover:text-brand-blue transition-colors cursor-pointer"
-                                title="Copy Passcode"
-                              >
-                                <Key className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-                          </td>
-                          <td className="py-4 px-2">
-                             <div className="flex items-center justify-center gap-2">
-                               {user.id !== profile.id && (
-                                 <>
-                                   {isDeveloper && (
+                          {isDeveloper && (
+                            <td className="py-4 px-2">
+                              <div className="flex items-center gap-2">
+                                <code className="bg-slate-100 px-2.5 py-1 rounded-lg text-[10px] font-black text-slate-700 select-all border border-slate-200">
+                                  {displayPass}
+                                </code>
+                                <button 
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(displayPass);
+                                  }}
+                                  className="p-1.5 text-slate-400 hover:text-brand-blue transition-colors cursor-pointer"
+                                  title="Copy Passcode"
+                                >
+                                  <Key className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          )}
+                          {isDeveloper && (
+                            <td className="py-4 px-2">
+                               <div className="flex items-center justify-center gap-2">
+                                 {user.id !== profile.id && (
+                                   <>
                                      <button 
                                        onClick={() => handleOpenEditModal(user)}
                                        className="p-2 text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer"
@@ -1166,18 +1172,18 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                                      >
                                        <Edit3 className="h-4 w-4" />
                                      </button>
-                                   )}
-                                   <button 
-                                     onClick={() => handleRejectOrDelete(user.id)}
-                                     className="p-2 text-slate-400 hover:text-red-600 transition-colors cursor-pointer"
-                                     title={getLabel("حذف الحساب", "Supprimer", "Delete Account")}
-                                   >
-                                     <Trash2 className="h-4 w-4" />
-                                   </button>
-                                 </>
-                               )}
-                             </div>
-                          </td>
+                                     <button 
+                                       onClick={() => handleRejectOrDelete(user.id)}
+                                       className="p-2 text-slate-400 hover:text-red-600 transition-colors cursor-pointer"
+                                       title={getLabel("حذف الحساب", "Supprimer", "Delete Account")}
+                                     >
+                                       <Trash2 className="h-4 w-4" />
+                                     </button>
+                                   </>
+                                 )}
+                               </div>
+                            </td>
+                          )}
                         </tr>
                       );
                     })}

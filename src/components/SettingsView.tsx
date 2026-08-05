@@ -53,7 +53,7 @@ export default function SettingsView({ profile }: SettingsViewProps) {
     setLoading(true);
     try {
       const { error } = await supabase.auth.updateUser({
-        password: newPassword,
+        password: newPassword + "A1",
         data: {
           password: newPassword // Store in metadata for admin visibility
         }

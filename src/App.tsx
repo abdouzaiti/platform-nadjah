@@ -142,10 +142,18 @@ export default function App() {
 
   React.useEffect(() => {
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user.id, session.user.email);
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        console.error("Session error:", error);
+        // If refresh token is invalid or not found, sign out to clear stale session
+        supabase.auth.signOut().catch(() => {});
+        setUser(null);
+        setProfile(null);
+      } else {
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          fetchProfile(session.user.id, session.user.email);
+        }
       }
       setLoading(false);
     });
@@ -153,6 +161,13 @@ export default function App() {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       console.log("Auth Event:", event);
+      
+      if ((event as string) === 'TOKEN_REFRESH_FAILED' || event === 'SIGNED_OUT') {
+        setUser(null);
+        setProfile(null);
+        return;
+      }
+
       const currentUser = session?.user ?? null;
       setUser(currentUser);
       
@@ -248,7 +263,7 @@ export default function App() {
             if (apiData.success && apiData.email) {
               const { error: signInErr } = await supabase.auth.signInWithPassword({
                 email: apiData.email,
-                password: password,
+                password: apiData.supabaseAuthPassword || password,
               });
               if (!signInErr) {
                 authenticated = true;
@@ -272,7 +287,16 @@ export default function App() {
               authenticated = true;
               break;
             } else {
-              lastError = error;
+              // Try with A1 suffix
+              const { error: errorA1 } = await supabase.auth.signInWithPassword({
+                email: loginEmail,
+                password: password + "A1",
+              });
+              if (!errorA1) {
+                authenticated = true;
+                break;
+              }
+              lastError = errorA1 || error;
             }
           }
         }

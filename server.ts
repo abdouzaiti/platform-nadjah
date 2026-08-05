@@ -166,7 +166,8 @@ app.post("/api/admin/create-user", async (req, res) => {
     let basePass = cleanEmail.split("@")[0].replace(/[^a-zA-Z]/g, "").toLowerCase();
     if (basePass.length < 3) basePass = "user" + basePass;
     if (basePass.length < 6) basePass += "pass";
-    const finalPassword = customPassword || (basePass + "1");
+    const finalPassword = customPassword || basePass;
+    const supabaseAuthPassword = finalPassword + "A1";
 
     let userId: string;
     const { data: { users } } = await admin.auth.admin.listUsers();
@@ -175,7 +176,7 @@ app.post("/api/admin/create-user", async (req, res) => {
     if (existingAuthUser) {
       userId = existingAuthUser.id;
       const { error: updateErr } = await admin.auth.admin.updateUserById(userId, {
-        password: finalPassword,
+        password: supabaseAuthPassword,
         email_confirm: true,
         user_metadata: { fullname: fullname.trim(), password: finalPassword }
       });
@@ -183,7 +184,7 @@ app.post("/api/admin/create-user", async (req, res) => {
     } else {
       const { data: createData, error: createErr } = await admin.auth.admin.createUser({
         email: cleanEmail,
-        password: finalPassword,
+        password: supabaseAuthPassword,
         email_confirm: true,
         user_metadata: { fullname: fullname.trim(), password: finalPassword }
       });
@@ -264,7 +265,8 @@ app.post("/api/admin/approve-user", async (req, res) => {
     let basePass = cleanEmail.split("@")[0].replace(/[^a-zA-Z]/g, "").toLowerCase();
     if (basePass.length < 3) basePass = "user" + basePass;
     if (basePass.length < 6) basePass += "pass";
-    const finalPassword = reqData.password || (basePass + "1");
+    const finalPassword = reqData.password || basePass;
+    const supabaseAuthPassword = finalPassword + "A1";
 
     let userId: string;
     const { data: { users } } = await admin.auth.admin.listUsers();
@@ -273,14 +275,14 @@ app.post("/api/admin/approve-user", async (req, res) => {
     if (existingAuthUser) {
       userId = existingAuthUser.id;
       await admin.auth.admin.updateUserById(userId, {
-        password: finalPassword,
+        password: supabaseAuthPassword,
         email_confirm: true,
         user_metadata: { fullname: fullNameToSignUp, password: finalPassword }
       });
     } else {
       const { data: createData, error: createErr } = await admin.auth.admin.createUser({
         email: cleanEmail,
-        password: finalPassword,
+        password: supabaseAuthPassword,
         email_confirm: true,
         user_metadata: { fullname: fullNameToSignUp, password: finalPassword }
       });
@@ -359,7 +361,6 @@ app.post("/api/auth/verify-profile-login", async (req, res) => {
         let basePass = emailForPass.split('@')[0].replace(/[^a-zA-Z]/g, '').toLowerCase();
         if (basePass.length < 3) basePass = "user" + basePass;
         if (basePass.length < 6) basePass += "pass";
-        basePass += "1"; // Satisfy Supabase number requirement
         
         // Keep old formats as fallbacks so users aren't locked out
         const oldPrefixClean = emailForPass.split('@')[0].replace(/[^a-zA-Z0-9]/g, '');
@@ -393,6 +394,7 @@ app.post("/api/auth/verify-profile-login", async (req, res) => {
     // 2. If profile is matched
     if (matchedProfile) {
       const targetEmail = matchedProfile.email || `${matchedProfile.username || 'user'}@ecolenadjah.local`;
+      const supabaseAuthPassword = password + "A1";
 
       // Check if user exists in Auth
       const { data: { users } } = await admin.auth.admin.listUsers();
@@ -401,7 +403,7 @@ app.post("/api/auth/verify-profile-login", async (req, res) => {
       if (authUser) {
         // Sync password to Auth user
         await admin.auth.admin.updateUserById(authUser.id, {
-          password: password,
+          password: supabaseAuthPassword,
           email_confirm: true,
           user_metadata: { fullname: matchedProfile.fullname || matchedProfile.name, password: password }
         });
@@ -410,7 +412,7 @@ app.post("/api/auth/verify-profile-login", async (req, res) => {
         await admin.auth.admin.createUser({
           id: matchedProfile.id,
           email: targetEmail,
-          password: password,
+          password: supabaseAuthPassword,
           email_confirm: true,
           user_metadata: { fullname: matchedProfile.fullname || matchedProfile.name, password: password }
         });
@@ -424,7 +426,7 @@ app.post("/api/auth/verify-profile-login", async (req, res) => {
           .eq("id", matchedProfile.id);
       }
 
-      return res.json({ success: true, email: targetEmail });
+      return res.json({ success: true, email: targetEmail, supabaseAuthPassword });
     }
 
     return res.status(401).json({ error: "Invalid credentials" });
