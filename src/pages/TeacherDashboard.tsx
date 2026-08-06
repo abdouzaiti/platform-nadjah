@@ -1,6 +1,7 @@
 import React from "react";
 import { UserProfile, TeacherCommunity, ClassRoom, RoomType, LiveSession } from "../types";
 import Sidebar from "../components/Sidebar";
+import StudentFinancesView from "../components/StudentFinancesView";
 import SettingsView from "../components/SettingsView";
 import { supabase, createAdminAuthClient } from "../lib/supabase";
 import { Plus, Video, Trash2, Edit3, Loader2, Play, Users, Menu, X, Database, MessageSquare, Megaphone, FileText, Settings, Hash, Radio, Key, Mail, Phone, LogOut, RefreshCw, Eye, EyeOff, UserPlus, UserCheck, CheckCircle2, AlertCircle, Clock, ShieldCheck, UserX } from "lucide-react";
@@ -818,7 +819,9 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
       />
       
       <main className="flex-1 overflow-y-auto p-4 md:p-8 no-scrollbar bg-slate-50/50">
-        {activeTab === "settings" ? (
+        {activeTab === "student-finances" && isDeveloper ? (
+          <StudentFinancesView />
+        ) : activeTab === "settings" ? (
           <div className="space-y-6">
             <SettingsView profile={profile} />
           </div>

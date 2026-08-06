@@ -32,6 +32,8 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
   const [roomFiles, setRoomFiles] = useState<ChatMessageData[]>([]);
   const [previewFile, setPreviewFile] = useState<{ name: string; url: string; type: string } | null>(null);
   const [isEnding, setIsEnding] = useState(false);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [agoraRecordingState, setAgoraRecordingState] = useState<{resourceId: string, sid: string, m3u8Url: string, prefix: string} | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [recordingUrlInput, setRecordingUrlInput] = useState("");
@@ -63,10 +65,6 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
   const [agoraError, setAgoraError] = useState<string | null>(null);
   const [isInitializingTracks, setIsInitializingTracks] = useState(false);
   const [initTakingLong, setInitTakingLong] = useState(false);
-
-  // Recording State
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const recordedChunksRef = useRef<Blob[]>([]);
 
   useEffect(() => {
     const fetchTeacher = async () => {
@@ -448,20 +446,20 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
             
             await client!.publish(tracksToPublish);
 
-            // browser-based recording for teacher
+            // Start Agora Cloud Recording
             try {
-              const stream = new MediaStream();
-              if (tracks.videoTrack) stream.addTrack(tracks.videoTrack.getMediaStreamTrack());
-              stream.addTrack(tracks.audioTrack.getMediaStreamTrack());
-              
-              const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
-              recordedChunksRef.current = [];
-              recorder.ondataavailable = (e) => {
-                if (e.data.size > 0) recordedChunksRef.current.push(e.data);
-              };
-              recorder.start(1000); // 1s slice
-              mediaRecorderRef.current = recorder;
-              console.log("Teacher browser recording started");
+              const recRes = await fetch("/api/agora/start-recording", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ channel: room.id, uid: 999999 })
+              });
+              if (recRes.ok) {
+                const recData = await recRes.json();
+                setAgoraRecordingState(recData);
+                console.log("Agora Cloud Recording started:", recData);
+              } else {
+                console.error("Agora recording start failed", await recRes.text());
+              }
             } catch (recErr) {
               console.error("Recording start error:", recErr);
             }
@@ -645,15 +643,21 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
 
   const handleEndStream = async () => {
     if (!currentSession) return;
+    setIsEnding(false);
     setIsUploading(true);
     try {
       // 1. Stop recording if active
-      let recordingBlob: Blob | null = null;
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-        mediaRecorderRef.current.stop();
-        // Small delay to ensure all chunks are captured
-        await new Promise(resolve => setTimeout(resolve, 500));
-        recordingBlob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
+      if (agoraRecordingState) {
+        await fetch("/api/agora/stop-recording", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            channel: room.id,
+            uid: 999999,
+            resourceId: agoraRecordingState.resourceId,
+            sid: agoraRecordingState.sid
+          })
+        });
       }
 
       const { error } = await supabase
@@ -666,44 +670,61 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
 
       if (error) throw error;
       
-      let finalRecordingUrl = recordingUrlInput;
-
-      // 2. Upload recording if we have a blob
-      if (recordingBlob && recordingBlob.size > 0) {
-        const fileName = `recording-${currentSession.id}-${Date.now()}.webm`;
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('recordings')
-          .upload(fileName, recordingBlob, {
-            contentType: 'video/webm',
-            upsert: true
-          });
-
-        if (uploadError) {
-          console.error("Storage upload error:", uploadError);
-          // If bucket doesn't exist, we might get an error here. 
-          // One could try to create bucket via RPC if enabled, but usually it's manual.
-        } else {
-          const { data: { publicUrl } } = supabase.storage.from('recordings').getPublicUrl(fileName);
-          finalRecordingUrl = publicUrl;
-        }
+      // Stop the tracks locally
+      if (agoraClient) {
+        leaveChannel(agoraClient, localTracks ? { 
+          audioTrack: localTracks.audioTrack, 
+          videoTrack: localTracks.videoTrack || undefined 
+        } : undefined);
       }
-
-      // 3. Save recording link to DB
-      if (finalRecordingUrl) {
-        await supabase.from("recordings").insert({
-          live_session_id: currentSession.id,
-          video_url: finalRecordingUrl
-        });
-      }
-
-      setIsEnding(false);
-      setRecordingUrlInput("");
+      
       setIsUploading(false);
+      setShowSaveDialog(true);
     } catch (err: any) {
       console.error("End stream error:", err);
       if (currentSession) {
         alert(err.message || "Failed to end session");
       }
+      setIsUploading(false);
+    }
+  };
+
+  const handleSaveRecording = async () => {
+    setIsUploading(true);
+    try {
+      const videoUrl = agoraRecordingState ? agoraRecordingState.m3u8Url : recordingUrlInput;
+      if (videoUrl && currentSession) {
+        await supabase.from("recordings").insert({
+          live_session_id: currentSession.id,
+          video_url: videoUrl
+        });
+      }
+      setShowSaveDialog(false);
+      setRecordingUrlInput("");
+      setIsUploading(false);
+      onClose(); // Close the modal
+    } catch (e) {
+      console.error(e);
+      setIsUploading(false);
+    }
+  };
+
+  const handleDeleteRecording = async () => {
+    setIsUploading(true);
+    try {
+      if (agoraRecordingState?.prefix) {
+        await fetch("/api/recordings/delete-s3", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prefix: agoraRecordingState.prefix })
+        });
+      }
+      setShowSaveDialog(false);
+      setRecordingUrlInput("");
+      setIsUploading(false);
+      onClose();
+    } catch (e) {
+      console.error(e);
       setIsUploading(false);
     }
   };
@@ -1399,9 +1420,9 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                     {isUploading ? (
                       <div className="py-8 space-y-4">
                         <Loader2 className="h-12 w-12 text-brand-blue animate-spin mx-auto" />
-                        <h4 className="text-xl font-display font-black uppercase italic tracking-tighter text-slate-900 leading-none">{t('uploading_recording', 'Saving Your Class')}</h4>
+                        <h4 className="text-xl font-display font-black uppercase italic tracking-tighter text-slate-900 leading-none">Ending Session...</h4>
                         <p className="text-xs text-slate-400 font-medium font-sans px-4">
-                          {t('uploading_desc', 'Please wait while we securely upload your live recording to the cloud.')}
+                          Please wait while we wrap up the stream.
                         </p>
                       </div>
                     ) : (
@@ -1412,21 +1433,10 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                         <div className="space-y-2">
                           <h4 className="text-2xl font-display font-black uppercase text-slate-900 italic tracking-tighter leading-none">{t('end_session', 'End Session?')}</h4>
                           <p className="text-xs text-slate-400 font-medium font-sans">
-                            {t('end_session_hint_pro', 'We are recording your session automatically. You can also provide an external link below.')}
+                            Are you sure you want to end this live session?
                           </p>
                         </div>
                         <div className="space-y-4">
-                          <div className="relative group">
-                            <input 
-                              value={recordingUrlInput} 
-                              onChange={(e) => setRecordingUrlInput(e.target.value)} 
-                              placeholder="YouTube/Google Drive Link (Optional)" 
-                              className="w-full bg-slate-50 border border-slate-100 p-4 rounded-2xl text-[13px] font-medium outline-none focus:border-brand-blue transition-all" 
-                            />
-                            <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none opacity-20">
-                              <Share2 className="h-4 w-4" />
-                            </div>
-                          </div>
                           <div className="flex flex-col gap-3 pt-2">
                             <button 
                               onClick={handleEndStream} 
@@ -1439,6 +1449,58 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                               className="w-full py-4 bg-slate-100 text-slate-400 rounded-2xl font-black uppercase tracking-widest text-[11px] hover:bg-slate-200 transition-all"
                             >
                               {t('cancel', 'Back to Class')}
+                            </button>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                 </motion.div>
+              </div>
+            )}
+            
+            {showSaveDialog && (
+              <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-lg p-6">
+                 <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white p-8 rounded-[40px] w-full max-w-sm text-center space-y-6 shadow-2xl">
+                    {isUploading ? (
+                      <div className="py-8 space-y-4">
+                        <Loader2 className="h-12 w-12 text-brand-blue animate-spin mx-auto" />
+                        <h4 className="text-xl font-display font-black uppercase italic tracking-tighter text-slate-900 leading-none">Processing...</h4>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="mx-auto w-16 h-16 bg-brand-blue/10 rounded-2xl flex items-center justify-center">
+                          <Save className="h-8 w-8 text-brand-blue" />
+                        </div>
+                        <div className="space-y-2">
+                          <h4 className="text-2xl font-display font-black uppercase text-slate-900 italic tracking-tighter leading-none">Save Recording?</h4>
+                          <p className="text-xs text-slate-400 font-medium font-sans">
+                            Do you want to save this recording to the Replay Library?
+                          </p>
+                        </div>
+                        <div className="space-y-4">
+                          <div className="relative group">
+                            <input 
+                              value={recordingUrlInput} 
+                              onChange={(e) => setRecordingUrlInput(e.target.value)} 
+                              placeholder="YouTube/Google Drive Link (Optional Override)" 
+                              className="w-full bg-slate-50 border border-slate-100 p-4 rounded-2xl text-[13px] font-medium outline-none focus:border-brand-blue transition-all" 
+                            />
+                            <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none opacity-20">
+                              <Share2 className="h-4 w-4" />
+                            </div>
+                          </div>
+                          <div className="flex flex-col gap-3 pt-2">
+                            <button 
+                              onClick={handleSaveRecording} 
+                              className="w-full py-4 bg-brand-blue text-white rounded-2xl font-black uppercase tracking-widest text-[11px] shadow-xl shadow-blue-500/20 hover:bg-blue-600 hover:scale-[1.02] transition-all"
+                            >
+                              Save to Replay Library
+                            </button>
+                            <button 
+                              onClick={handleDeleteRecording} 
+                              className="w-full py-4 bg-red-100 text-red-600 rounded-2xl font-black uppercase tracking-widest text-[11px] hover:bg-red-200 transition-all"
+                            >
+                              Delete Recording
                             </button>
                           </div>
                         </div>
