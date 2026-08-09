@@ -72,12 +72,27 @@ export default function Sidebar({ profile, activeTab, setActiveTab, isOpen = fal
         "lg:translate-x-0"
       )}>
         <div className="flex h-20 items-center justify-between px-6 border-b border-slate-100">
-          <div className="flex items-center space-x-3 rtl:space-x-reverse">
+          <div className="flex items-center space-x-3 rtl:space-x-reverse overflow-hidden min-w-0">
+            {profile.avatar_url ? (
+              <img 
+                src={profile.avatar_url} 
+                alt={profile.fullname} 
+                className="h-10 w-10 rounded-xl object-cover border border-slate-200 shrink-0 shadow-sm"
+              />
+            ) : (
+              <div className="h-10 w-10 rounded-xl bg-brand-blue text-white flex items-center justify-center font-bold text-sm uppercase shrink-0 shadow-sm">
+                {profile.fullname?.charAt(0) || profile.username?.charAt(0) || "U"}
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-black text-slate-900 truncate leading-tight">{profile.fullname}</p>
+              <p className="text-[10px] text-slate-400 font-bold truncate">@{profile.username}</p>
+            </div>
           </div>
           {/* Close button for mobile */}
           <button 
             onClick={onClose}
-            className="lg:hidden h-8 w-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400 active:scale-95"
+            className="lg:hidden h-8 w-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400 active:scale-95 shrink-0"
           >
             <PlusCircle className="h-5 w-5 rotate-45" />
           </button>

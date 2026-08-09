@@ -10,6 +10,7 @@ interface StudentFinanceData {
   email: string;
   phone?: string;
   username: string;
+  avatar_url?: string;
   created_at: string;
   joinedRooms: {
     room_id: string;
@@ -79,6 +80,7 @@ export default function StudentFinancesView() {
           email: student.email,
           phone: student.phone,
           username: student.username,
+          avatar_url: student.avatar_url,
           created_at: student.created_at,
           joinedRooms: studentRooms
         };
@@ -152,12 +154,21 @@ export default function StudentFinancesView() {
                   filteredStudents.map((student) => (
                     <tr key={student.id} className="group hover:bg-slate-50/50 transition-all">
                       <td className="py-4 px-2">
-                        <div className="flex flex-col">
-                          <span className="font-bold text-slate-900 text-sm">{student.fullname}</span>
-                          <span className="text-xs text-slate-400">@{student.username}</span>
-                          <span className="text-xs text-slate-400">{student.email}</span>
-                          {student.phone && <span className="text-xs text-slate-500 font-medium">{student.phone}</span>}
-                          <span className="text-[10px] text-slate-400 mt-1">Joined: {new Date(student.created_at).toLocaleDateString()}</span>
+                        <div className="flex items-center gap-3">
+                          {student.avatar_url ? (
+                            <img src={student.avatar_url} alt={student.fullname} className="h-10 w-10 rounded-full object-cover border border-slate-200 shrink-0" />
+                          ) : (
+                            <div className="h-10 w-10 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-black text-xs uppercase shrink-0">
+                              {student.fullname?.charAt(0) || "S"}
+                            </div>
+                          )}
+                          <div className="flex flex-col min-w-0">
+                            <span className="font-bold text-slate-900 text-sm truncate">{student.fullname}</span>
+                            <span className="text-xs text-slate-400">@{student.username}</span>
+                            <span className="text-xs text-slate-400 truncate">{student.email}</span>
+                            {student.phone && <span className="text-xs text-slate-500 font-medium">{student.phone}</span>}
+                            <span className="text-[10px] text-slate-400 mt-0.5">Joined: {new Date(student.created_at).toLocaleDateString()}</span>
+                          </div>
                         </div>
                       </td>
                       <td className="py-4 px-2">

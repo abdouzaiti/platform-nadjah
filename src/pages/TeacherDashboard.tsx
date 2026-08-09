@@ -1122,6 +1122,13 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                         <tr key={user.id} className="group hover:bg-slate-50/50 transition-all">
                           <td className="py-4 px-2">
                             <div className="flex items-center gap-3">
+                              {user.avatar_url ? (
+                                <img src={user.avatar_url} alt={user.fullname} className="h-9 w-9 rounded-full object-cover border border-slate-200 shrink-0" />
+                              ) : (
+                                <div className="h-9 w-9 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-bold text-xs uppercase shrink-0">
+                                  {user.fullname?.charAt(0) || user.username?.charAt(0) || "U"}
+                                </div>
+                              )}
                               <div className="min-w-0">
                                 <p className="text-xs font-black text-slate-800 truncate uppercase tracking-tight">{user.fullname || "Anonymous"}</p>
                                 <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{formatDate(user.created_at)}</p>
@@ -1129,7 +1136,10 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                             </div>
                           </td>
                           <td className="py-4 px-2">
-                            <span className="text-[10px] font-mono font-bold text-slate-500 lowercase">{user.email}</span>
+                            <div className="flex flex-col">
+                              <span className="text-[10px] font-mono font-bold text-slate-500 lowercase">{user.email}</span>
+                              {user.phone && <span className="text-[9px] font-mono font-bold text-slate-400">{user.phone}</span>}
+                            </div>
                           </td>
                           <td className="py-4 px-2">
                             <span className="text-[10px] font-black text-indigo-500 uppercase tracking-tighter">@{user.username}</span>

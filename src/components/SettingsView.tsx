@@ -2,12 +2,24 @@ import React from "react";
 import { supabase } from "../lib/supabase";
 import { UserProfile } from "../types";
 import { useTranslation } from "react-i18next";
-import { Key, Lock, Loader2, CheckCircle2, AlertCircle, ShieldAlert, LogOut } from "lucide-react";
+import { Key, Lock, Loader2, CheckCircle2, AlertCircle, ShieldAlert, LogOut, Camera, Upload, Trash2, Image, Sparkles, User, Link2 } from "lucide-react";
 import { motion } from "motion/react";
+import { cn } from "../lib/utils";
 
 interface SettingsViewProps {
   profile: UserProfile;
 }
+
+const PRESET_AVATARS = [
+  "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=250",
+  "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&q=80&w=250",
+  "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=250",
+  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=250",
+  "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=250",
+  "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&q=80&w=250",
+  "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=250",
+  "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&q=80&w=250",
+];
 
 export default function SettingsView({ profile }: SettingsViewProps) {
   const { i18n } = useTranslation();
@@ -21,10 +33,116 @@ export default function SettingsView({ profile }: SettingsViewProps) {
   const [usernameError, setUsernameError] = React.useState<string | null>(null);
   const [usernameSuccess, setUsernameSuccess] = React.useState<string | null>(null);
 
+  // Avatar states
+  const [avatarUrl, setAvatarUrl] = React.useState(profile.avatar_url || "");
+  const [avatarLoading, setAvatarLoading] = React.useState(false);
+  const [avatarError, setAvatarError] = React.useState<string | null>(null);
+  const [avatarSuccess, setAvatarSuccess] = React.useState<string | null>(null);
+  const [isCustomUrlOpen, setIsCustomUrlOpen] = React.useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+
   const getLabel = (ar: string, fr: string, en: string) => {
     if (i18n.language === 'ar') return ar;
     if (i18n.language === 'fr') return fr;
     return en;
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setAvatarError(getLabel(
+        "يرجى اختيار ملف صورة صالح.",
+        "Veuillez sélectionner un fichier image valide.",
+        "Please select a valid image file."
+      ));
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setAvatarError(getLabel(
+        "حجم الصورة كبير جداً (الحد الأقصى 5 ميغابايت).",
+        "L'image est trop volumineuse (max 5 Mo).",
+        "Image size is too large (max 5MB)."
+      ));
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new window.Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        const maxDim = 300;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxDim) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          }
+        } else {
+          if (height > maxDim) {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.85);
+          setAvatarUrl(compressedDataUrl);
+          setAvatarError(null);
+        }
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSaveAvatar = async (urlToSave?: string) => {
+    const finalUrl = urlToSave !== undefined ? urlToSave : avatarUrl;
+    setAvatarError(null);
+    setAvatarSuccess(null);
+    setAvatarLoading(true);
+
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ 
+          avatar_url: finalUrl || null,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", profile.id);
+
+      if (error) throw error;
+
+      setAvatarSuccess(getLabel(
+        "تم تحديث الصورة الشخصية بنجاح!",
+        "Photo de profil mise à jour avec succès !",
+        "Profile picture updated successfully!"
+      ));
+      
+      // Short delay and soft reload
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+    } catch (err: any) {
+      console.error("Avatar update error:", err);
+      setAvatarError(err.message || getLabel(
+        "فشل تحديث الصورة الشخصية.",
+        "Échec de la mise à jour de la photo de profil.",
+        "Failed to update profile picture."
+      ));
+    } finally {
+      setAvatarLoading(false);
+    }
   };
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
@@ -193,6 +311,206 @@ export default function SettingsView({ profile }: SettingsViewProps) {
             )}
           </p>
         </div>
+      </div>
+
+      {/* Profile Picture Card */}
+      <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl">
+              <Camera className="h-5 w-5" />
+            </div>
+            <div>
+              <h4 className="text-sm font-black text-slate-800 uppercase tracking-wide">
+                {getLabel("الصورة الشخصية", "Photo de Profil", "Profile Picture")}
+              </h4>
+              <p className="text-[10px] font-medium text-slate-400">
+                {getLabel(
+                  "تخصيص صورتك الشخصية لتظهر للأعضاء والمعلمين.",
+                  "Personnalisez votre photo pour apparaître auprès des membres.",
+                  "Customize your avatar visible to students and teachers."
+                )}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {avatarError && (
+          <motion.div 
+            initial={{ opacity: 0, y: -5 }} 
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-red-50 text-red-600 border border-red-100 rounded-xl p-3 flex items-center gap-2.5 text-xs font-semibold"
+          >
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            <span>{avatarError}</span>
+          </motion.div>
+        )}
+
+        {avatarSuccess && (
+          <motion.div 
+            initial={{ opacity: 0, y: -5 }} 
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-xl p-3 flex items-center gap-2.5 text-xs font-semibold"
+          >
+            <CheckCircle2 className="h-4 w-4 shrink-0" />
+            <span>{avatarSuccess}</span>
+          </motion.div>
+        )}
+
+        <div className="flex flex-col sm:flex-row items-center gap-6 pb-2">
+          {/* Main Avatar Preview */}
+          <div className="relative group shrink-0">
+            {avatarUrl ? (
+              <img 
+                src={avatarUrl} 
+                alt={profile.fullname} 
+                className="h-24 w-24 rounded-2xl object-cover border-2 border-slate-100 shadow-md transition-all group-hover:brightness-90"
+              />
+            ) : (
+              <div className="h-24 w-24 rounded-2xl bg-gradient-to-br from-brand-blue to-blue-700 text-white flex items-center justify-center font-black text-3xl uppercase shadow-md border-2 border-slate-100">
+                {profile.fullname?.charAt(0) || profile.username?.charAt(0) || "U"}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="absolute -bottom-2 -right-2 p-2 bg-slate-900 hover:bg-black text-white rounded-xl shadow-lg transition-transform active:scale-95 cursor-pointer"
+              title={getLabel("تغيير الصورة", "Changer la photo", "Change Photo")}
+            >
+              <Upload className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="space-y-3 text-center sm:text-left rtl:sm:text-right flex-1 w-full">
+            <div className="flex flex-wrap gap-2 justify-center sm:justify-start rtl:sm:justify-end">
+              <input 
+                type="file" 
+                ref={fileInputRef}
+                onChange={handleFileUpload}
+                accept="image/*"
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="py-2.5 px-4 bg-slate-900 hover:bg-black text-white text-xs font-bold rounded-xl flex items-center gap-2 transition-all cursor-pointer shadow-sm"
+              >
+                <Upload className="h-3.5 w-3.5" />
+                <span>{getLabel("رفع صورة من الجهاز", "Télécharger une image", "Upload Image")}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsCustomUrlOpen(!isCustomUrlOpen)}
+                className="py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl flex items-center gap-2 transition-all cursor-pointer border border-slate-200/60"
+              >
+                <Link2 className="h-3.5 w-3.5 text-slate-500" />
+                <span>{getLabel("رابط صورة", "Lien d'image", "Image URL")}</span>
+              </button>
+
+              {avatarUrl && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAvatarUrl("");
+                    handleSaveAvatar("");
+                  }}
+                  disabled={avatarLoading}
+                  className="py-2.5 px-3 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all cursor-pointer border border-red-100"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  <span>{getLabel("حذف الصورة", "Supprimer", "Remove")}</span>
+                </button>
+              )}
+            </div>
+
+            {/* Custom URL Input Field if toggled */}
+            {isCustomUrlOpen && (
+              <motion.div 
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                className="pt-2"
+              >
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    placeholder="https://example.com/my-photo.jpg"
+                    value={avatarUrl}
+                    onChange={(e) => setAvatarUrl(e.target.value)}
+                    className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:border-brand-blue"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleSaveAvatar(avatarUrl)}
+                    className="px-4 py-2 bg-brand-blue text-white text-xs font-bold rounded-xl"
+                  >
+                    OK
+                  </button>
+                </div>
+              </motion.div>
+            )}
+
+            <p className="text-[10px] text-slate-400 font-medium">
+              {getLabel(
+                "يدعم JPG، PNG، WEBP. الحد الأقصى 5 ميغابايت.",
+                "Formats supportés : JPG, PNG, WEBP. Max 5 Mo.",
+                "Supported formats: JPG, PNG, WEBP. Max 5MB."
+              )}
+            </p>
+          </div>
+        </div>
+
+        {/* Preset Avatars Selection */}
+        <div className="space-y-2 pt-2 border-t border-slate-100">
+          <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+            <Sparkles className="h-3 w-3 text-amber-500" />
+            <span>{getLabel("أو اختر من الصور الرمزية الجاهزة", "Ou choisissez un avatar prédéfini", "Or select a preset avatar")}</span>
+          </label>
+          <div className="grid grid-cols-4 sm:grid-cols-8 gap-2.5">
+            {PRESET_AVATARS.map((url, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => {
+                  setAvatarUrl(url);
+                  handleSaveAvatar(url);
+                }}
+                className={cn(
+                  "relative rounded-xl overflow-hidden aspect-square border-2 transition-all hover:scale-105 cursor-pointer group",
+                  avatarUrl === url ? "border-brand-blue shadow-md shadow-blue-500/20 ring-2 ring-brand-blue/30" : "border-slate-100 hover:border-slate-300"
+                )}
+              >
+                <img src={url} alt={`Preset ${idx + 1}`} className="w-full h-full object-cover" />
+                {avatarUrl === url && (
+                  <div className="absolute inset-0 bg-brand-blue/30 flex items-center justify-center">
+                    <CheckCircle2 className="h-5 w-5 text-white" />
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Save Button */}
+        {avatarUrl !== (profile.avatar_url || "") && (
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={() => handleSaveAvatar()}
+              disabled={avatarLoading}
+              className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-md shadow-emerald-600/10 flex items-center justify-center gap-2 cursor-pointer"
+            >
+              {avatarLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <>
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span>{getLabel("حفظ الصورة الشخصية", "Enregistrer la photo", "Save Profile Picture")}</span>
+                </>
+              )}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* User Info Card */}
