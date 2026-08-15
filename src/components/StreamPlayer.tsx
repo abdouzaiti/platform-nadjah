@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import ReactPlayer from "react-player";
 import { UserProfile, ChatMessageData, ClassRoom, TeacherCommunity, LiveSession } from "../types";
-import { Send, Users, Heart, Share2, MoreHorizontal, X, MessageCircle, Play, VideoOff, Save, Check, Maximize2, Minimize2, Eye, EyeOff, RefreshCw, Loader2, LogOut, Megaphone, Radio, Trash2, FileText, Upload, Download, File, FileIcon, Image, Lock, Shield } from "lucide-react";
+import { Send, Users, Heart, Share2, MoreHorizontal, X, MessageCircle, Play, VideoOff, Save, Check, Video, Maximize2, Minimize2, Eye, EyeOff, RefreshCw, Loader2, LogOut, Megaphone, Radio, Trash2, FileText, Upload, Download, File, FileIcon, Image, Lock, Shield } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { motion, AnimatePresence } from "motion/react";
 import { formatDate, cn } from "../lib/utils";
@@ -30,6 +30,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
   const [messages, setMessages] = useState<ChatMessageData[]>([]);
   const [recordings, setRecordings] = useState<any[]>([]);
   const [roomFiles, setRoomFiles] = useState<ChatMessageData[]>([]);
+  const [roomVideos, setRoomVideos] = useState<ChatMessageData[]>([]);
   const [previewFile, setPreviewFile] = useState<{ name: string; url: string; type: string } | null>(null);
   const [isEnding, setIsEnding] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
@@ -41,7 +42,13 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
   const [liveViewers, setLiveViewers] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [sidebarActiveTab, setSidebarActiveTab] = useState("announcements");
+  const [sidebarActiveTab, setSidebarActiveTab] = useState(
+    room.room_type === "videos" ? "videos" : 
+    room.room_type === "files" ? "files" : 
+    room.room_type === "chat" ? "group_chat" : 
+    room.room_type === "announcements" ? "announcements" : 
+    "live"
+  );
   const [hasEntered, setHasEntered] = useState(false);
   const [teacherId, setTeacherId] = useState<string | null>(teacherIdProp || null);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
@@ -157,6 +164,35 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
         }
       };
       fetchFiles();
+    }
+
+    if (sidebarActiveTab === "videos") {
+      const fetchVideos = async () => {
+        const { data, error } = await supabase
+          .from("room_messages")
+          .select("*")
+          .eq("room_id", room.id)
+          .eq("content", "video")
+          .order("created_at", { ascending: false });
+          
+        if (!error && data) {
+          setRoomVideos(data.map(m => {
+             let msgText = m.message;
+             let videoData = { name: "Video", url: "" };
+             try {
+               const parsed = JSON.parse(msgText);
+               videoData = parsed;
+             } catch(e) {}
+             
+             return {
+               ...m,
+               message: videoData.name,
+               fileUrl: videoData.url
+             };
+          }) as any[]);
+        }
+      };
+      fetchVideos();
     }
   }, [sidebarActiveTab, room.id]);
 
@@ -853,6 +889,67 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
     }
   };
 
+  const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !isTeacherView) return;
+
+    setIsUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
+      const filePath = `videos/${room.id}/${fileName}`;
+
+      const { data, error: uploadError } = await supabase.storage
+        .from('recordings')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage.from('recordings').getPublicUrl(filePath);
+
+      const videoInfo = JSON.stringify({
+        name: file.name,
+        url: publicUrl,
+        type: file.type
+      });
+
+      const { data: msgData, error: msgError } = await supabase
+        .from("room_messages")
+        .insert({
+          room_id: room.id,
+          user_id: profile.id,
+          user_name: profile.fullname,
+          user_avatar: profile.avatar_url,
+          message: videoInfo,
+          content: "video"
+        })
+        .select()
+        .single();
+
+      if (msgError) throw msgError;
+
+      const newVideoMsg = {
+        id: msgData.id,
+        room_id: msgData.room_id,
+        message: file.name,
+        fileUrl: publicUrl,
+        fileType: file.type,
+        sender_id: profile.id,
+        sender_name: profile.fullname,
+        created_at: msgData.created_at
+      };
+
+      setRoomVideos(prev => [newVideoMsg as any, ...prev]);
+
+    } catch (err: any) {
+      console.error("Upload error:", err);
+      alert("Failed to upload video: " + err.message);
+    } finally {
+      setIsUploading(false);
+      if (e.target) e.target.value = "";
+    }
+  };
+
   const isLive = currentSession?.status === "live";
 
   return (
@@ -1245,6 +1342,65 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                         <div className="col-span-full py-20 flex flex-col items-center justify-center text-center space-y-4 opacity-50">
                           <FileText className="h-12 w-12 text-slate-200" />
                           <p className="text-xs font-black uppercase tracking-widest text-slate-400 italic">{t('no_files_yet', 'No files shared yet')}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : sidebarActiveTab === "videos" ? (
+                <div className="absolute inset-0 bg-white flex flex-col p-6 mt-16 pb-24 shadow-inner overflow-hidden">
+                  <div className="mb-6 flex items-end justify-between">
+                    <div>
+                      <h2 className="text-4xl font-display font-black uppercase italic tracking-tighter text-slate-900 leading-none">{t('videos_tab', 'Videos')}</h2>
+                      <div className="h-1.5 w-16 bg-brand-blue rounded-full mt-3"></div>
+                    </div>
+                    {isTeacherView && (
+                      <label className="flex items-center gap-2 px-4 py-2 bg-brand-blue text-white rounded-xl font-black uppercase tracking-widest text-[10px] cursor-pointer shadow-lg shadow-brand-blue/20 hover:scale-[1.02] active:scale-[0.98] transition-all">
+                        {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                        <span>{t('upload_video', 'Upload Video')}</span>
+                        <input type="file" accept="video/*" className="hidden" onChange={handleVideoUpload} disabled={isUploading} />
+                      </label>
+                    )}
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto no-scrollbar pr-2">
+                    <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                      {roomVideos.map((video: any) => (
+                        <div key={video.id} className="bg-slate-50 rounded-2xl border border-slate-100 group relative overflow-hidden flex flex-col">
+                          <div className="aspect-video bg-slate-900 relative">
+                            <video src={video.fileUrl} className="w-full h-full object-cover opacity-50" />
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <a 
+                                href={video.fileUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="h-12 w-12 rounded-full bg-brand-blue text-white flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
+                              >
+                                <Play className="h-5 w-5 ml-1" />
+                              </a>
+                            </div>
+                          </div>
+                          <div className="p-4 flex flex-col gap-1">
+                            <h4 className="text-xs font-black uppercase text-slate-900 truncate" title={video.message}>{video.message}</h4>
+                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{formatDate(video.created_at)}</p>
+                          </div>
+                          {isTeacherView && (
+                            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button 
+                                onClick={() => handleDeleteMessage(video.id)}
+                                className="h-8 w-8 bg-red-500 text-white rounded-lg flex items-center justify-center shadow-lg hover:bg-red-600 transition-colors"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                        
+                      {roomVideos.length === 0 && (
+                        <div className="col-span-full py-20 flex flex-col items-center justify-center text-center space-y-4 opacity-50">
+                          <Video className="h-12 w-12 text-slate-200" />
+                          <p className="text-xs font-black uppercase tracking-widest text-slate-400 italic">{t('no_videos_yet', 'No videos shared yet')}</p>
                         </div>
                       )}
                     </div>

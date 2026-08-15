@@ -3,6 +3,7 @@ import { supabase, supabaseConfigured, isProperAnonKey } from "./lib/supabase";
 import { UserProfile, UserRole } from "./types";
 import TeacherDashboard from "./pages/TeacherDashboard";
 import StudentDashboard from "./pages/StudentDashboard";
+import LandingPage from "./pages/LandingPage";
 import { LogIn, GraduationCap, School, Loader2, Database, Key, CheckCircle2, Mail, ArrowRight, Video, Languages, User, Users, BookOpen, Sparkles, Calculator, Atom, Compass, Brain, Globe, Trophy, Palette, Music, Lightbulb, PenTool, FlaskConical, Ruler, Sigma, Eye, EyeOff } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useTranslation } from "react-i18next";
@@ -17,6 +18,7 @@ export default function App() {
   const [fetchError, setFetchError] = React.useState<string | null>(null);
   const [authError, setAuthError] = React.useState<string | null>(null);
   const [authMode, setAuthMode] = React.useState<"signin" | "signup">("signin");
+  const [showAuth, setShowAuth] = React.useState(false);
 
   const [email, setEmail] = React.useState("");
   const [fullname, setFullname] = React.useState("");
@@ -720,6 +722,7 @@ CREATE TABLE public.room_messages (
   };
 
   if (!user) {
+    if (!showAuth) return <LandingPage onJoinClick={() => setShowAuth(true)} />;
     return (
       <div 
         className="flex min-h-screen flex-col lg:flex-row bg-cover bg-center text-slate-900 font-sans relative overflow-x-hidden"
@@ -876,6 +879,16 @@ CREATE TABLE public.room_messages (
 
         {/* RIGHT COLUMN: Authentication Card Area */}
         <div className="w-full lg:w-[45%] xl:w-[40%] flex flex-col items-center justify-center p-4 sm:p-8 min-h-screen relative z-10">
+          
+          {/* Back button to landing page */}
+          <div className="absolute top-8 left-8 sm:top-12 sm:left-12">
+            <button 
+              onClick={() => setShowAuth(false)}
+              className="flex items-center gap-2 text-slate-500 hover:text-slate-900 font-bold text-xs uppercase tracking-widest transition-colors bg-white/50 backdrop-blur px-4 py-2 rounded-xl"
+            >
+              &larr; {getAuthLabel('العودة', 'Back', 'Retour')}
+            </button>
+          </div>
           
           {/* Header language toggles */}
           <div className="flex justify-center gap-2 mb-6">

@@ -777,6 +777,7 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
       case "chat": return <MessageSquare className="h-4 w-4" />;
       case "announcements": return <Megaphone className="h-4 w-4" />;
       case "files": return <FileText className="h-4 w-4" />;
+      case "videos": return <Video className="h-4 w-4" />;
       default: return <Hash className="h-4 w-4" />;
     }
   };
@@ -1339,7 +1340,20 @@ export default function TeacherDashboard({ profile }: TeacherDashboardProps) {
                         className="w-full bg-slate-50 border border-slate-100 p-4 rounded-2xl font-mono text-sm outline-none focus:border-brand-blue transition-all"
                       />
                     </div>
-                    {/* Room type selection removed as requested */}
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase text-slate-400 ml-2">{t('room_type', 'Room Type')}</label>
+                      <select 
+                        value={roomType}
+                        onChange={(e) => setRoomType(e.target.value as RoomType)}
+                        className="w-full bg-slate-50 border border-slate-100 p-4 rounded-2xl font-bold outline-none focus:border-brand-blue transition-all"
+                      >
+                        <option value="live">{t('live_room', 'Live Sessions')}</option>
+                        <option value="chat">{t('chat_room', 'Chat Room')}</option>
+                        <option value="announcements">{t('announcements_room', 'Announcements')}</option>
+                        <option value="files">{t('files_room', 'Files & Documents')}</option>
+                        <option value="videos">{t('videos_room', 'Video Library')}</option>
+                      </select>
+                    </div>
                     <div className="flex gap-4">
                       <button 
                         type="button"

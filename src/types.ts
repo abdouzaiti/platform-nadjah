@@ -24,7 +24,7 @@ export interface TeacherCommunity {
   created_at: string;
 }
 
-export type RoomType = "chat" | "live" | "announcements" | "files";
+export type RoomType = "chat" | "live" | "announcements" | "files" | "videos";
 
 export interface ClassRoom {
   id: string;
