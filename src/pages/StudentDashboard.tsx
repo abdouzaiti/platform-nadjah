@@ -7,6 +7,7 @@ import { Play, Eye, Clock, Search, Bell, Menu, Users, Hash, Plus, Loader2, Arrow
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "../lib/utils";
 import StreamPlayer from "../components/StreamPlayer";
+import TeacherProfileModal from "../components/TeacherProfileModal";
 import { useTranslation } from "react-i18next";
 
 interface StudentDashboardProps {
@@ -44,6 +45,7 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
   });
   const [enteredPassword, setEnteredPassword] = React.useState("");
   const [passwordError, setPasswordError] = React.useState("");
+  const [teacherProfileId, setTeacherProfileId] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     fetchJoinedRooms();
@@ -363,6 +365,7 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
                     <div>
                       <h4 className="font-black uppercase text-slate-900 leading-none mb-1">{comm.community_name}</h4>
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">@{comm.community_username}</p>
+                      <button onClick={(e) => { e.stopPropagation(); setTeacherProfileId(comm.teacher_id); }} className="mt-1 text-[10px] font-bold text-brand-blue hover:underline block cursor-pointer">👤 {i18n.language === "ar" ? "الملف الشخصي للأستاذ" : "Teacher Profile"}</button>
                     </div>
                   </div>
                   <p className="text-xs text-slate-500 mb-6 line-clamp-2 leading-relaxed">{comm.description || t('no_description', "No description provided.")}</p>
@@ -629,7 +632,11 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
           </div>
         </div>
       )}
-
+      <TeacherProfileModal
+        isOpen={!!teacherProfileId}
+        teacherId={teacherProfileId || undefined}
+        onClose={() => setTeacherProfileId(null)}
+      />
     </div>
   );
 }

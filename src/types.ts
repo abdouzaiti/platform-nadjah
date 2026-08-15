@@ -8,6 +8,8 @@ export interface UserProfile {
   username: string;
   avatar_url?: string;
   phone?: string;
+  bio?: string;
+  subject?: string;
   role: UserRole;
   role_requested?: string;
   created_at: string;
