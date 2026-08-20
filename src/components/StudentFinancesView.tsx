@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
-import { Loader2, Wallet, Users, Search } from "lucide-react";
+import { Loader2, Wallet, Users, Search, Eye, LogIn } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "../lib/utils";
+import TeacherProfileModal from "./TeacherProfileModal";
 
 interface StudentFinanceData {
   id: string;
@@ -20,11 +21,16 @@ interface StudentFinanceData {
   }[];
 }
 
-export default function StudentFinancesView() {
+interface StudentFinancesViewProps {
+  onImpersonateUser?: (user: any) => void;
+}
+
+export default function StudentFinancesView({ onImpersonateUser }: StudentFinancesViewProps) {
   const { t, i18n } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [students, setStudents] = useState<StudentFinanceData[]>([]);
+  const [selectedProfileUser, setSelectedProfileUser] = useState<any | null>(null);
 
   const getLabel = (ar: string, fr: string, en: string) => {
     if (i18n.language === 'ar') return ar;
@@ -146,7 +152,7 @@ export default function StudentFinancesView() {
               <tbody className="divide-y divide-slate-50">
                 {filteredStudents.length === 0 ? (
                   <tr>
-                    <td colSpan={3} className="py-8 text-center text-slate-400 text-xs font-medium">
+                    <td colSpan={4} className="py-8 text-center text-slate-400 text-xs font-medium">
                       {getLabel("لا يوجد طلاب", "Aucun étudiant", "No students found")}
                     </td>
                   </tr>
@@ -154,7 +160,19 @@ export default function StudentFinancesView() {
                   filteredStudents.map((student) => (
                     <tr key={student.id} className="group hover:bg-slate-50/50 transition-all">
                       <td className="py-4 px-2">
-                        <div className="flex items-center gap-3">
+                        <div 
+                          onClick={() => setSelectedProfileUser({
+                            id: student.id,
+                            fullname: student.fullname,
+                            email: student.email,
+                            phone: student.phone,
+                            username: student.username,
+                            avatar_url: student.avatar_url,
+                            role: "student",
+                            created_at: student.created_at
+                          })}
+                          className="flex items-center gap-3 cursor-pointer group-hover:opacity-90"
+                        >
                           {student.avatar_url ? (
                             <img src={student.avatar_url} alt={student.fullname} className="h-10 w-10 rounded-full object-cover border border-slate-200 shrink-0" />
                           ) : (
@@ -163,7 +181,7 @@ export default function StudentFinancesView() {
                             </div>
                           )}
                           <div className="flex flex-col min-w-0">
-                            <span className="font-bold text-slate-900 text-sm truncate">{student.fullname}</span>
+                            <span className="font-bold text-slate-900 text-sm truncate hover:text-emerald-600 transition-colors">{student.fullname}</span>
                             <span className="text-xs text-slate-400">@{student.username}</span>
                             <span className="text-xs text-slate-400 truncate">{student.email}</span>
                             {student.phone && <span className="text-xs text-slate-500 font-medium">{student.phone}</span>}
@@ -191,9 +209,46 @@ export default function StudentFinancesView() {
                         </span>
                       </td>
                       <td className="py-4 px-2 text-center">
-                        <span className="font-bold text-emerald-600 text-sm">
-                          {student.joinedRooms.length * 1500} {getLabel("د.ج", "DA", "DZD")}
-                        </span>
+                        <div className="flex items-center justify-center gap-3">
+                          <span className="font-bold text-emerald-600 text-sm">
+                            {student.joinedRooms.length * 1500} {getLabel("د.ج", "DA", "DZD")}
+                          </span>
+                          <button
+                            onClick={() => setSelectedProfileUser({
+                              id: student.id,
+                              fullname: student.fullname,
+                              email: student.email,
+                              phone: student.phone,
+                              username: student.username,
+                              avatar_url: student.avatar_url,
+                              role: "student",
+                              created_at: student.created_at
+                            })}
+                            className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
+                            title={getLabel("عرض الملف الشخصي", "Voir profil", "View Profile")}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
+                          {onImpersonateUser && (
+                            <button
+                              onClick={() => onImpersonateUser({
+                                id: student.id,
+                                fullname: student.fullname,
+                                email: student.email,
+                                phone: student.phone,
+                                username: student.username,
+                                avatar_url: student.avatar_url,
+                                role: "student",
+                                created_at: student.created_at
+                              })}
+                              className="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-slate-900 font-extrabold text-[10px] rounded-lg transition-all cursor-pointer flex items-center gap-1 shadow-sm"
+                              title={getLabel("دخول صفحة هذا الطالب بدون كلمة سر", "Accéder au compte étudiant", "Enter Student Dashboard")}
+                            >
+                              <LogIn className="h-3 w-3" />
+                              <span className="hidden sm:inline">{getLabel("دخول الحساب", "Entrer", "Enter Account")}</span>
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -203,6 +258,16 @@ export default function StudentFinancesView() {
           </div>
         )}
       </div>
+
+      {selectedProfileUser && (
+        <TeacherProfileModal
+          isOpen={!!selectedProfileUser}
+          teacherProfile={selectedProfileUser}
+          onClose={() => setSelectedProfileUser(null)}
+          onImpersonateUser={onImpersonateUser}
+          isDeveloperOrAdmin={true}
+        />
+      )}
     </div>
   );
 }

@@ -14,6 +14,7 @@ export default function App() {
   const [user, setUser] = React.useState<any>(null);
   const [loading, setLoading] = React.useState(true);
   const [profile, setProfile] = React.useState<UserProfile | null>(null);
+  const [impersonatedProfile, setImpersonatedProfile] = React.useState<UserProfile | null>(null);
   const [profileLoading, setProfileLoading] = React.useState(false);
   const [fetchError, setFetchError] = React.useState<string | null>(null);
   const [authError, setAuthError] = React.useState<string | null>(null);
@@ -1120,13 +1121,46 @@ CREATE TABLE public.room_messages (
   // Final safety check
   if (!profile) return null;
 
+  const activeProfile = impersonatedProfile || profile;
+
   return (
-    <AnimatePresence mode="wait">
-      {["teacher", "developer", "admin"].includes(profile.role?.toString().toLowerCase()) ? (
-        <TeacherDashboard key="teacher" profile={profile} />
-      ) : (
-        <StudentDashboard key="student" profile={profile} />
+    <div className="min-h-screen flex flex-col bg-slate-50">
+      {impersonatedProfile && (
+        <div className="bg-amber-500 text-slate-900 px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 shadow-xl sticky top-0 z-[200] font-sans text-xs border-b border-amber-600">
+          <div className="flex items-center gap-2 font-bold">
+            <span className="bg-slate-900 text-amber-400 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider shrink-0 shadow-sm">
+              Dev Mode Impersonation
+            </span>
+            <span className="text-slate-900 font-black text-xs">
+              {i18n.language === 'ar'
+                ? `تتصفح المنصة الآن بحساب: ${impersonatedProfile.fullname || impersonatedProfile.username} (@${impersonatedProfile.username}) - [الرتبة: ${impersonatedProfile.role}]`
+                : `Browsing page as: ${impersonatedProfile.fullname || impersonatedProfile.username} (@${impersonatedProfile.username}) - [Role: ${impersonatedProfile.role}]`}
+            </span>
+          </div>
+          <button
+            onClick={() => setImpersonatedProfile(null)}
+            className="bg-slate-900 hover:bg-slate-800 text-amber-400 hover:text-white font-black px-4 py-1.5 rounded-xl text-[11px] uppercase tracking-wider transition-all shadow-md flex items-center gap-1.5 cursor-pointer shrink-0"
+          >
+            <span>{i18n.language === 'ar' ? 'الخروج والعودة لحسابك الأصلي' : 'Exit & Return to Main Account'}</span>
+          </button>
+        </div>
       )}
-    </AnimatePresence>
+
+      <AnimatePresence mode="wait">
+        {["teacher", "developer", "admin"].includes(activeProfile.role?.toString().toLowerCase()) ? (
+          <TeacherDashboard 
+            key={`teacher-${activeProfile.id}`} 
+            profile={activeProfile} 
+            onImpersonateUser={(userToImpersonate) => setImpersonatedProfile(userToImpersonate)}
+          />
+        ) : (
+          <StudentDashboard 
+            key={`student-${activeProfile.id}`} 
+            profile={activeProfile} 
+            onImpersonateUser={(userToImpersonate) => setImpersonatedProfile(userToImpersonate)}
+          />
+        )}
+      </AnimatePresence>
+    </div>
   );
 }

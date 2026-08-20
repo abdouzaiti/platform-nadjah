@@ -12,10 +12,12 @@ import { useTranslation } from "react-i18next";
 
 interface StudentDashboardProps {
   profile: UserProfile;
+  onImpersonateUser?: (user: UserProfile) => void;
 }
 
-export default function StudentDashboard({ profile }: StudentDashboardProps) {
+export default function StudentDashboard({ profile, onImpersonateUser }: StudentDashboardProps) {
   const { t, i18n } = useTranslation();
+  const isDeveloper = ["developer", "developper"].includes(profile.role?.toString().toLowerCase()) || profile.email?.toLowerCase() === "zaitiabdou27@gmail.com";
   const [activeTab, setActiveTab] = React.useState("joined");
   const [mobileSubFilter, setMobileSubFilter] = React.useState<'chat' | 'announcements' | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
@@ -636,6 +638,7 @@ export default function StudentDashboard({ profile }: StudentDashboardProps) {
         isOpen={!!teacherProfileId}
         teacherId={teacherProfileId || undefined}
         onClose={() => setTeacherProfileId(null)}
+        onImpersonateUser={isDeveloper ? onImpersonateUser : undefined}
       />
     </div>
   );

@@ -2,7 +2,7 @@ import React from "react";
 import { supabase } from "../lib/supabase";
 import { UserProfile } from "../types";
 import { useTranslation } from "react-i18next";
-import { Key, Lock, Loader2, CheckCircle2, AlertCircle, ShieldAlert, LogOut, Camera, Upload, Trash2, Image, Sparkles, User, Link2 } from "lucide-react";
+import { Key, Lock, Loader2, CheckCircle2, AlertCircle, ShieldAlert, LogOut, Camera, Upload, Trash2, Image, Sparkles, User, Link2, Film, Copy, Check } from "lucide-react";
 import { motion } from "motion/react";
 import { cn } from "../lib/utils";
 
@@ -30,6 +30,13 @@ export default function SettingsView({ profile }: SettingsViewProps) {
   const [infoLoading, setInfoLoading] = React.useState(false);
   const [infoSuccess, setInfoSuccess] = React.useState<string | null>(null);
   const [infoError, setInfoError] = React.useState<string | null>(null);
+  const [copiedEmailSettings, setCopiedEmailSettings] = React.useState(false);
+
+  const copyEmail = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedEmailSettings(true);
+    setTimeout(() => setCopiedEmailSettings(false), 2000);
+  };
 
   const handleUpdateTeacherInfo = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,6 +106,47 @@ export default function SettingsView({ profile }: SettingsViewProps) {
   const [avatarSuccess, setAvatarSuccess] = React.useState<string | null>(null);
   const [isCustomUrlOpen, setIsCustomUrlOpen] = React.useState(false);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  // Bunny.net Stream States
+  const [bunnyLibraryId, setBunnyLibraryId] = React.useState(() => {
+    try {
+      const saved = localStorage.getItem("nadjah_bunny_config");
+      return saved ? JSON.parse(saved).libraryId || "" : "";
+    } catch { return ""; }
+  });
+  const [bunnyApiKey, setBunnyApiKey] = React.useState(() => {
+    try {
+      const saved = localStorage.getItem("nadjah_bunny_config");
+      return saved ? JSON.parse(saved).apiKey || "" : "";
+    } catch { return ""; }
+  });
+  const [bunnyCdnHost, setBunnyCdnHost] = React.useState(() => {
+    try {
+      const saved = localStorage.getItem("nadjah_bunny_config");
+      return saved ? JSON.parse(saved).cdnHost || "iframe.mediadelivery.net" : "iframe.mediadelivery.net";
+    } catch { return "iframe.mediadelivery.net"; }
+  });
+  const [bunnySuccess, setBunnySuccess] = React.useState<string | null>(null);
+
+  const handleSaveBunnyConfig = (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const config = {
+        libraryId: bunnyLibraryId.trim(),
+        apiKey: bunnyApiKey.trim(),
+        cdnHost: bunnyCdnHost.trim() || "iframe.mediadelivery.net"
+      };
+      localStorage.setItem("nadjah_bunny_config", JSON.stringify(config));
+      setBunnySuccess(getLabel(
+        "تم حفظ إعدادات Bunny.net بنجاح!",
+        "Configuration Bunny.net enregistrée avec succès !",
+        "Bunny.net settings saved successfully!"
+      ));
+      setTimeout(() => setBunnySuccess(null), 3000);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const getLabel = (ar: string, fr: string, en: string) => {
     if (i18n.language === 'ar') return ar;
@@ -743,6 +791,86 @@ export default function SettingsView({ profile }: SettingsViewProps) {
         </form>
       </div>
 
+      {/* Bunny.net Video Host Configuration */}
+      <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm space-y-4">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="p-2.5 bg-orange-50 text-orange-600 rounded-xl">
+            <Film className="h-5 w-5" />
+          </div>
+          <div>
+            <h4 className="text-sm font-black text-slate-800 uppercase tracking-wide flex items-center gap-2">
+              <span>{getLabel("استضافة الفيديوهات (Bunny.net Stream)", "Hébergement Vidéo Bunny.net", "Bunny.net Video Hosting")}</span>
+              <span className="bg-orange-100 text-orange-700 text-[9px] font-black uppercase px-2 py-0.5 rounded-full">Stream API</span>
+            </h4>
+            <p className="text-[10px] font-medium text-slate-400">
+              {getLabel(
+                "إعداد مكتبة Bunny.net الخاصة بك لتضمين وتشغيل الفيديوهات والدروس بسرعة فائقة.",
+                "Configurez votre bibliothèque Bunny.net Stream pour des vidéos fluides.",
+                "Configure your Bunny.net Stream library for fast video playback."
+              )}
+            </p>
+          </div>
+        </div>
+
+        {bunnySuccess && (
+          <div className="bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-xl p-3 flex items-center gap-2 text-xs font-semibold">
+            <CheckCircle2 className="h-4 w-4 shrink-0" />
+            <span>{bunnySuccess}</span>
+          </div>
+        )}
+
+        <form onSubmit={handleSaveBunnyConfig} className="space-y-4 pt-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-1">
+                {getLabel("معرف المكتبة (Library ID)", "ID de la bibliothèque", "Library ID")}
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. 123456"
+                value={bunnyLibraryId}
+                onChange={(e) => setBunnyLibraryId(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold text-slate-800 focus:outline-none focus:border-brand-blue"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-1">
+                {getLabel("مضيف الـ CDN / Pull Zone", "CDN Host / Domain", "CDN Hostname")}
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. iframe.mediadelivery.net"
+                value={bunnyCdnHost}
+                onChange={(e) => setBunnyCdnHost(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold text-slate-800 focus:outline-none focus:border-brand-blue"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-1">
+              {getLabel("مفتاح API الخاص بـ Bunny (اختياري للرفع المباشر)", "Clé API Bunny (Optionnel)", "Bunny API Key (Optional)")}
+            </label>
+            <input
+              type="password"
+              placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+              value={bunnyApiKey}
+              onChange={(e) => setBunnyApiKey(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold text-slate-800 focus:outline-none focus:border-brand-blue"
+            />
+          </div>
+
+          <button
+            type="submit"
+            className="w-full py-3 bg-slate-900 hover:bg-black text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+            <span>{getLabel("حفظ إعدادات Bunny.net", "Enregistrer la config Bunny", "Save Bunny Settings")}</span>
+          </button>
+        </form>
+      </div>
+
       {/* User Info Card (Read only stats) */}
       <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm space-y-4">
         <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-2">
@@ -765,11 +893,27 @@ export default function SettingsView({ profile }: SettingsViewProps) {
             </p>
             <p className="text-xs font-mono font-bold text-slate-800">@{profile.username}</p>
           </div>
-          <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-            <p className="text-[10px] font-black uppercase text-slate-400 mb-1">
-              {getLabel("البريد الإلكتروني", "Adresse E-mail", "Email Address")}
-            </p>
-            <p className="text-xs font-bold text-slate-800 truncate">{profile.email}</p>
+          <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex items-center justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-black uppercase text-slate-400 mb-1">
+                {getLabel("البريد الإلكتروني", "Adresse E-mail", "Email Address")}
+              </p>
+              <p className="text-xs font-bold text-slate-800 truncate select-all">{profile.email}</p>
+            </div>
+            {profile.email && (
+              <button
+                type="button"
+                onClick={() => copyEmail(profile.email)}
+                className="p-1.5 hover:bg-slate-200 text-slate-500 rounded-lg transition-all cursor-pointer flex items-center gap-1 shrink-0 text-[11px] font-bold"
+                title={getLabel("نسخ البريد الإلكتروني", "Copier l'e-mail", "Copy email")}
+              >
+                {copiedEmailSettings ? (
+                  <Check className="h-3.5 w-3.5 text-emerald-600" />
+                ) : (
+                  <Copy className="h-3.5 w-3.5" />
+                )}
+              </button>
+            )}
           </div>
           <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
             <p className="text-[10px] font-black uppercase text-slate-400 mb-1">

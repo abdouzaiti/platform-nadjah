@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import ReactPlayer from "react-player";
 import { UserProfile, ChatMessageData, ClassRoom, TeacherCommunity, LiveSession } from "../types";
-import { Send, Users, Heart, Share2, MoreHorizontal, X, MessageCircle, Play, VideoOff, Save, Check, Video, Maximize2, Minimize2, Eye, EyeOff, RefreshCw, Loader2, LogOut, Megaphone, Radio, Trash2, FileText, Upload, Download, File, FileIcon, Image, Lock, Shield } from "lucide-react";
+import { Send, Users, Heart, Share2, MoreHorizontal, X, MessageCircle, Play, VideoOff, Save, Check, Video, Maximize2, Minimize2, Eye, EyeOff, RefreshCw, Loader2, LogOut, Megaphone, Radio, Trash2, FileText, Upload, Download, File, FileIcon, Image, Lock, Shield, Film, Link2, AlertCircle, ExternalLink } from "lucide-react";
+import BunnyVideoPlayer from "./BunnyVideoPlayer";
 import { supabase } from "../lib/supabase";
 import { motion, AnimatePresence } from "motion/react";
 import { formatDate, cn } from "../lib/utils";
@@ -38,6 +39,11 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [recordingUrlInput, setRecordingUrlInput] = useState("");
+  const [activeVideoModalUrl, setActiveVideoModalUrl] = useState<string | null>(null);
+  const [activeVideoModalTitle, setActiveVideoModalTitle] = useState<string | null>(null);
+  const [showAddBunnyModal, setShowAddBunnyModal] = useState(false);
+  const [bunnyTitleInput, setBunnyTitleInput] = useState("");
+  const [bunnyUrlInput, setBunnyUrlInput] = useState("");
   const [hideComments, setHideComments] = useState(false);
   const [liveViewers, setLiveViewers] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -347,16 +353,14 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
 
     const setupRtm = async () => {
       try {
-        // In RTM v2, login can take an optional token
         await rtm.login();
         
         if (!isMounted) {
-          rtm.logout();
+          try { await rtm.logout(); } catch (e) {}
           return;
         }
 
-        // Disable presence if not needed to avoid -13001 errors
-        await rtm.subscribe(room.id, { withPresence: false });
+        await rtm.subscribe(room.id, { withPresence: false, withMessage: true });
         
         if (!isMounted) return;
         
@@ -401,7 +405,8 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
         console.log("Agora RTM Connected for real-time chat");
       } catch (err) {
         if (isMounted) {
-          console.error("RTM Setup Error:", err);
+          console.warn("Agora RTM notice (using Supabase Realtime as primary socket):", err);
+          setRtmClient(null);
         }
       }
     };
@@ -477,10 +482,13 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
             const tracks = await tracksPromise!;
             setLocalTracks(tracks);
             
-            const tracksToPublish: any[] = [tracks.audioTrack];
+            const tracksToPublish: any[] = [];
+            if (tracks.audioTrack) tracksToPublish.push(tracks.audioTrack);
             if (tracks.videoTrack) tracksToPublish.push(tracks.videoTrack);
             
-            await client!.publish(tracksToPublish);
+            if (tracksToPublish.length > 0) {
+              await client!.publish(tracksToPublish);
+            }
 
             // Start Agora Cloud Recording
             try {
@@ -526,7 +534,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
         } : undefined);
       }
       if (rtm) {
-        rtm.logout();
+        try { rtm.logout(); } catch (e) {}
       }
       // Reset video states when leaving live
       setTeacherVideo(null);
@@ -950,6 +958,58 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
     }
   };
 
+  const handleAddBunnyVideo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!bunnyUrlInput.trim()) return;
+
+    setIsUploading(true);
+    try {
+      const title = bunnyTitleInput.trim() || "Bunny.net Video";
+      const url = bunnyUrlInput.trim();
+
+      const videoInfo = JSON.stringify({
+        name: title,
+        url: url,
+        type: "bunny"
+      });
+
+      const { data: msgData, error: msgError } = await supabase
+        .from("room_messages")
+        .insert({
+          room_id: room.id,
+          user_id: profile.id,
+          user_name: profile.fullname,
+          user_avatar: profile.avatar_url,
+          message: videoInfo,
+          content: "video"
+        })
+        .select()
+        .single();
+
+      if (msgError) throw msgError;
+
+      const newVideoMsg = {
+        id: msgData.id,
+        room_id: msgData.room_id,
+        message: title,
+        fileUrl: url,
+        sender_id: profile.id,
+        sender_name: profile.fullname,
+        created_at: msgData.created_at
+      };
+
+      setRoomVideos(prev => [newVideoMsg as any, ...prev]);
+      setShowAddBunnyModal(false);
+      setBunnyTitleInput("");
+      setBunnyUrlInput("");
+    } catch (err: any) {
+      console.error("Add Bunny video error:", err);
+      alert("Failed to add video: " + err.message);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const isLive = currentSession?.status === "live";
 
   return (
@@ -985,8 +1045,36 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                     </div>
                  </div>
                ) : isLive ? (
-                 <div className="absolute inset-0 bg-slate-900 overflow-hidden rounded-2xl md:m-4 shadow-2xl">
-                 {isTeacherView ? (
+                 <div className="absolute inset-0 bg-slate-900 overflow-hidden rounded-2xl md:m-4 shadow-2xl flex items-center justify-center">
+                 {agoraError ? (
+                   <div className="flex flex-col items-center justify-center h-full text-white p-6 text-center space-y-4 max-w-md mx-auto">
+                     <div className="p-3 bg-red-500/20 text-red-400 rounded-2xl border border-red-500/30">
+                       <AlertCircle className="h-8 w-8" />
+                     </div>
+                     <div className="space-y-1">
+                       <h4 className="text-sm font-black uppercase tracking-wider text-red-400">Connection & Device Notice</h4>
+                       <p className="text-xs text-slate-300 leading-relaxed">{agoraError}</p>
+                     </div>
+                     <div className="flex flex-col sm:flex-row gap-2 w-full pt-2">
+                       <button
+                         onClick={() => window.open(window.location.href, '_blank')}
+                         className="flex-1 py-2.5 px-4 bg-brand-blue hover:bg-blue-600 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                       >
+                         <ExternalLink className="h-4 w-4" />
+                         <span>Open in New Tab</span>
+                       </button>
+                       <button
+                         onClick={() => {
+                           setAgoraError(null);
+                         }}
+                         className="flex-1 py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs uppercase tracking-wider rounded-xl transition-all border border-slate-700 flex items-center justify-center gap-2 cursor-pointer"
+                       >
+                         <RefreshCw className="h-4 w-4" />
+                         <span>Retry</span>
+                       </button>
+                     </div>
+                   </div>
+                 ) : isTeacherView ? (
                    localTracks ? (
                      localTracks.videoTrack ? (
                        <AgoraPlayer videoTrack={localTracks.videoTrack} mirrored={true} />
@@ -1349,36 +1437,45 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                 </div>
               ) : sidebarActiveTab === "videos" ? (
                 <div className="absolute inset-0 bg-white flex flex-col p-6 mt-16 pb-24 shadow-inner overflow-hidden">
-                  <div className="mb-6 flex items-end justify-between">
+                  <div className="mb-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
                     <div>
-                      <h2 className="text-4xl font-display font-black uppercase italic tracking-tighter text-slate-900 leading-none">{t('videos_tab', 'Videos')}</h2>
+                      <h2 className="text-4xl font-display font-black uppercase italic tracking-tighter text-slate-900 leading-none">{t('videos_tab', i18n.language === 'ar' ? 'دورات' : 'Courses')}</h2>
                       <div className="h-1.5 w-16 bg-brand-blue rounded-full mt-3"></div>
                     </div>
                     {isTeacherView && (
-                      <label className="flex items-center gap-2 px-4 py-2 bg-brand-blue text-white rounded-xl font-black uppercase tracking-widest text-[10px] cursor-pointer shadow-lg shadow-brand-blue/20 hover:scale-[1.02] active:scale-[0.98] transition-all">
-                        {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                        <span>{t('upload_video', 'Upload Video')}</span>
-                        <input type="file" accept="video/*" className="hidden" onChange={handleVideoUpload} disabled={isUploading} />
-                      </label>
+                      <button
+                        onClick={() => setShowAddBunnyModal(true)}
+                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-600 text-white rounded-xl font-black uppercase tracking-widest text-[10px] cursor-pointer shadow-lg shadow-orange-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                      >
+                        <Film className="h-4 w-4" />
+                        <span>{i18n.language === 'ar' ? 'إضافة فيديو Bunny.net' : 'Add Bunny Video'}</span>
+                      </button>
                     )}
                   </div>
 
                   <div className="flex-1 overflow-y-auto no-scrollbar pr-2">
                     <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                       {roomVideos.map((video: any) => (
-                        <div key={video.id} className="bg-slate-50 rounded-2xl border border-slate-100 group relative overflow-hidden flex flex-col">
-                          <div className="aspect-video bg-slate-900 relative">
-                            <video src={video.fileUrl} className="w-full h-full object-cover opacity-50" />
+                        <div key={video.id} className="bg-slate-50 rounded-2xl border border-slate-100 group relative overflow-hidden flex flex-col shadow-sm hover:shadow-md transition-all">
+                          <div 
+                            onClick={() => {
+                              setActiveVideoModalUrl(video.fileUrl);
+                              setActiveVideoModalTitle(video.message);
+                            }}
+                            className="aspect-video bg-slate-950 relative cursor-pointer overflow-hidden flex items-center justify-center"
+                          >
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/40" />
                             <div className="absolute inset-0 flex items-center justify-center">
-                              <a 
-                                href={video.fileUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="h-12 w-12 rounded-full bg-brand-blue text-white flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
+                              <button 
+                                type="button"
+                                className="h-12 w-12 rounded-full bg-brand-blue text-white flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform"
                               >
-                                <Play className="h-5 w-5 ml-1" />
-                              </a>
+                                <Play className="h-5 w-5 ml-1 fill-current" />
+                              </button>
                             </div>
+                            <span className="absolute top-2 left-2 bg-orange-500/90 text-white text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full backdrop-blur-md">
+                              Bunny.net
+                            </span>
                           </div>
                           <div className="p-4 flex flex-col gap-1">
                             <h4 className="text-xs font-black uppercase text-slate-900 truncate" title={video.message}>{video.message}</h4>
@@ -1388,7 +1485,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                               <button 
                                 onClick={() => handleDeleteMessage(video.id)}
-                                className="h-8 w-8 bg-red-500 text-white rounded-lg flex items-center justify-center shadow-lg hover:bg-red-600 transition-colors"
+                                className="h-8 w-8 bg-red-500 text-white rounded-lg flex items-center justify-center shadow-lg hover:bg-red-600 transition-colors cursor-pointer"
                               >
                                 <Trash2 className="h-4 w-4" />
                               </button>
@@ -1399,7 +1496,7 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                         
                       {roomVideos.length === 0 && (
                         <div className="col-span-full py-20 flex flex-col items-center justify-center text-center space-y-4 opacity-50">
-                          <Video className="h-12 w-12 text-slate-200" />
+                          <Film className="h-12 w-12 text-slate-300" />
                           <p className="text-xs font-black uppercase tracking-widest text-slate-400 italic">{t('no_videos_yet', 'No videos shared yet')}</p>
                         </div>
                       )}
@@ -1423,21 +1520,20 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                             animate={{ opacity: 1, y: 0 }}
                             className="bg-white border border-slate-100 rounded-3xl p-6 shadow-[0_4px_20px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_32px_rgba(0,0,0,0.06)] transition-all group"
                           >
-                            <div className="aspect-video bg-slate-900 rounded-2xl mb-4 relative overflow-hidden flex items-center justify-center">
-                              <video 
-                                src={recording.video_url} 
-                                className="w-full h-full object-cover"
-                                controls={false}
-                              />
-                              <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                <a 
-                                  href={recording.video_url} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  className="h-12 w-12 bg-white rounded-full flex items-center justify-center text-brand-blue shadow-xl scale-90 group-hover:scale-100 transition-transform"
+                            <div 
+                              onClick={() => {
+                                setActiveVideoModalUrl(recording.video_url);
+                                setActiveVideoModalTitle(recording.live_session?.title || "Live Recording");
+                              }}
+                              className="aspect-video bg-slate-950 rounded-2xl mb-4 relative overflow-hidden flex items-center justify-center cursor-pointer"
+                            >
+                              <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-90 group-hover:opacity-100 transition-opacity">
+                                <button 
+                                  type="button"
+                                  className="h-12 w-12 bg-white rounded-full flex items-center justify-center text-brand-blue shadow-xl scale-90 group-hover:scale-100 transition-transform cursor-pointer"
                                 >
                                   <Play className="h-6 w-6 fill-current" />
-                                </a>
+                                </button>
                               </div>
                             </div>
                             <div>
@@ -1753,6 +1849,136 @@ export default function StreamPlayer({ room, session, profile, onClose, isTeache
                     </div>
                   )}
                 </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* Active Bunny Video Playback Overlay Modal */}
+        <AnimatePresence>
+          {activeVideoModalUrl && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-md">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="relative w-full max-w-4xl bg-slate-900 rounded-3xl overflow-hidden shadow-2xl border border-slate-800 flex flex-col max-h-[92vh]"
+              >
+                <div className="p-4 bg-slate-950/90 border-b border-slate-800 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5 overflow-hidden">
+                    <div className="p-2 bg-orange-500/20 text-orange-400 rounded-xl">
+                      <Film className="h-5 w-5" />
+                    </div>
+                    <div className="overflow-hidden">
+                      <h3 className="text-sm font-bold text-white truncate max-w-md">
+                        {activeVideoModalTitle || "Bunny.net Stream Player"}
+                      </h3>
+                      <p className="text-[10px] text-orange-400 font-bold uppercase tracking-wider">
+                        Bunny.net High Performance Player
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => { setActiveVideoModalUrl(null); setActiveVideoModalTitle(null); }}
+                    className="p-2 hover:bg-slate-800 text-slate-400 hover:text-white rounded-full transition-colors cursor-pointer"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+                <div className="p-2 sm:p-4 bg-slate-950 flex-1 flex items-center justify-center">
+                  <BunnyVideoPlayer
+                    url={activeVideoModalUrl}
+                    title={activeVideoModalTitle || ""}
+                    autoPlay={true}
+                  />
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* Add Bunny Video Modal */}
+        <AnimatePresence>
+          {showAddBunnyModal && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 20 }}
+                className="w-full max-w-lg bg-white rounded-3xl p-6 shadow-2xl border border-slate-100 space-y-5"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-orange-50 text-orange-600 rounded-2xl">
+                      <Film className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-black uppercase tracking-tight text-slate-900">
+                        {i18n.language === 'ar' ? 'إضافة فيديو Bunny.net Stream' : 'Add Bunny.net Video'}
+                      </h3>
+                      <p className="text-[10px] font-medium text-slate-400">
+                        {i18n.language === 'ar' ? 'أدخل رابط أو كود الفيديو من مكتبة Bunny.net' : 'Enter Bunny.net video link or embed URL'}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowAddBunnyModal(false)}
+                    className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+
+                <form onSubmit={handleAddBunnyVideo} className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-1">
+                      {i18n.language === 'ar' ? 'عنوان الفيديو / الدرس' : 'Video Title'}
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder={i18n.language === 'ar' ? 'مثال: الدرس الأول - الرياضيات' : 'e.g. Lesson 1 - Algebra'}
+                      value={bunnyTitleInput}
+                      onChange={(e) => setBunnyTitleInput(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold text-slate-800 focus:outline-none focus:border-brand-blue"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-1">
+                      {i18n.language === 'ar' ? 'رابط الفيديو من Bunny.net (Direct URL or Embed iframe link)' : 'Bunny Video URL / Embed Link'}
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="https://iframe.mediadelivery.net/embed/LIBRARY_ID/VIDEO_ID or https://vz-xxx.b-cdn.net/VIDEO_ID/play_480p.mp4"
+                      value={bunnyUrlInput}
+                      onChange={(e) => setBunnyUrlInput(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-mono text-slate-800 focus:outline-none focus:border-brand-blue"
+                    />
+                  </div>
+
+                  <div className="pt-2 flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setShowAddBunnyModal(false)}
+                      className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs uppercase rounded-xl transition-all"
+                    >
+                      {i18n.language === 'ar' ? 'إلغاء' : 'Cancel'}
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isUploading}
+                      className="flex-1 py-3 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      {isUploading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <span>{i18n.language === 'ar' ? 'إضافة الفيديو' : 'Add Video'}</span>
+                      )}
+                    </button>
+                  </div>
+                </form>
               </motion.div>
             </div>
           )}

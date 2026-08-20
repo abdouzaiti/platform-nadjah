@@ -61,7 +61,7 @@ export default function RoomSidebar({ isOpen, onToggle, activeTab, setActiveTab,
             { id: "group_chat", icon: Users, label: t('group_chat', 'Group Chat') },
             { id: "private_chat", icon: MessageCircle, label: t('private_chat', 'Ask Teacher') },
             { id: "files", icon: FileText, label: t('files', 'Files & Docs') },
-            { id: "videos", icon: Video, label: t('videos_tab', 'Videos') },
+            { id: "videos", icon: Video, label: t('videos_tab', lang === 'ar' ? 'دورات' : 'Courses') },
             { id: "recordings", icon: Save, label: t('recordings', 'Recordings') },
             { id: "live", icon: Radio, label: t('live', 'Live') }
           ].map(item => (
@@ -130,7 +130,7 @@ export default function RoomSidebar({ isOpen, onToggle, activeTab, setActiveTab,
           { id: "group_chat", icon: Users, label: t('chat_nav', 'Chat') },
           { id: "private_chat", icon: MessageCircle, label: t('private_chat', 'Ask Teacher') },
           { id: "files", icon: FileText, label: t('files_nav', 'Files') },
-          { id: "videos", icon: Video, label: t('videos_tab', 'Videos') },
+          { id: "videos", icon: Video, label: t('videos_tab', lang === 'ar' ? 'دورات' : 'Courses') },
           { id: "announcements", icon: Megaphone, label: t('announcements_nav', 'Announcements') },
           { id: "recordings", icon: Save, label: t('recordings', 'Recordings') }
         ].map((item) => {

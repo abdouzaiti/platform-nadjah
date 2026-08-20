@@ -12,7 +12,8 @@ export const createAgoraClient = () => {
 };
 
 export const createRTMClient = (uid: string) => {
-  return new AgoraRTM.RTM(APP_ID, uid);
+  const cleanUid = String(uid).replace(/[^a-zA-Z0-9_-]/g, "_");
+  return new AgoraRTM.RTM(APP_ID, cleanUid);
 };
 
 export const joinChannel = async (
@@ -65,35 +66,42 @@ export const createTracks = async (facingMode: "user" | "environment" = "user") 
       { 
         facingMode, 
         encoderConfig: {
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
           frameRate: { ideal: 30 },
-          bitrateMin: 1500,
-          bitrateMax: 3000
+          bitrateMin: 1000,
+          bitrateMax: 2500
         },
         optimizationMode: "detail",
       }
     );
     return { audioTrack, videoTrack };
   } catch (err: any) {
-    console.error("Agora Full Track Creation Error:", err);
+    console.warn("Agora Combined Track Creation Warning:", err);
     
-    // Fallback: Try just microphone if camera fails (common for some setups)
-    if (err.name === "NotFoundError" || err.message?.includes("DEVICE_NOT_FOUND")) {
-      try {
-        console.log("Attempting microphone-only fallback...");
-        const audioTrack = await AgoraRTC.createMicrophoneAudioTrack();
-        return { audioTrack, videoTrack: null };
-      } catch (micErr) {
-        console.error("Mic-only fallback failed:", micErr);
-      }
+    // Fallback 1: Try just microphone if camera or combined fails
+    try {
+      console.log("Attempting microphone-only fallback...");
+      const audioTrack = await AgoraRTC.createMicrophoneAudioTrack();
+      return { audioTrack, videoTrack: null };
+    } catch (micErr) {
+      console.warn("Mic-only fallback failed:", micErr);
+    }
+
+    // Fallback 2: Try just camera if mic or combined fails
+    try {
+      console.log("Attempting camera-only fallback...");
+      const videoTrack = await AgoraRTC.createCameraVideoTrack({ facingMode });
+      return { audioTrack: null, videoTrack };
+    } catch (camErr) {
+      console.warn("Camera-only fallback failed:", camErr);
     }
     
     let message = "Failed to access camera or microphone.";
     
-    if (err.name === "NotAllowedError" || err.message?.includes("Permission denied")) {
+    if (err.name === "NotAllowedError" || err.message?.includes("Permission denied") || err.code === "PERMISSION_DENIED") {
       message = "Permission Denied: Please click 'Allow' when your browser asks for camera access. If you're in an app preview, try opening the app in a 'New Tab'.";
-    } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
+    } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError" || err.message?.includes("DEVICE_NOT_FOUND")) {
       message = "No Devices Found: We couldn't detect a camera or microphone. Please plug them in and try again.";
     } else if (err.name === "NotReadableError" || err.name === "TrackStartError") {
       message = "Hardware In Use: Your camera or microphone is being used by another application (like Zoom or Teams).";

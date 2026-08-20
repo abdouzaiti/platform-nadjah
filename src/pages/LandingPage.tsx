@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { useTranslation } from "react-i18next";
-import { Users, BookOpen, ArrowRight, School, Globe, Search, PlayCircle } from "lucide-react";
+import { Users, BookOpen, ArrowRight, School, Globe, Search, PlayCircle, User } from "lucide-react";
 import { motion } from "motion/react";
 import { cn } from "../lib/utils";
 import TeacherProfileModal from "../components/TeacherProfileModal";
@@ -166,8 +166,11 @@ export default function LandingPage({ onJoinClick }: { onJoinClick: () => void }
                 transition={{ delay: idx * 0.1 }}
                 className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm hover:shadow-xl hover:border-brand-blue/30 transition-all group flex flex-col h-full"
               >
-                <div className="flex items-start gap-4 mb-4 cursor-pointer" onClick={() => setSelectedTeacher({ ...community.teacher, id: community.teacher.id || community.teacher_id })}>
-                  <div className="h-14 w-14 rounded-2xl bg-slate-100 flex items-center justify-center shrink-0 overflow-hidden border border-slate-200">
+                <div className="flex items-start gap-4 mb-4">
+                  <div 
+                    onClick={() => setSelectedTeacher({ ...community.teacher, id: community.teacher.id || community.teacher_id })}
+                    className="h-14 w-14 rounded-2xl bg-slate-100 flex items-center justify-center shrink-0 overflow-hidden border border-slate-200 cursor-pointer hover:ring-2 hover:ring-brand-blue transition-all"
+                  >
                     {community.teacher.avatar_url ? (
                       <img src={community.teacher.avatar_url} alt={community.teacher.fullname} className="w-full h-full object-cover" />
                     ) : (
@@ -178,7 +181,15 @@ export default function LandingPage({ onJoinClick }: { onJoinClick: () => void }
                     <h3 className="font-bold text-lg text-slate-900 truncate" title={community.community_name}>
                       {community.community_name}
                     </h3>
-                    <p className="text-sm text-slate-500 truncate">{community.teacher.fullname}</p>
+                    <button
+                      onClick={() => setSelectedTeacher({ ...community.teacher, id: community.teacher.id || community.teacher_id })}
+                      className="text-xs font-bold text-brand-blue hover:text-blue-700 flex items-center gap-1 mt-0.5 cursor-pointer"
+                    >
+                      <span>{community.teacher.fullname}</span>
+                      <span className="bg-blue-50 text-brand-blue text-[10px] px-2 py-0.5 rounded-full border border-blue-100">
+                        {i18n.language === 'ar' ? 'الملف الشخصي' : 'Profile'}
+                      </span>
+                    </button>
                   </div>
                 </div>
                 
@@ -187,10 +198,13 @@ export default function LandingPage({ onJoinClick }: { onJoinClick: () => void }
                 </p>
                 
                 <div className="flex items-center justify-between pt-4 border-t border-slate-100">
-                  <div className="flex items-center gap-1.5 text-brand-blue bg-blue-50 px-3 py-1.5 rounded-lg">
-                    <School className="h-4 w-4" />
-                    <span className="text-xs font-bold">{i18n.language === 'ar' ? 'مجتمع تعليمي' : 'Educational Community'}</span>
-                  </div>
+                  <button 
+                    onClick={() => setSelectedTeacher({ ...community.teacher, id: community.teacher.id || community.teacher_id })}
+                    className="flex items-center gap-1.5 text-slate-700 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-xl font-bold text-xs transition-all cursor-pointer shadow-xs"
+                  >
+                    <User className="h-4 w-4 text-brand-blue" />
+                    <span>{i18n.language === 'ar' ? 'الملف الشخصي' : 'View Profile'}</span>
+                  </button>
                   <button 
                     onClick={() => setSelectedTeacher({ ...community.teacher, id: community.teacher.id || community.teacher_id })}
                     className="flex items-center gap-1.5 text-brand-blue font-bold text-sm hover:text-blue-700 transition-colors group-hover:translate-x-1 cursor-pointer"

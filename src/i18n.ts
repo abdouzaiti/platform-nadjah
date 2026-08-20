@@ -5,6 +5,7 @@ import LanguageDetector from 'i18next-browser-languagedetector';
 const resources = {
   ar: {
     translation: {
+      "videos_tab": "دورات",
       "app_name": "نجاح لايف",
       "login_title": "مدرسة نجاح",
       "login_subtitle": "منصة البث الأكاديمي المتقدمة",
@@ -136,6 +137,7 @@ const resources = {
   },
   en: {
     translation: {
+      "videos_tab": "Courses",
       "app_name": "Nadjah Live",
       "login_title": "Ecole Nadjah",
       "login_subtitle": "Advanced Academic Streaming Platform",
@@ -267,6 +269,7 @@ const resources = {
   },
   fr: {
     translation: {
+      "videos_tab": "Cours",
       "app_name": "Nadjah Live",
       "login_title": "École Nadjah",
       "login_subtitle": "Plateforme de streaming académique avancée",
